@@ -1,0 +1,5 @@
+# control_brace_style = 'ClosingNextLine'
+combine_control_expr = false
+edition = "2018"
+force_multiline_blocks = true
+format_code_in_doc_comments = true
