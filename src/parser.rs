@@ -2,26 +2,35 @@ use crate::lexer::{Lexer, Literal, Token};
 
 #[derive(Debug)]
 pub enum ASTNode {
-    Enum {
-        id: String,
-        items: Vec<EnumItemASTNode>,
-    },
-    ValueEnum {
-        id: String,
-        items: Vec<IdValuePair>,
-    },
+    Enum(EnumASTNode),
+    ValueEnum(ValueEnumASTNode),
     Struct(StructASTNode),
-    Fn {
-        id: String,
-        args: Vec<FnArgASTNode>,
-        return_type_id: TypeIDASTNode,
-    },
+    Fn(FnASTNode),
+}
+
+#[derive(Debug)]
+pub struct EnumASTNode {
+    pub id: String,
+    pub items: Vec<EnumItemASTNode>,
+}
+
+#[derive(Debug)]
+pub struct ValueEnumASTNode {
+    pub id: String,
+    pub items: Vec<IdValuePair>,
 }
 
 #[derive(Debug)]
 pub struct StructASTNode {
     pub id: String,
     pub fields: Vec<StructFieldASTNode>,
+}
+
+#[derive(Debug)]
+pub struct FnASTNode {
+    pub id: String,
+    pub args: Vec<FnArgASTNode>,
+    pub return_type_id: TypeIDASTNode,
 }
 
 #[derive(Debug)]
@@ -192,7 +201,7 @@ pub fn parse_enum_items(id: String, lexer: &mut Lexer) -> ASTNode {
         lexer.next_token();
     }
 
-    ASTNode::Enum { id, items }
+    ASTNode::Enum(EnumASTNode { id, items })
 }
 
 pub fn parse_struct_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumItemASTNode {
@@ -265,7 +274,7 @@ pub fn parse_enum_value_items(id: String, lexer: &mut Lexer) -> ASTNode {
         lexer.next_token();
     }
 
-    ASTNode::ValueEnum { id, items }
+    ASTNode::ValueEnum(ValueEnumASTNode { id, items })
 }
 
 pub fn parse_struct_parameters(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
@@ -368,11 +377,11 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
     }
     lexer.next_token();
 
-    ASTNode::Fn {
+    ASTNode::Fn(FnASTNode {
         id,
         args,
         return_type_id,
-    }
+    })
 }
 
 pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
@@ -434,7 +443,7 @@ mod tests {
 
         for node in ast {
             match node {
-                ASTNode::Enum { id, items } => {
+                ASTNode::Enum(EnumASTNode { id, items }) => {
                     let mut items_res = String::new();
 
                     for item in items {
@@ -480,7 +489,7 @@ mod tests {
                         id, items_res
                     );
                 }
-                ASTNode::ValueEnum { id, items } => {
+                ASTNode::ValueEnum(ValueEnumASTNode { id, items }) => {
                     let mut items_res = String::new();
 
                     for item in items {
@@ -504,11 +513,11 @@ mod tests {
                         id, fields_res
                     );
                 }
-                ASTNode::Fn {
+                ASTNode::Fn(FnASTNode {
                     id,
                     args,
                     return_type_id,
-                } => {
+                }) => {
                     let mut args_res = String::new();
 
                     for arg in args {

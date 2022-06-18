@@ -1,4 +1,4 @@
-use crate::parser::{ASTNode, StructASTNode, StructFieldASTNode, TypeIDASTNode};
+use crate::{lexer::Literal, parser::{ASTNode, ConstValueASTNode, EnumASTNode, EnumItemASTNode, StructASTNode, StructFieldASTNode, TupleFieldASTNode, TypeIDASTNode, ValueEnumASTNode}};
 
 pub struct Writer {
     res: String,
@@ -63,13 +63,9 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
     for node in ast {
         match node {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node)),
-            ASTNode::Enum { id: _, items: _ } => todo!(),
-            ASTNode::ValueEnum { id: _, items: _ } => todo!(),
-            ASTNode::Fn {
-                id: _,
-                args: _,
-                return_type_id: _,
-            } => todo!(),
+            ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
+            ASTNode::ValueEnum(node) => writer.writeln(&gnerate_value_enum_model(node)),
+            ASTNode::Fn(_) => (),
         }
     }
 
@@ -86,10 +82,10 @@ pub fn generate_struct_model(node: &StructASTNode) -> String {
     let mut writer = Writer::new();
 
     if node.fields.is_empty() {
-        writer.writeln("#[derive(Debug, Copy, Clone, PartialEq)]");
+        writer.writeln("#[derive(Debug, Clone, PartialEq)]");
         writer.writeln(&format!("pub struct {};", node.id));
     } else {
-        writer.writeln("#[derive(Debug, Copy, Clone, PartialEq)]");
+        writer.writeln("#[derive(Debug, Clone, PartialEq)]");
         writer.writeln(&format!("pub struct {} {{", node.id));
         writer.write(&generate_struct_parameters(1, &node.fields));
         writer.writeln("}");
@@ -109,10 +105,86 @@ pub fn generate_struct_parameters(tab: i32, params: &[StructFieldASTNode]) -> St
     writer.show().to_string()
 }
 
+pub fn generate_tuple_parameters(tab: i32, params: &[TupleFieldASTNode]) -> String {
+    let mut writer = Writer::new();
+
+    for param in params {
+        let type_id = generate_type_id(&param.type_id);
+        writer.writeln_tab(tab, &format!("{},", type_id));
+    }
+
+    writer.show().to_string()
+}
+
 pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Primitive { id } => id.clone(),
         TypeIDASTNode::Generic { id: _, generics: _ } => todo!(),
+    }
+}
+
+pub fn gnerate_value_enum_model(node: &ValueEnumASTNode) -> String {
+    let mut writer = Writer::new();
+
+    writer.writeln("#[derive(Debug, Clone, PartialEq)]");
+    writer.writeln(&format!("pub enum {} {{", node.id));
+
+    for item in node.items.iter() {
+        writer.writeln_tab(
+            1,
+            &format!("{} = {},", item.id, generate_const_value(&item.value)),
+        );
+    }
+
+    writer.writeln("}");
+    writer.show().to_string()
+}
+
+pub fn generate_enum_model(node: &EnumASTNode) -> String {
+    let mut writer = Writer::new();
+
+    writer.writeln("#[derive(Debug, Clone, PartialEq)]");
+    writer.writeln(&format!("pub enum {} {{", node.id));
+
+    for item in node.items.iter() {
+        match item {
+            EnumItemASTNode::Empty { position: _, id } => {
+                writer.writeln_tab(1, &format!("{},", id))
+            }
+            EnumItemASTNode::Tuple {
+                position: _,
+                id,
+                values,
+            } => {
+                writer.writeln_tab(1, &format!("{}(", id));
+                writer.write(&generate_tuple_parameters(2, values));
+                writer.writeln_tab(1, "),");
+            }
+            EnumItemASTNode::Struct {
+                position: _,
+                id,
+                fields,
+            } => {
+                writer.writeln_tab(1, &format!("{} {{", id));
+                writer.write(&generate_struct_parameters(2, fields));
+                writer.writeln_tab(1, "},");
+            }
+        }
+    }
+
+    writer.writeln("}");
+    writer.show().to_string()
+}
+
+pub fn generate_const_value(node: &ConstValueASTNode) -> String {
+    match node {
+        ConstValueASTNode::Literal(literal) => {
+            match literal {
+                Literal::StringLiteral(value) => format!("\"{}\"", value),
+                Literal::IntLiteral(value) => format!("{}", value),
+                Literal::NumberLiteral(value) => format!("{}", value),
+            }
+        }
     }
 }
 
@@ -161,6 +233,28 @@ mod tests {
     fn generate_two_structs_models() {
         let src = fs::read_to_string("test_resources/two_empty_structs.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/two_empty_structs_models.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_value_enum_models() {
+        let src = fs::read_to_string("test_resources/enum_value.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/enum_value_models.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_complex_enum_models() {
+        let src = fs::read_to_string("test_resources/enum_complex.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/enum_complex_models.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_models(&ast);
