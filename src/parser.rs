@@ -64,12 +64,23 @@ pub struct IdValuePair {
 
 #[derive(Debug)]
 pub enum TypeIDASTNode {
-    Primitive {
+    Integer {
+        id: String,
+        size: usize,
+        signed: bool,
+    },
+    Number {
+        id: String,
+        size: usize,
+    },
+    Bool {
         id: String,
     },
-    Generic {
+    Char {
         id: String,
-        generics: Vec<TypeIDASTNode>,
+    },
+    Other {
+        id: String,
     },
 }
 
@@ -336,7 +347,56 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
         panic!("Expected string value, but got {:?}", lexer.current_token());
     };
     lexer.next_token();
-    TypeIDASTNode::Primitive { id: name }
+
+    match name.as_str() {
+        "i8" => {
+            TypeIDASTNode::Integer {
+                id: name,
+                size: 1,
+                signed: true,
+            }
+        }
+        "i32" => {
+            TypeIDASTNode::Integer {
+                id: name,
+                size: 4,
+                signed: true,
+            }
+        }
+        "i64" => {
+            TypeIDASTNode::Integer {
+                id: name,
+                size: 8,
+                signed: true,
+            }
+        }
+        "u8" => {
+            TypeIDASTNode::Integer {
+                id: name,
+                size: 1,
+                signed: false,
+            }
+        }
+        "u32" => {
+            TypeIDASTNode::Integer {
+                id: name,
+                size: 4,
+                signed: false,
+            }
+        }
+        "u64" => {
+            TypeIDASTNode::Integer {
+                id: name,
+                size: 8,
+                signed: false,
+            }
+        }
+        "f32" => TypeIDASTNode::Number { id: name, size: 4 },
+        "f64" => TypeIDASTNode::Number { id: name, size: 8 },
+        "char" => TypeIDASTNode::Char { id: name },
+        "bool" => TypeIDASTNode::Bool { id: name },
+        _ => TypeIDASTNode::Other { id: name },
+    }
 }
 
 pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {

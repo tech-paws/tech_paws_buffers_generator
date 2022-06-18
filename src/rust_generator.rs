@@ -1,4 +1,10 @@
-use crate::{lexer::Literal, parser::{ASTNode, ConstValueASTNode, EnumASTNode, EnumItemASTNode, StructASTNode, StructFieldASTNode, TupleFieldASTNode, TypeIDASTNode, ValueEnumASTNode}};
+use crate::{
+    lexer::Literal,
+    parser::{
+        ASTNode, ConstValueASTNode, EnumASTNode, EnumItemASTNode, StructASTNode,
+        StructFieldASTNode, TupleFieldASTNode, TypeIDASTNode, ValueEnumASTNode,
+    },
+};
 
 pub struct Writer {
     res: String,
@@ -54,6 +60,10 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, _rpc: bool) -> Str
         writer.write(&generate_models(ast));
     }
 
+    if buffers {
+        writer.write(&generate_buffers(ast));
+    }
+
     writer.show().to_string()
 }
 
@@ -65,6 +75,27 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node)),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
             ASTNode::ValueEnum(node) => writer.writeln(&gnerate_value_enum_model(node)),
+            ASTNode::Fn(_) => (),
+        }
+    }
+
+    let mut res = writer.show().to_string();
+
+    if res.ends_with("\n\n") {
+        res.pop();
+    }
+
+    res
+}
+
+pub fn generate_buffers(ast: &[ASTNode]) -> String {
+    let mut writer = Writer::new();
+
+    for node in ast {
+        match node {
+            ASTNode::Struct(node) => writer.writeln(&generate_struct_buffers(node)),
+            ASTNode::Enum(_) => todo!(),
+            ASTNode::ValueEnum(_) => todo!(),
             ASTNode::Fn(_) => (),
         }
     }
@@ -118,8 +149,15 @@ pub fn generate_tuple_parameters(tab: i32, params: &[TupleFieldASTNode]) -> Stri
 
 pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
     match type_id {
-        TypeIDASTNode::Primitive { id } => id.clone(),
-        TypeIDASTNode::Generic { id: _, generics: _ } => todo!(),
+        TypeIDASTNode::Integer {
+            id,
+            size: _,
+            signed: _,
+        } => id.clone(),
+        TypeIDASTNode::Number { id, size: _ } => id.clone(),
+        TypeIDASTNode::Bool { id } => id.clone(),
+        TypeIDASTNode::Char { id } => id.clone(),
+        TypeIDASTNode::Other { id } => id.clone(),
     }
 }
 
@@ -184,6 +222,102 @@ pub fn generate_const_value(node: &ConstValueASTNode) -> String {
                 Literal::IntLiteral(value) => format!("{}", value),
                 Literal::NumberLiteral(value) => format!("{}", value),
             }
+        }
+    }
+}
+
+pub fn generate_struct_buffers(node: &StructASTNode) -> String {
+    let mut writer = Writer::new();
+
+    writer.writeln(&format!("impl IntoVMBuffers for {} {{", node.id));
+
+    if node.fields.is_empty() {
+        writer.writeln_tab(1, "fn read_from_buffers(_: &mut BytesReader) -> Self {");
+        writer.writeln_tab(2, &node.id);
+        writer.writeln_tab(1, "}");
+        writer.writeln("");
+        writer.writeln_tab(1, "fn write_to_buffers(&self, _: &mut BytesWriter) {}");
+        writer.writeln("");
+        writer.writeln_tab(1, "fn skip(_: &mut BytesReader, _: u64) {}");
+    } else {
+        writer.writeln_tab(
+            1,
+            "fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {",
+        );
+
+        writer.writeln_tab(2, "Self {");
+
+        for field in node.fields.iter() {
+            writer.writeln_tab(
+                3,
+                &format!("{}: {},", field.name, generate_read(&field.type_id)),
+            );
+        }
+
+        writer.writeln_tab(2, "}");
+        writer.writeln_tab(1, "}");
+
+        writer.writeln("");
+
+        writer.writeln_tab(
+            1,
+            "fn write_to_buffers(&self, bytes_writer: &mut BytesWriter) {",
+        );
+
+        for field in node.fields.iter() {
+            writer.writeln_tab(
+                2,
+                &generate_write(&field.type_id, &format!("self.{}", field.name)),
+            );
+        }
+
+        writer.writeln_tab(1, "}");
+
+        writer.writeln("");
+        writer.writeln_tab(1, "fn skip(bytes_reader: &mut BytesReader, count: u64) {");
+        writer.writeln_tab(2, "for _ in 0..count {");
+
+        for field in node.fields.iter() {
+            writer.writeln_tab(3, &format!("{};", generate_read(&field.type_id)));
+        }
+
+        writer.writeln_tab(2, "}");
+        writer.writeln_tab(1, "}");
+    }
+
+    writer.writeln("}");
+
+    writer.show().to_string()
+}
+
+pub fn generate_read(type_id: &TypeIDASTNode) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id,
+            size: _,
+            signed: _,
+        } => format!("bytes_reader.read_{}()", id),
+        TypeIDASTNode::Number { id, size: _ } => format!("bytes_reader.read_{}()", id),
+        TypeIDASTNode::Bool { id } => format!("bytes_reader.read_{}()", id),
+        TypeIDASTNode::Char { id } => format!("bytes_reader.read_{}()", id),
+        TypeIDASTNode::Other { id } => format!("{}::read_from_buffers(bytes_reader)", id),
+    }
+}
+
+pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id,
+            size: _,
+            signed: _,
+        } => format!("bytes_writer.write_{}({});", id, accessor),
+        TypeIDASTNode::Number { id, size: _ } => {
+            format!("bytes_writer.write_{}({});", id, accessor)
+        }
+        TypeIDASTNode::Bool { id } => format!("bytes_writer.write_{}({});", id, accessor),
+        TypeIDASTNode::Char { id } => format!("bytes_writer.write_{}({});", id, accessor),
+        TypeIDASTNode::Other { id: _ } => {
+            format!("{}.write_to_buffers(bytes_writer);", accessor)
         }
     }
 }
@@ -258,6 +392,78 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_models(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_empty_struct_buffers() {
+        let src = fs::read_to_string("test_resources/empty_struct.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/empty_struct_buffers.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_buffers(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_struct_with_parameters_buffer() {
+        let src = fs::read_to_string("test_resources/struct_with_parameters.tpb").unwrap();
+        let target =
+            fs::read_to_string("test_resources/rust/struct_with_parameters_buffers.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_buffers(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_struct_with_external_type_buffer() {
+        let src = fs::read_to_string("test_resources/struct_with_external_type.tpb").unwrap();
+        let target =
+            fs::read_to_string("test_resources/rust/struct_with_external_type_buffers.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_buffers(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    #[ignore]
+    fn generate_two_structs_buffers() {
+        let src = fs::read_to_string("test_resources/two_empty_structs.tpb").unwrap();
+        let target =
+            fs::read_to_string("test_resources/rust/two_empty_structs_buffers.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_buffers(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    #[ignore]
+    fn generate_value_enum_buffers() {
+        let src = fs::read_to_string("test_resources/enum_value.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/enum_value_buffers.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_buffers(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    #[ignore]
+    fn generate_complex_enum_buffers() {
+        let src = fs::read_to_string("test_resources/enum_complex.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/enum_complex_buffers.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_buffers(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }

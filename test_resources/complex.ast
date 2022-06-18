@@ -16,17 +16,17 @@ Enum {
       position: 2,
       id: "Move",
       fields: [
-        StructFieldASTNode { position: 1, name: "x", type_id: Primitive { id: "f64" } }
-        StructFieldASTNode { position: 2, name: "y", type_id: Primitive { id: "f64" } }
+        StructFieldASTNode { position: 1, name: "x", type_id: Number { id: "f64", size: 8 } }
+        StructFieldASTNode { position: 2, name: "y", type_id: Number { id: "f64", size: 8 } }
       ]
     }
     TupleFieldASTNode {
       position: 3,
       id: "Update",
       items: [
-        TupleFieldASTNode { position: 1, type_id: Primitive { id: "f64" } }
-        TupleFieldASTNode { position: 2, type_id: Primitive { id: "f64" } }
-        TupleFieldASTNode { position: 4, type_id: Primitive { id: "String" } }
+        TupleFieldASTNode { position: 1, type_id: Number { id: "f64", size: 8 } }
+        TupleFieldASTNode { position: 2, type_id: Number { id: "f64", size: 8 } }
+        TupleFieldASTNode { position: 4, type_id: Other { id: "String" } }
       ]
     }
   ]
@@ -34,22 +34,22 @@ Enum {
 Struct {
   id: "ViewData",
   fields: [
-    StructFieldASTNode { position: 1, name: "delta_time", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 2, name: "view_width", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 3, name: "view_height", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 4, name: "touch_start_x", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 5, name: "touch_start_y", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 6, name: "last_touch_x", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 7, name: "last_touch_y", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 8, name: "touch_x", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 9, name: "touch_y", type_id: Primitive { id: "f32" } }
-    StructFieldASTNode { position: 10, name: "touch_status", type_id: Primitive { id: "TouchStatus" } }
+    StructFieldASTNode { position: 1, name: "delta_time", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 2, name: "view_width", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 3, name: "view_height", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 4, name: "touch_start_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 5, name: "touch_start_y", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 6, name: "last_touch_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 7, name: "last_touch_y", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 8, name: "touch_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 9, name: "touch_y", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { position: 10, name: "touch_status", type_id: Other { id: "TouchStatus" } }
   ]
 }
 Fn {
   id: "say_hello",
-  return_type_id: Primitive { id: "String" },
+  return_type_id: Other { id: "String" },
   args: [
-    FnArgASTNode { id: "name", type_id: Primitive { id: "String" } }
+    FnArgASTNode { id: "name", type_id: Other { id: "String" } }
   ]
 }
