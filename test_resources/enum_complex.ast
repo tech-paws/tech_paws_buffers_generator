@@ -1,0 +1,23 @@
+Enum {
+  id: "ComplexEnum",
+  items: [
+    Empty { position: 1, id: "Idle" }
+    EnumItemASTNode {
+      position: 2,
+      id: "Move",
+      fields: [
+        StructFieldASTNode { position: 1, name: "x", type_id: Primitive { id: "f64" } }
+        StructFieldASTNode { position: 2, name: "y", type_id: Primitive { id: "f64" } }
+      ]
+    }
+    TupleFieldASTNode {
+      position: 3,
+      id: "Update",
+      items: [
+        TupleFieldASTNode { position: 1, type_id: Primitive { id: "f64" } }
+        TupleFieldASTNode { position: 2, type_id: Primitive { id: "f64" } }
+        TupleFieldASTNode { position: 4, type_id: Primitive { id: "String" } }
+      ]
+    }
+  ]
+}
