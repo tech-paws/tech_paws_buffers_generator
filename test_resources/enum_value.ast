@@ -1,0 +1,10 @@
+ValueEnum {
+  id: "TouchStatus",
+  items: [
+    IdValuePair { id: "Cancel", value: Literal(IntLiteral(0)) }
+    IdValuePair { id: "Start", value: Literal(IntLiteral(1)) }
+    IdValuePair { id: "End", value: Literal(IntLiteral(2)) }
+    IdValuePair { id: "Down", value: Literal(IntLiteral(3)) }
+    IdValuePair { id: "Update", value: Literal(IntLiteral(4)) }
+  ]
+}
