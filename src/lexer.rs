@@ -1,14 +1,18 @@
-use std::rc::Rc;
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Struct,
+    Enum,
     ID { name: String },
-    StringLiteral { value: String },
-    IntLiteral { value: i64 },
-    NumberLiteral { value: f64 },
-    Symbol { value: char },
+    Literal(Literal),
+    Symbol(char),
     EOF,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    StringLiteral(String),
+    IntLiteral(i64),
+    NumberLiteral(f64),
 }
 
 pub struct Lexer {
@@ -45,27 +49,22 @@ impl Lexer {
         let mut tokens = Vec::with_capacity(100);
         let mut string_reader = StringReader::new(data);
 
-        loop {
-            if let Some(ch) = string_reader.current() {
-                if is_char_id(ch, true) {
-                    let token = lex_id(&mut string_reader);
-                    tokens.push(token);
-                } else if ch == '"' {
-                    let token = lex_string(&mut string_reader);
-                    tokens.push(token);
-                } else if is_char_number(ch) {
-                    let token = lex_number(&mut string_reader);
-                    tokens.push(token);
-                } else if ch == ' ' {
-                    string_reader.next();
-                    continue;
-                } else {
-                    tokens.push(Token::Symbol { value: ch });
-                }
-
+        while let Some(ch) = string_reader.current() {
+            if is_char_id(ch, true) {
+                let token = lex_id(&mut string_reader);
+                tokens.push(token);
+            } else if ch == '"' {
+                let token = lex_string(&mut string_reader);
+                tokens.push(token);
+            } else if is_char_number(ch) {
+                let token = lex_number(&mut string_reader);
+                tokens.push(token);
+            } else if ch == ' ' || ch == '\n' || ch == '\r' {
                 string_reader.next();
+                continue;
             } else {
-                break;
+                tokens.push(Token::Symbol(ch));
+                string_reader.next();
             }
         }
 
@@ -122,6 +121,7 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
 
     match name.as_str() {
         "struct" => Token::Struct,
+        "enum" => Token::Enum,
         _ => Token::ID { name },
     }
 }
@@ -137,29 +137,26 @@ fn lex_string(string_reader: &mut StringReader) -> Token {
         let current = string_reader.current().unwrap();
 
         if current == '"' {
+            string_reader.next();
             break;
         }
 
         value += &String::from(current);
         let next = string_reader.next();
 
-        if let Some(_) = next {
+        if next.is_some() {
             continue;
+        } else {
+            panic!("Expect '\"', but got EOF");
         }
     }
 
-    Token::StringLiteral { value }
+    Token::Literal(Literal::StringLiteral(value))
 }
 
-struct StateMachine {}
-
-enum StateOutput {
-    Transition { state: &'static str },
-    Finish { name: &'static str },
-    Error { message: &'static str },
-}
-
-// State machine
+// Possible state machine
+// for the future implementation
+// Right now only support int
 //
 //                                                +------------------+
 //                                 +---- other -> | Error            |
@@ -189,62 +186,26 @@ enum StateOutput {
 //
 fn lex_number(string_reader: &mut StringReader) -> Token {
     let mut value = String::new();
-    let mut current_state = 0;
-    let current = string_reader.current().unwrap();
 
-    let state_machine = StateMachine::new();
+    loop {
+        value += &String::from(string_reader.current().unwrap());
+        let next = string_reader.next();
 
-    state_machine.add_state('I', |ch| {
-        if ch == '0' {
-            StateOutput::Transition { state: "1" }
-        } else if is_char_number(ch) {
-            StateOutput::Transition { state: "4" }
-        } else {
-            StateOutput::Finish {
-                name: "Int literal (10)",
+        match next {
+            Some(ch) => {
+                if !is_char_number(ch) {
+                    break;
+                }
             }
+            None => break,
         }
-    });
-
-    state_machine.add_state('0', |ch| {
-        if ch == '0' {
-            StateOutput::Transition { state: "1" }
-        } else if is_char_number(ch) {
-            StateOutput::Transition { state: "4" }
-        } else {
-            StateOutput::Finish {
-                name: "Int literal (10)",
-            }
-        }
-    });
-
-    // let init_state: |char| -> ();
-
-    // init_state = Rc::new();
-
-    // current_state = init_state.clone();
-
-    // loop {
-    //     value += &String::from(string_reader.current().unwrap());
-    //     let next = string_reader.next();
-
-    //     match next {
-    //         Some(ch) => {
-    //             if !is_char_number(ch) {
-    //                 break;
-    //             }
-    //         }
-    //         None => break,
-    //     }
-    // }
-
-    Token::IntLiteral {
-        // TODO(sysint64): handle error
-        value: i64::from_str_radix(&value, 10).unwrap(),
     }
+
+    Token::Literal(Literal::IntLiteral(value.parse::<i64>().unwrap()))
 }
 
-mod test {
+#[cfg(test)]
+mod tests {
     use super::*;
 
     #[test]
@@ -278,6 +239,34 @@ mod test {
     }
 
     #[test]
+    fn lex_symbols() {
+        let mut lexer = Lexer::tokenize("#[]");
+        let token = lexer.current_token();
+        assert_eq!(token.clone(), Token::Symbol('#'));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Symbol('['));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Symbol(']'));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::EOF);
+    }
+
+    #[test]
+    fn lex_comb() {
+        let mut lexer = Lexer::tokenize("#[123]");
+        let token = lexer.current_token();
+        assert_eq!(token.clone(), Token::Symbol('#'));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Symbol('['));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Literal(Literal::IntLiteral(123)));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Symbol(']'));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::EOF);
+    }
+
+    #[test]
     fn lex_id() {
         let mut lexer = Lexer::tokenize("hello     world123");
         let token = lexer.current_token();
@@ -304,9 +293,7 @@ mod test {
         let token = lexer.current_token();
         assert_eq!(
             token.clone(),
-            Token::StringLiteral {
-                value: String::from("hello     world")
-            }
+            Token::Literal(Literal::StringLiteral(String::from("hello     world")),)
         );
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
@@ -316,7 +303,7 @@ mod test {
     fn lex_int_literal() {
         let mut lexer = Lexer::tokenize("123");
         let token = lexer.current_token();
-        assert_eq!(token.clone(), Token::IntLiteral { value: 123 });
+        assert_eq!(token.clone(), Token::Literal(Literal::IntLiteral(123)));
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }
@@ -326,11 +313,14 @@ mod test {
     fn lex_number_literal() {
         let mut lexer = Lexer::tokenize("123. 342.23 03.001");
         let token = lexer.current_token();
-        assert_eq!(token.clone(), Token::NumberLiteral { value: 123. });
+        assert_eq!(token.clone(), Token::Literal(Literal::NumberLiteral(123.)));
         let token = lexer.next_token();
-        assert_eq!(token.clone(), Token::NumberLiteral { value: 324.23 });
+        assert_eq!(
+            token.clone(),
+            Token::Literal(Literal::NumberLiteral(324.23))
+        );
         let token = lexer.next_token();
-        assert_eq!(token.clone(), Token::NumberLiteral { value: 3.001 });
+        assert_eq!(token.clone(), Token::Literal(Literal::NumberLiteral(3.001)));
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }
@@ -340,6 +330,15 @@ mod test {
         let mut lexer = Lexer::tokenize("struct");
         let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Struct);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::EOF);
+    }
+
+    #[test]
+    fn lex_enum_keyword() {
+        let mut lexer = Lexer::tokenize("enum");
+        let token = lexer.current_token();
+        assert_eq!(token.clone(), Token::Enum);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }

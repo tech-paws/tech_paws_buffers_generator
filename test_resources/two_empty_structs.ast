@@ -1,0 +1,10 @@
+Struct {
+  id: "Struct1",
+  fields: [
+  ]
+}
+Struct {
+  id: "Struct2",
+  fields: [
+  ]
+}
