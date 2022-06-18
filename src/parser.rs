@@ -603,4 +603,14 @@ mod tests {
 
         assert_eq!(actual_ast, target_ast);
     }
+
+    #[test]
+    fn parse_complex_test() {
+        let src = fs::read_to_string("test_resources/complex.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/complex.ast").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let actual_ast = stringify_ast(parse(&mut lexer));
+
+        assert_eq!(actual_ast, target_ast);
+    }
 }

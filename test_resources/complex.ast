@@ -1,0 +1,55 @@
+ValueEnum {
+  id: "TouchStatus",
+  items: [
+    IdValuePair { id: "Cancel", value: Literal(IntLiteral(0)) }
+    IdValuePair { id: "Start", value: Literal(IntLiteral(1)) }
+    IdValuePair { id: "End", value: Literal(IntLiteral(2)) }
+    IdValuePair { id: "Down", value: Literal(IntLiteral(3)) }
+    IdValuePair { id: "Update", value: Literal(IntLiteral(4)) }
+  ]
+}
+Enum {
+  id: "ComplexEnum",
+  items: [
+    Empty { position: 1, id: "Idle" }
+    EnumItemASTNode {
+      position: 2,
+      id: "Move",
+      fields: [
+        StructFieldASTNode { position: 1, name: "x", type_id: Primitive { id: "f64" } }
+        StructFieldASTNode { position: 2, name: "y", type_id: Primitive { id: "f64" } }
+      ]
+    }
+    TupleFieldASTNode {
+      position: 3,
+      id: "Update",
+      items: [
+        TupleFieldASTNode { position: 1, type_id: Primitive { id: "f64" } }
+        TupleFieldASTNode { position: 2, type_id: Primitive { id: "f64" } }
+        TupleFieldASTNode { position: 4, type_id: Primitive { id: "String" } }
+      ]
+    }
+  ]
+}
+Struct {
+  id: "ViewData",
+  fields: [
+    StructFieldASTNode { position: 1, name: "delta_time", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 2, name: "view_width", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 3, name: "view_height", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 4, name: "touch_start_x", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 5, name: "touch_start_y", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 6, name: "last_touch_x", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 7, name: "last_touch_y", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 8, name: "touch_x", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 9, name: "touch_y", type_id: Primitive { id: "f32" } }
+    StructFieldASTNode { position: 10, name: "touch_status", type_id: Primitive { id: "TouchStatus" } }
+  ]
+}
+Fn {
+  id: "say_hello",
+  return_type_id: Primitive { id: "String" },
+  args: [
+    FnArgASTNode { id: "name", type_id: Primitive { id: "String" } }
+  ]
+}
