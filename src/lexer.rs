@@ -2,6 +2,7 @@
 pub enum Token {
     Struct,
     Enum,
+    Fn,
     ID { name: String },
     Literal(Literal),
     Symbol(char),
@@ -122,6 +123,7 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
     match name.as_str() {
         "struct" => Token::Struct,
         "enum" => Token::Enum,
+        "fn" => Token::Fn,
         _ => Token::ID { name },
     }
 }

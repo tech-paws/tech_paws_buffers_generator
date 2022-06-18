@@ -11,6 +11,11 @@ pub enum ASTNode {
         items: Vec<IdValuePair>,
     },
     Struct(StructASTNode),
+    Fn {
+        id: String,
+        args: Vec<FnArgASTNode>,
+        return_type_id: TypeIDASTNode,
+    },
 }
 
 #[derive(Debug)]
@@ -72,6 +77,12 @@ pub struct StructFieldASTNode {
     pub type_id: TypeIDASTNode,
 }
 
+#[derive(Debug)]
+pub struct FnArgASTNode {
+    pub id: String,
+    pub type_id: TypeIDASTNode,
+}
+
 pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
     let mut ast_nodes = vec![];
 
@@ -79,6 +90,7 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
         match *lexer.current_token() {
             Token::Struct => ast_nodes.push(parse_struct(lexer)),
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
+            Token::Fn => ast_nodes.push(parse_fn(lexer)),
             _ => panic!("Unexpected token: {:?}", lexer.current_token()),
         }
     }
@@ -318,6 +330,75 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
     TypeIDASTNode::Primitive { id: name }
 }
 
+pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
+    if *lexer.current_token() != Token::Fn {
+        panic!("Expected 'fn' but got {:?}", lexer.current_token());
+    }
+
+    let id = if let Token::ID { name } = lexer.next_token() {
+        name.clone()
+    } else {
+        panic!("Expected id, but got {:?}", lexer.current_token());
+    };
+
+    if *lexer.next_token() != Token::Symbol('(') {
+        panic!("Expected '(', but got {:?}", lexer.current_token());
+    }
+
+    lexer.next_token();
+    let args = parse_fn_args(lexer);
+
+    if *lexer.current_token() != Token::Symbol(')') {
+        panic!("Expected ')', but got {:?}", lexer.current_token());
+    }
+
+    if *lexer.next_token() != Token::Symbol('-') {
+        panic!("Expected '->', but got {:?}", lexer.current_token());
+    }
+
+    if *lexer.next_token() != Token::Symbol('>') {
+        panic!("Expected '->', but got {:?}", lexer.current_token());
+    }
+
+    lexer.next_token();
+    let return_type_id = parse_type_id(lexer);
+
+    if *lexer.current_token() != Token::Symbol(';') {
+        panic!("Expected ';', but got {:?}", lexer.current_token());
+    }
+    lexer.next_token();
+
+    ASTNode::Fn {
+        id,
+        args,
+        return_type_id,
+    }
+}
+
+pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
+    let mut args = vec![];
+
+    while let Token::ID { name } = lexer.current_token() {
+        let id = name.clone();
+
+        if *lexer.next_token() != Token::Symbol(':') {
+            panic!("Expected ':', but got {:?}", lexer.current_token());
+        }
+
+        lexer.next_token();
+        let type_id = parse_type_id(lexer);
+        args.push(FnArgASTNode { id, type_id });
+
+        if *lexer.current_token() != Token::Symbol(',') {
+            break;
+        }
+
+        lexer.next_token();
+    }
+
+    args
+}
+
 /// Parse #[<number>]
 pub fn parse_position(lexer: &mut Lexer) -> u32 {
     if *lexer.current_token() != Token::Symbol('#') {
@@ -423,6 +504,22 @@ mod tests {
                         id, fields_res
                     );
                 }
+                ASTNode::Fn {
+                    id,
+                    args,
+                    return_type_id,
+                } => {
+                    let mut args_res = String::new();
+
+                    for arg in args {
+                        args_res += &format!("    {:?}\n", arg);
+                    }
+
+                    res += &format!(
+                        "Fn {{\n  id: \"{}\",\n  return_type_id: {:?},\n  args: [\n{}  ]\n}}\n",
+                        id, return_type_id, args_res
+                    );
+                }
             }
         }
 
@@ -491,6 +588,16 @@ mod tests {
     fn parse_complex_enum_test() {
         let src = fs::read_to_string("test_resources/enum_complex.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/enum_complex.ast").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let actual_ast = stringify_ast(parse(&mut lexer));
+
+        assert_eq!(actual_ast, target_ast);
+    }
+
+    #[test]
+    fn parse_rpc_method_test() {
+        let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/rpc_method.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(parse(&mut lexer));
 

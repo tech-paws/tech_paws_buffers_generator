@@ -1,0 +1,7 @@
+Fn {
+  id: "say_hello",
+  return_type_id: Primitive { id: "String" },
+  args: [
+    FnArgASTNode { id: "name", type_id: Primitive { id: "String" } }
+  ]
+}
