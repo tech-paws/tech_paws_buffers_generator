@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use crate::{
     lexer::Literal,
     parser::{
@@ -251,7 +253,7 @@ pub fn generate_struct_buffers(node: &StructASTNode) -> String {
         for field in node.fields.iter() {
             writer.writeln_tab(
                 2,
-                &generate_write(&field.type_id, &format!("self.{}", field.name)),
+                &generate_write(&field.type_id, &format!("self.{}", field.name), false),
             );
         }
 
@@ -358,15 +360,79 @@ pub fn generate_enum_buffers_write_to_buffers(node: &EnumASTNode) -> String {
 
     writer.writeln_tab(
         1,
-        "fn read_from_buffers(bytes_writer: &mut BytesWriter) -> Self {",
+        "fn write_to_buffers(&self, bytes_writer: &mut BytesWriter) {",
     );
+
+    writer.writeln_tab(2, "match self {");
+
+    for item in node.items.iter() {
+        match item {
+            EnumItemASTNode::Empty { position, id } => {
+                writer.writeln_tab(3, &format!("{}::{} => {{", node.id, id));
+                writer.writeln_tab(
+                    4,
+                    &generate_write(&TypeIDASTNode::u32_type_id(), &position.to_string(), false),
+                );
+                writer.writeln_tab(3, "},");
+            }
+            EnumItemASTNode::Tuple {
+                position,
+                id,
+                values,
+            } => {
+                writer.writeln_tab(3, &format!("{}::{}(", node.id, id));
+
+                for (i, _) in values.iter().enumerate() {
+                    writer.writeln_tab(4, &format!("v{},", i));
+                }
+
+                writer.writeln_tab(3, ") => {");
+                writer.writeln_tab(
+                    4,
+                    &generate_write(&TypeIDASTNode::u32_type_id(), &position.to_string(), false),
+                );
+
+                for (i, value) in values.iter().enumerate() {
+                    writer
+                        .writeln_tab(4, &generate_write(&value.type_id, &format!("v{}", i), true));
+                }
+
+                writer.writeln_tab(3, "},");
+            }
+            EnumItemASTNode::Struct {
+                position,
+                id,
+                fields,
+            } => {
+                writer.writeln_tab(3, &format!("{}::{} {{", node.id, id));
+
+                for field in fields {
+                    writer.writeln_tab(4, &format!("{},", field.name));
+                }
+
+                writer.writeln_tab(3, "} => {");
+                writer.writeln_tab(
+                    4,
+                    &generate_write(&TypeIDASTNode::u32_type_id(), &position.to_string(), false),
+                );
+
+                for field in fields {
+                    writer.writeln_tab(4, &generate_write(&field.type_id, &field.name, true));
+                }
+
+                writer.writeln_tab(3, "},");
+            }
+        }
+    }
+
+    writer.writeln_tab(2, "}");
 
     writer.writeln_tab(1, "}");
 
     writer.show().to_string()
 }
 
-pub fn generate_enum_buffers_skip(noe: &EnumASTNode) -> String {
+pub fn generate_enum_buffers_skip(node: &EnumASTNode) -> String {
     let mut writer = Writer::new();
 
     writer.writeln_tab(
@@ -393,18 +459,21 @@ pub fn generate_read(type_id: &TypeIDASTNode) -> String {
     }
 }
 
-pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
+pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str, deref: bool) -> String {
+    let deref_accessor = format!("*{}", accessor);
+    let primitive_accessor = if deref { &deref_accessor } else { accessor };
+
     match type_id {
         TypeIDASTNode::Integer {
             id,
             size: _,
             signed: _,
-        } => format!("bytes_writer.write_{}({});", id, accessor),
+        } => format!("bytes_writer.write_{}({});", id, primitive_accessor),
         TypeIDASTNode::Number { id, size: _ } => {
-            format!("bytes_writer.write_{}({});", id, accessor)
+            format!("bytes_writer.write_{}({});", id, primitive_accessor)
         }
-        TypeIDASTNode::Bool { id } => format!("bytes_writer.write_{}({});", id, accessor),
-        TypeIDASTNode::Char { id } => format!("bytes_writer.write_{}({});", id, accessor),
+        TypeIDASTNode::Bool { id } => format!("bytes_writer.write_{}({});", id, primitive_accessor),
+        TypeIDASTNode::Char { id } => format!("bytes_writer.write_{}({});", id, primitive_accessor),
         TypeIDASTNode::Other { id: _ } => {
             format!("{}.write_to_buffers(bytes_writer);", accessor)
         }
