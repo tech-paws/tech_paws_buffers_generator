@@ -1,4 +1,4 @@
-enum ComplexEnum {
+enum MyEnum {
     #[1] Idle,
     #[2] Move {
         #[1] x: f64,

@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, PartialEq)]
-pub enum ComplexEnum {
+pub enum MyEnum {
     Idle,
     Move {
         x: f64,

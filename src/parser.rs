@@ -3,7 +3,6 @@ use crate::lexer::{Lexer, Literal, Token};
 #[derive(Debug)]
 pub enum ASTNode {
     Enum(EnumASTNode),
-    ValueEnum(ValueEnumASTNode),
     Struct(StructASTNode),
     Fn(FnASTNode),
 }
@@ -12,12 +11,6 @@ pub enum ASTNode {
 pub struct EnumASTNode {
     pub id: String,
     pub items: Vec<EnumItemASTNode>,
-}
-
-#[derive(Debug)]
-pub struct ValueEnumASTNode {
-    pub id: String,
-    pub items: Vec<IdValuePair>,
 }
 
 #[derive(Debug)]
@@ -53,7 +46,10 @@ pub enum EnumItemASTNode {
 
 #[derive(Debug)]
 pub enum ConstValueASTNode {
-    Literal(Literal),
+    Literal {
+        literal: Literal,
+        type_id: TypeIDASTNode,
+    },
 }
 
 #[derive(Debug)]
@@ -82,6 +78,16 @@ pub enum TypeIDASTNode {
     Other {
         id: String,
     },
+}
+
+impl TypeIDASTNode {
+    pub fn u32_type_id() -> Self {
+        TypeIDASTNode::Integer {
+            id: String::from("u32"),
+            size: 8,
+            signed: false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -172,11 +178,11 @@ pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
         panic!("Expected '{{', but got {:?}", lexer.current_token());
     }
 
-    let node = if *lexer.next_token() == Token::Symbol('#') {
-        parse_enum_items(name, lexer)
-    } else {
-        parse_enum_value_items(name, lexer)
-    };
+    if *lexer.next_token() != Token::Symbol('#') {
+        panic!("Expected '#', but got {:?}", lexer.current_token());
+    }
+
+    let node = parse_enum_items(name, lexer);
 
     if *lexer.current_token() != Token::Symbol('}') {
         panic!("Expected '}}', but got {:?}", lexer.current_token());
@@ -257,35 +263,35 @@ pub fn parse_tuple_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumIte
     }
 }
 
-pub fn parse_enum_value_items(id: String, lexer: &mut Lexer) -> ASTNode {
-    let mut items = vec![];
+pub fn parse_const_value(lexer: &mut Lexer) -> ConstValueASTNode {
+    let literal = if let Token::Literal(literal) = lexer.current_token() {
+        literal.clone()
+    } else {
+        panic!("Expected const value, but got {:?}", lexer.current_token());
+    };
 
-    while let Token::ID { name } = lexer.current_token() {
-        let name = name.clone();
-
-        if *lexer.next_token() != Token::Symbol('=') {
-            panic!("Expected '=', but got {:?}", lexer.current_token());
+    let type_id = match literal {
+        Literal::StringLiteral(_) => {
+            TypeIDASTNode::Other {
+                id: String::from("String"),
+            }
         }
-
-        let literal = if let Token::Literal(literal) = lexer.next_token() {
-            literal.clone()
-        } else {
-            panic!("Expected const value, but got {:?}", lexer.current_token());
-        };
-
-        items.push(IdValuePair {
-            id: name,
-            value: ConstValueASTNode::Literal(literal),
-        });
-
-        if *lexer.next_token() != Token::Symbol(',') {
-            break;
+        Literal::IntLiteral(_) => {
+            TypeIDASTNode::Integer {
+                id: String::from("i32"),
+                size: 4,
+                signed: true,
+            }
         }
+        Literal::NumberLiteral(_) => {
+            TypeIDASTNode::Number {
+                id: String::from("f32"),
+                size: 4,
+            }
+        }
+    };
 
-        lexer.next_token();
-    }
-
-    ASTNode::ValueEnum(ValueEnumASTNode { id, items })
+    ConstValueASTNode::Literal { literal, type_id }
 }
 
 pub fn parse_struct_parameters(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
@@ -549,18 +555,6 @@ mod tests {
                         id, items_res
                     );
                 }
-                ASTNode::ValueEnum(ValueEnumASTNode { id, items }) => {
-                    let mut items_res = String::new();
-
-                    for item in items {
-                        items_res += &format!("    {:?}\n", item);
-                    }
-
-                    res += &format!(
-                        "ValueEnum {{\n  id: \"{}\",\n  items: [\n{}  ]\n}}\n",
-                        id, items_res
-                    );
-                }
                 ASTNode::Struct(StructASTNode { id, fields }) => {
                     let mut fields_res = String::new();
 
@@ -644,19 +638,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_value_enum_test() {
-        let src = fs::read_to_string("test_resources/enum_value.tpb").unwrap();
-        let target_ast = fs::read_to_string("test_resources/enum_value.ast").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
-
-        assert_eq!(actual_ast, target_ast);
-    }
-
-    #[test]
-    fn parse_complex_enum_test() {
-        let src = fs::read_to_string("test_resources/enum_complex.tpb").unwrap();
-        let target_ast = fs::read_to_string("test_resources/enum_complex.ast").unwrap();
+    fn parse_enum_test() {
+        let src = fs::read_to_string("test_resources/enum.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/enum.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(parse(&mut lexer));
 

@@ -1,12 +1,4 @@
-enum TouchStatus {
-    Cancel = 0,
-    Start = 1,
-    End = 2,
-    Down = 3,
-    Update = 4,
-}
-
-enum ComplexEnum {
+enum MyEnum {
     #[1] Idle,
     #[2] Move {
         #[1] x: f64,

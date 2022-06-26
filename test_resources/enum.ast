@@ -1,5 +1,5 @@
 Enum {
-  id: "ComplexEnum",
+  id: "MyEnum",
   items: [
     Empty { position: 1, id: "Idle" }
     EnumItemASTNode {

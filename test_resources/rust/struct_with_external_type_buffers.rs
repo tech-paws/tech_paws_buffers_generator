@@ -13,7 +13,7 @@ impl IntoVMBuffers for Test {
         self.touch_status.write_to_buffers(bytes_writer);
     }
 
-    fn skip(bytes_reader: &mut BytesReader, count: u64) {
+    fn skip_in_buffers(bytes_reader: &mut BytesReader, count: u64) {
         for _ in 0..count {
             bytes_reader.read_f32();
             bytes_reader.read_f32();
