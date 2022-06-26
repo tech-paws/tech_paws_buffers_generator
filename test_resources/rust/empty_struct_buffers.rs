@@ -5,5 +5,5 @@ impl IntoVMBuffers for Empty {
 
     fn write_to_buffers(&self, _: &mut BytesWriter) {}
 
-    fn skip(_: &mut BytesReader, _: u64) {}
+    fn skip_in_buffers(_: &mut BytesReader, _: u64) {}
 }

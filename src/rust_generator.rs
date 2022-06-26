@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use crate::{
     lexer::Literal,
     parser::{
@@ -224,7 +222,7 @@ pub fn generate_struct_buffers(node: &StructASTNode) -> String {
         writer.writeln("");
         writer.writeln_tab(1, "fn write_to_buffers(&self, _: &mut BytesWriter) {}");
         writer.writeln("");
-        writer.writeln_tab(1, "fn skip(_: &mut BytesReader, _: u64) {}");
+        writer.writeln_tab(1, "fn skip_in_buffers(_: &mut BytesReader, _: u64) {}");
     } else {
         writer.writeln_tab(
             1,
@@ -426,7 +424,6 @@ pub fn generate_enum_buffers_write_to_buffers(node: &EnumASTNode) -> String {
     }
 
     writer.writeln_tab(2, "}");
-
     writer.writeln_tab(1, "}");
 
     writer.show().to_string()
@@ -437,8 +434,58 @@ pub fn generate_enum_buffers_skip(node: &EnumASTNode) -> String {
 
     writer.writeln_tab(
         1,
-        "fn skip_in_buffers(bytes_writer: &mut BytesWriter) -> Self {",
+        "fn skip_in_buffers(bytes_reader: &mut BytesReader, count: u64) {",
     );
+
+    writer.writeln_tab(2, "for _ in 0..count {");
+
+    writer.writeln_tab(
+        3,
+        &format!(
+            "let value = {};",
+            generate_read(&TypeIDASTNode::u32_type_id())
+        ),
+    );
+    writer.writeln("");
+    writer.writeln_tab(3, "match value {");
+
+    for item in node.items.iter() {
+        match item {
+            EnumItemASTNode::Empty { position, id: _ } => {
+                writer.writeln_tab(4, &format!("{} => (),", position));
+            }
+            EnumItemASTNode::Tuple {
+                position,
+                id: _,
+                values,
+            } => {
+                writer.writeln_tab(4, &format!("{} => {{", position));
+
+                for value in values {
+                    writer.writeln_tab(5, &format!("{};", &generate_read(&value.type_id)));
+                }
+
+                writer.writeln_tab(4, "},");
+            }
+            EnumItemASTNode::Struct {
+                position,
+                id: _,
+                fields,
+            } => {
+                writer.writeln_tab(4, &format!("{} => {{", position));
+
+                for field in fields {
+                    writer.writeln_tab(5, &format!("{};", &generate_read(&field.type_id)));
+                }
+
+                writer.writeln_tab(4, "},");
+            }
+        }
+    }
+
+    writer.writeln_tab(4, "_ => panic!(\"Unsupported enum value: {}\", value),");
+    writer.writeln_tab(3, "}");
+    writer.writeln_tab(2, "}");
 
     writer.writeln_tab(1, "}");
 
