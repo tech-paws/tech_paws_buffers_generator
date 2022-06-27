@@ -1,10 +1,13 @@
 use crate::{
     lexer::Literal,
     parser::{
-        ASTNode, ConstValueASTNode, EnumASTNode, EnumItemASTNode, StructASTNode,
+        ASTNode, ConstValueASTNode, EnumASTNode, EnumItemASTNode, FnASTNode, StructASTNode,
         StructFieldASTNode, TupleFieldASTNode, TypeIDASTNode,
     },
 };
+
+const RPC_NEW_DATA_STATUS: &str = "0xFF";
+const RPC_NO_DATA_STATUS: &str = "0x00";
 
 pub struct Writer {
     res: String,
@@ -46,7 +49,7 @@ impl Default for Writer {
     }
 }
 
-pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, _rpc: bool) -> String {
+pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> String {
     let mut writer = Writer::new();
 
     writer.writeln("// GENERATED, DO NOT EDIT");
@@ -62,6 +65,10 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, _rpc: bool) -> Str
 
     if buffers {
         writer.write(&generate_buffers(ast));
+    }
+
+    if rpc {
+        writer.write(&generate_rpc(ast));
     }
 
     writer.show().to_string()
@@ -107,6 +114,26 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
     res
 }
 
+pub fn generate_rpc(ast: &[ASTNode]) -> String {
+    let mut writer = Writer::new();
+
+    for node in ast {
+        match node {
+            ASTNode::Struct(_) => (),
+            ASTNode::Enum(_) => (),
+            ASTNode::Fn(node) => writer.writeln(&generate_rpc_method(node)),
+        }
+    }
+
+    let mut res = writer.show().to_string();
+
+    if res.ends_with("\n\n") {
+        res.pop();
+    }
+
+    res
+}
+
 pub fn generate_struct_model(node: &StructASTNode) -> String {
     let mut writer = Writer::new();
 
@@ -119,6 +146,94 @@ pub fn generate_struct_model(node: &StructASTNode) -> String {
         writer.write(&generate_struct_parameters(1, &node.fields));
         writer.writeln("}");
     }
+
+    writer.show().to_string()
+}
+
+fn generate_rpc_method(node: &FnASTNode) -> String {
+    let mut writer = Writer::new();
+
+    let args_struct_id = format!("__{}_rpc_args__", node.id);
+
+    let mut args_struct_fields = vec![];
+
+    for (i, arg) in node.args.iter().enumerate() {
+        args_struct_fields.push(StructFieldASTNode {
+            position: i as u32,
+            name: arg.id.clone(),
+            type_id: arg.type_id.clone(),
+        });
+    }
+
+    let args_struct = StructASTNode {
+        id: args_struct_id.clone(),
+        fields: args_struct_fields,
+    };
+
+    writer.writeln(&generate_struct_model(&args_struct));
+
+    writer.writeln(&generate_struct_buffers(&args_struct));
+
+    writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
+    writer.writeln_tab(1, "state: &mut vm::CycleState,");
+    writer.writeln_tab(1, "client_buffer_address: vm::BufferAddress,");
+    writer.writeln_tab(1, "server_buffer_address: vm::BufferAddress,");
+    writer.writeln(") -> bool {");
+
+    writer.writeln_tab(
+        1,
+        "let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {",
+    );
+    writer.writeln_tab(2, "let status = bytes_reader.read_byte();");
+    writer.writeln("");
+    writer.writeln_tab(2, &format!("if status == {} {{", RPC_NEW_DATA_STATUS));
+    writer.writeln_tab(
+        3,
+        &format!(
+            "Some({})",
+            &generate_read(&TypeIDASTNode::Other {
+                id: args_struct_id.clone(),
+            })
+        ),
+    );
+    writer.writeln_tab(2, "} else {");
+    writer.writeln_tab(3, "None");
+    writer.writeln_tab(2, "}");
+    writer.writeln_tab(1, "});");
+    writer.writeln("");
+
+    writer.writeln_tab(1, "if let Some(args) = &args {");
+    writer.writeln_tab(
+        2,
+        "vm::buffer_write(state, server_buffer_address, |bytes_writer| {",
+    );
+    writer.writeln_tab(3, "bytes_writer.clear();");
+    writer.writeln_tab(3, &format!("bytes_writer.write_byte({});", RPC_NO_DATA_STATUS));
+    writer.writeln_tab(2, "});");
+
+    writer.writeln_tab(2, &format!("let ret = {}_rpc_handler_impl(", node.id));
+    writer.writeln_tab(3, "state,");
+
+    for arg in node.args.iter() {
+        writer.writeln_tab(3, &format!("args.clone().{},", arg.id));
+    }
+
+    writer.writeln_tab(2, ");");
+
+    // TODO(sysint64): Handle option
+    writer.writeln_tab(
+        2,
+        "vm::buffer_write(state, client_buffer_address, |bytes_writer| {",
+    );
+    writer.writeln_tab(3, "bytes_writer.clear();");
+    writer.writeln_tab(3, &format!("bytes_writer.write_byte({});", RPC_NEW_DATA_STATUS));
+    writer.writeln_tab(3, &generate_write(&node.return_type_id, "ret", false));
+    writer.writeln_tab(2, "});");
+    writer.writeln_tab(1, "}");
+
+    writer.writeln("");
+    writer.writeln_tab(1, "args.is_some()");
+    writer.writeln("}");
 
     writer.show().to_string()
 }
@@ -632,6 +747,17 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_buffers(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_rpc_method() {
+        let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/rpc_method.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_rpc(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }

@@ -58,7 +58,7 @@ pub struct IdValuePair {
     pub value: ConstValueASTNode,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TypeIDASTNode {
     Integer {
         id: String,
@@ -103,7 +103,7 @@ pub struct StructFieldASTNode {
     pub type_id: TypeIDASTNode,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FnArgASTNode {
     pub id: String,
     pub type_id: TypeIDASTNode,
