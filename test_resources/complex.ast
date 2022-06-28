@@ -38,7 +38,7 @@ Struct {
 }
 Fn {
   id: "say_hello",
-  return_type_id: Other { id: "String" },
+  return_type_id: Some(Other { id: "String" }),
   args: [
     FnArgASTNode { id: "name", type_id: Other { id: "String" } }
   ]

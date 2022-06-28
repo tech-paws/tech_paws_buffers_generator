@@ -23,7 +23,7 @@ pub struct StructASTNode {
 pub struct FnASTNode {
     pub id: String,
     pub args: Vec<FnArgASTNode>,
-    pub return_type_id: TypeIDASTNode,
+    pub return_type_id: Option<TypeIDASTNode>,
 }
 
 #[derive(Debug)]
@@ -427,7 +427,17 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         panic!("Expected ')', but got {:?}", lexer.current_token());
     }
 
-    if *lexer.next_token() != Token::Symbol('-') {
+    if *lexer.next_token() == Token::Symbol(';') {
+        lexer.next_token();
+
+        return ASTNode::Fn(FnASTNode {
+            id,
+            args,
+            return_type_id: None,
+        });
+    }
+
+    if *lexer.current_token() != Token::Symbol('-') {
         panic!("Expected '->', but got {:?}", lexer.current_token());
     }
 
@@ -436,7 +446,7 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
     }
 
     lexer.next_token();
-    let return_type_id = parse_type_id(lexer);
+    let return_type_id = Some(parse_type_id(lexer));
 
     if *lexer.current_token() != Token::Symbol(';') {
         panic!("Expected ';', but got {:?}", lexer.current_token());
@@ -651,6 +661,16 @@ mod tests {
     fn parse_rpc_method_test() {
         let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/rpc_method.ast").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let actual_ast = stringify_ast(parse(&mut lexer));
+
+        assert_eq!(actual_ast, target_ast);
+    }
+
+    #[test]
+    fn parse_rpc_method_without_ret() {
+        let src = fs::read_to_string("test_resources/rpc_method_without_ret.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/rpc_method_without_ret.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(parse(&mut lexer));
 

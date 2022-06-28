@@ -208,29 +208,45 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         "vm::buffer_write(state, server_buffer_address, |bytes_writer| {",
     );
     writer.writeln_tab(3, "bytes_writer.clear();");
-    writer.writeln_tab(3, &format!("bytes_writer.write_byte({});", RPC_NO_DATA_STATUS));
+    writer.writeln_tab(
+        3,
+        &format!("bytes_writer.write_byte({});", RPC_NO_DATA_STATUS),
+    );
     writer.writeln_tab(2, "});");
 
-    writer.writeln_tab(2, &format!("let ret = {}_rpc_handler_impl(", node.id));
-    writer.writeln_tab(3, "state,");
+    if let Some(return_type_id) = &node.return_type_id {
+        writer.writeln_tab(2, &format!("let ret = {}_rpc_handler_impl(", node.id));
+        writer.writeln_tab(3, "state,");
 
-    for arg in node.args.iter() {
-        writer.writeln_tab(3, &format!("args.clone().{},", arg.id));
+        for arg in node.args.iter() {
+            writer.writeln_tab(3, &format!("args.clone().{},", arg.id));
+        }
+
+        writer.writeln_tab(2, ");");
+
+        writer.writeln_tab(
+            2,
+            "vm::buffer_write(state, client_buffer_address, |bytes_writer| {",
+        );
+        writer.writeln_tab(3, "bytes_writer.clear();");
+        writer.writeln_tab(
+            3,
+            &format!("bytes_writer.write_byte({});", RPC_NEW_DATA_STATUS),
+        );
+        writer.writeln_tab(3, &generate_write(return_type_id, "ret", false));
+        writer.writeln_tab(2, "});");
+    } else {
+        writer.writeln_tab(2, &format!("{}_rpc_handler_impl(", node.id));
+        writer.writeln_tab(3, "state,");
+
+        for arg in node.args.iter() {
+            writer.writeln_tab(3, &format!("args.clone().{},", arg.id));
+        }
+
+        writer.writeln_tab(2, ");");
     }
 
-    writer.writeln_tab(2, ");");
-
-    // TODO(sysint64): Handle option
-    writer.writeln_tab(
-        2,
-        "vm::buffer_write(state, client_buffer_address, |bytes_writer| {",
-    );
-    writer.writeln_tab(3, "bytes_writer.clear();");
-    writer.writeln_tab(3, &format!("bytes_writer.write_byte({});", RPC_NEW_DATA_STATUS));
-    writer.writeln_tab(3, &generate_write(&node.return_type_id, "ret", false));
-    writer.writeln_tab(2, "});");
     writer.writeln_tab(1, "}");
-
     writer.writeln("");
     writer.writeln_tab(1, "args.is_some()");
     writer.writeln("}");
@@ -755,6 +771,17 @@ mod tests {
     fn generate_rpc_method() {
         let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/rpc_method.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_rpc_method_without_ret() {
+        let src = fs::read_to_string("test_resources/rpc_method_without_ret.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/rpc_method_without_ret.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
