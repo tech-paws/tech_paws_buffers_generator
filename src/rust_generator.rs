@@ -4,53 +4,14 @@ use crate::{
         ASTNode, ConstValueASTNode, EnumASTNode, EnumItemASTNode, FnASTNode, StructASTNode,
         StructFieldASTNode, TupleFieldASTNode, TypeIDASTNode,
     },
+    writer::Writer,
 };
 
 const RPC_NEW_DATA_STATUS: &str = "0xFF";
 const RPC_NO_DATA_STATUS: &str = "0x00";
 
-pub struct Writer {
-    res: String,
-}
-
-impl Writer {
-    pub fn new() -> Self {
-        Writer {
-            res: String::with_capacity(10000),
-        }
-    }
-
-    pub fn show(&self) -> &str {
-        &self.res
-    }
-
-    pub fn write(&mut self, data: &str) {
-        self.res += data;
-    }
-
-    pub fn writeln(&mut self, data: &str) {
-        self.res += data;
-        self.res += "\n";
-    }
-
-    pub fn writeln_tab(&mut self, tab: i32, data: &str) {
-        for _ in 0..tab {
-            self.res += "    ";
-        }
-
-        self.res += data;
-        self.res += "\n";
-    }
-}
-
-impl Default for Writer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     writer.writeln("// GENERATED, DO NOT EDIT");
     writer.writeln("");
@@ -75,7 +36,7 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
 }
 
 pub fn generate_models(ast: &[ASTNode]) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     for node in ast {
         match node {
@@ -95,7 +56,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
 }
 
 pub fn generate_buffers(ast: &[ASTNode]) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     for node in ast {
         match node {
@@ -115,7 +76,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
 }
 
 pub fn generate_rpc(ast: &[ASTNode]) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     for node in ast {
         match node {
@@ -135,7 +96,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
 }
 
 pub fn generate_struct_model(node: &StructASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     if node.fields.is_empty() {
         writer.writeln("#[derive(Debug, Clone, PartialEq)]");
@@ -151,7 +112,7 @@ pub fn generate_struct_model(node: &StructASTNode) -> String {
 }
 
 fn generate_rpc_method(node: &FnASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     let args_struct_id = format!("__{}_rpc_args__", node.id);
 
@@ -254,8 +215,8 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.show().to_string()
 }
 
-pub fn generate_struct_parameters(tab: i32, params: &[StructFieldASTNode]) -> String {
-    let mut writer = Writer::new();
+pub fn generate_struct_parameters(tab: usize, params: &[StructFieldASTNode]) -> String {
+    let mut writer = Writer::default();
 
     for param in params {
         let type_id = generate_type_id(&param.type_id);
@@ -265,8 +226,8 @@ pub fn generate_struct_parameters(tab: i32, params: &[StructFieldASTNode]) -> St
     writer.show().to_string()
 }
 
-pub fn generate_tuple_parameters(tab: i32, params: &[TupleFieldASTNode]) -> String {
-    let mut writer = Writer::new();
+pub fn generate_tuple_parameters(tab: usize, params: &[TupleFieldASTNode]) -> String {
+    let mut writer = Writer::default();
 
     for param in params {
         let type_id = generate_type_id(&param.type_id);
@@ -291,7 +252,7 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
 }
 
 pub fn generate_enum_model(node: &EnumASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     writer.writeln("#[derive(Debug, Clone, PartialEq)]");
     writer.writeln(&format!("pub enum {} {{", node.id));
@@ -342,7 +303,7 @@ pub fn generate_const_value(node: &ConstValueASTNode) -> String {
 }
 
 pub fn generate_struct_buffers(node: &StructASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     writer.writeln(&format!("impl IntoVMBuffers for {} {{", node.id));
 
@@ -409,7 +370,7 @@ pub fn generate_struct_buffers(node: &StructASTNode) -> String {
 }
 
 pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     writer.writeln(&format!("impl IntoVMBuffers for {} {{", node.id));
     writer.write(&generate_enum_buffers_read_from_buffers(node));
@@ -423,7 +384,7 @@ pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
 }
 
 pub fn generate_enum_buffers_read_from_buffers(node: &EnumASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     writer.writeln_tab(
         1,
@@ -485,7 +446,7 @@ pub fn generate_enum_buffers_read_from_buffers(node: &EnumASTNode) -> String {
 }
 
 pub fn generate_enum_buffers_write_to_buffers(node: &EnumASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     writer.writeln_tab(
         1,
@@ -561,7 +522,7 @@ pub fn generate_enum_buffers_write_to_buffers(node: &EnumASTNode) -> String {
 }
 
 pub fn generate_enum_buffers_skip(node: &EnumASTNode) -> String {
-    let mut writer = Writer::new();
+    let mut writer = Writer::default();
 
     writer.writeln_tab(
         1,
