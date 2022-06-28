@@ -1,5 +1,8 @@
 use crate::{
-    parser::{ASTNode, EnumASTNode, FnASTNode, StructASTNode, StructFieldASTNode, TypeIDASTNode},
+    parser::{
+        ASTNode, EnumASTNode, EnumItemASTNode, FnASTNode, StructASTNode, StructFieldASTNode,
+        TypeIDASTNode,
+    },
     writer::Writer,
 };
 use convert_case::{Case, Casing};
@@ -22,7 +25,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
 
     for node in ast {
         match node {
-            ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node)),
+            ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, "")),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
         }
@@ -77,10 +80,10 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
     res
 }
 
-pub fn generate_struct_model(node: &StructASTNode) -> String {
+pub fn generate_struct_model(node: &StructASTNode, def: &str) -> String {
     let mut writer = Writer::new(2);
 
-    writer.writeln(&format!("class {} {{", node.id));
+    writer.writeln(&format!("class {}{} {{", node.id, def));
 
     if node.fields.is_empty() {
         writer.writeln("}");
@@ -108,6 +111,145 @@ pub fn generate_struct_model(node: &StructASTNode) -> String {
 
     writer.writeln_tab(1, "});");
     writer.writeln("}");
+
+    writer.show().to_string()
+}
+
+pub fn generate_enum_model(node: &EnumASTNode) -> String {
+    let mut writer = Writer::new(2);
+
+    writer.writeln(&format!("abstract class {} {{", node.id));
+
+    for (item_idx, item) in node.items.iter().enumerate() {
+        match item {
+            EnumItemASTNode::Empty { position: _, id } => {
+                writer.writeln_tab(
+                    1,
+                    &format!(
+                        "static const {} = {}{}();",
+                        id.to_case(Case::Camel),
+                        node.id,
+                        id
+                    ),
+                );
+            }
+            EnumItemASTNode::Tuple {
+                position: _,
+                id,
+                values,
+            } => {
+                writer.writeln_tab(
+                    1,
+                    &format!("static {}{} {}({{", node.id, id, id.to_case(Case::Camel)),
+                );
+
+                for (i, value) in values.iter().enumerate() {
+                    let type_id = generate_type_id(&value.type_id);
+                    writer.writeln_tab(2, &format!("required {} field{},", type_id, i));
+                }
+
+                writer.writeln_tab(1, "}) =>");
+                writer.writeln_tab(3, &format!("{}{}(", node.id, id));
+
+                for (i, _) in values.iter().enumerate() {
+                    writer.writeln_tab(4, &format!("field{}: field{},", i, i));
+                }
+
+                writer.writeln_tab(3, ");");
+            }
+            EnumItemASTNode::Struct {
+                position: _,
+                id,
+                fields,
+            } => {
+                writer.writeln_tab(
+                    1,
+                    &format!("static {}{} {}({{", node.id, id, id.to_case(Case::Camel)),
+                );
+                for field in fields {
+                    let type_id = generate_type_id(&field.type_id);
+                    writer.writeln_tab(
+                        2,
+                        &format!("required {} {},", type_id, field.name.to_case(Case::Camel)),
+                    );
+                }
+                writer.writeln_tab(1, "}) =>");
+                writer.writeln_tab(3, &format!("{}{}(", node.id, id));
+
+                for field in fields {
+                    writer.writeln_tab(4, &format!("{}: {},", field.name, field.name));
+                }
+
+                writer.writeln_tab(3, ");");
+            }
+        }
+
+        if item_idx != node.items.len() - 1 {
+            writer.writeln("");
+        }
+    }
+
+    writer.writeln("}");
+    writer.writeln("");
+
+    for (item_idx, item) in node.items.iter().enumerate() {
+        match item {
+            EnumItemASTNode::Empty { position: _, id } => {
+                writer.writeln(&format!(
+                    "class {}{} implements {} {{",
+                    node.id,
+                    id.to_case(Case::Pascal),
+                    node.id,
+                ));
+                writer.writeln_tab(1, &format!("const {}{}();", node.id, id));
+                writer.writeln("}");
+            }
+            EnumItemASTNode::Tuple {
+                position: _,
+                id,
+                values,
+            } => {
+                let class_id = format!("{}{}", node.id, id);
+                let mut args_struct_fields = vec![];
+
+                for (i, value) in values.iter().enumerate() {
+                    args_struct_fields.push(StructFieldASTNode {
+                        position: i as u32,
+                        name: format!("field{}", i),
+                        type_id: value.type_id.clone(),
+                    });
+                }
+
+                let enum_class = StructASTNode {
+                    id: class_id.clone(),
+                    fields: args_struct_fields,
+                };
+                writer.writeln(&generate_struct_model(
+                    &enum_class,
+                    &format!(" implements {}", node.id),
+                ));
+            }
+            EnumItemASTNode::Struct {
+                position: _,
+                id,
+                fields,
+            } => {
+                let class_id = format!("{}{}", node.id, id);
+                let enum_class = StructASTNode {
+                    id: class_id.clone(),
+                    fields: fields.to_vec(),
+                };
+                writer.write(&generate_struct_model(
+                    &enum_class,
+                    &format!(" implements {}", node.id),
+                ));
+            }
+        }
+
+        if item_idx != node.items.len() - 1 {
+            writer.writeln("");
+        }
+    }
 
     writer.show().to_string()
 }
@@ -152,17 +294,10 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         fields: args_struct_fields,
     };
 
-    writer.writeln(&generate_struct_model(&args_struct));
+    writer.writeln(&generate_struct_model(&args_struct, ""));
 
     writer.writeln(&generate_struct_buffers(&args_struct));
 
-    writer.show().to_string()
-}
-
-pub fn generate_enum_model(node: &EnumASTNode) -> String {
-    let mut writer = Writer::new(2);
-
-    writer.writeln("}");
     writer.show().to_string()
 }
 
@@ -221,7 +356,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn generate_two_structs_models() {
         let src = fs::read_to_string("test_resources/two_empty_structs.tpb").unwrap();
         let target =
@@ -234,8 +368,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn generate_complex_enum_models() {
+    fn generate_enum_models() {
         let src = fs::read_to_string("test_resources/enum.tpb").unwrap();
         let target = fs::read_to_string("test_resources/dart/enum_models.dart").unwrap();
         let mut lexer = Lexer::tokenize(&src);

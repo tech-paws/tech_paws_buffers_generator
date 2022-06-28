@@ -672,7 +672,7 @@ mod tests {
     }
 
     #[test]
-    fn generate_complex_enum_models() {
+    fn generate_enum_models() {
         let src = fs::read_to_string("test_resources/enum.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/enum_models.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);

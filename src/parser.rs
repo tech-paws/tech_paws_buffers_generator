@@ -96,7 +96,7 @@ pub struct TupleFieldASTNode {
     pub type_id: TypeIDASTNode,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructFieldASTNode {
     pub position: u32,
     pub name: String,
