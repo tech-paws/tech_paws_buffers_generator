@@ -1,10 +1,7 @@
-use crate::{
-    parser::{
+use crate::{dart::{struct_emplace_to_buffers::generate_struct_emplace_buffers, struct_into_to_buffers::generate_struct_into_buffers}, parser::{
         ASTNode, EnumASTNode, EnumItemASTNode, FnASTNode, StructASTNode, StructFieldASTNode,
         TypeIDASTNode,
-    },
-    writer::Writer,
-};
+    }, writer::Writer};
 use convert_case::{Case, Casing};
 
 pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> String {
@@ -26,7 +23,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
     for node in ast {
         match node {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, "")),
-            ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
+            ASTNode::Enum(node) => writer.write(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
         }
     }
@@ -111,6 +108,15 @@ pub fn generate_struct_model(node: &StructASTNode, def: &str) -> String {
 
     writer.writeln_tab(1, "});");
     writer.writeln("}");
+
+    writer.show().to_string()
+}
+
+pub fn generate_struct_buffers(node: &StructASTNode) -> String {
+    let mut writer = Writer::new(2);
+
+    writer.writeln(&generate_struct_emplace_buffers(node));
+    writer.writeln(&generate_struct_into_buffers(node));
 
     writer.show().to_string()
 }
@@ -261,13 +267,7 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
             size: _,
             signed: _,
         } => String::from("int"),
-        TypeIDASTNode::Number { id: _, size } => {
-            match size {
-                4 => String::from("float"),
-                8 => String::from("double"),
-                _ => panic!("Unsupported size of number: {}", size),
-            }
-        }
+        TypeIDASTNode::Number { id: _, size: _ } => String::from("double"),
         TypeIDASTNode::Bool { id: _ } => String::from("bool"),
         TypeIDASTNode::Char { id: _ } => String::from("int"),
         TypeIDASTNode::Other { id } => id.clone(),
@@ -301,10 +301,69 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.show().to_string()
 }
 
-pub fn generate_struct_buffers(node: &StructASTNode) -> String {
-    let mut writer = Writer::new(2);
+pub fn generate_read(type_id: &TypeIDASTNode) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id: _,
+            size,
+            signed: _,
+        } => {
+            match size {
+                1 => String::from("reader.readInt8()"),
+                4 => String::from("reader.readInt32()"),
+                8 => String::from("reader.readInt64()"),
+                _ => panic!("Unsupported size of int: {}", size),
+            }
+        }
+        TypeIDASTNode::Number { id: _, size } => {
+            match size {
+                4 => String::from("reader.readFloat()"),
+                8 => String::from("reader.readDouble()"),
+                _ => panic!("Unsupported size of number: {}", size),
+            }
+        }
+        TypeIDASTNode::Bool { id: _ } => String::from("reader.readBool()"),
+        TypeIDASTNode::Char { id: _ } => String::from("reader.readInt8()"),
+        TypeIDASTNode::Other { id } => {
+            format!(
+                "const {}IntoBuffers().read(reader)",
+                id.to_case(Case::Pascal)
+            )
+        }
+    }
+}
 
-    writer.show().to_string()
+pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id: _,
+            size,
+            signed: _,
+        } => {
+            match size {
+                1 => format!("writer.writeInt8({});", accessor),
+                4 => format!("writer.writeInt32({});", accessor),
+                8 => format!("writer.writeInt64({});", accessor),
+                _ => panic!("Unsupported size of int: {}", size),
+            }
+        }
+        TypeIDASTNode::Number { id: _, size } => {
+            match size {
+                4 => format!("writer.writeFloat({});", accessor),
+                8 => format!("writer.writeDouble({});", accessor),
+                _ => panic!("Unsupported size of number: {}", size),
+            }
+        }
+        TypeIDASTNode::Bool { id: _ } => format!("writer.writeBool({});", accessor),
+        TypeIDASTNode::Char { id: _ } => format!("writer.writeInt8({});", accessor),
+        TypeIDASTNode::Other { id } => {
+            format!(
+                "const {}IntoBuffers().write(writer, {})",
+                id.to_case(Case::Pascal),
+                accessor
+            )
+        }
+    }
 }
 
 pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
@@ -404,7 +463,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn generate_struct_with_external_type_buffer() {
         let src = fs::read_to_string("test_resources/struct_with_external_type.tpb").unwrap();
         let target =

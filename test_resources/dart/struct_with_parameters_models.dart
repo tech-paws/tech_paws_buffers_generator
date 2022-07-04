@@ -1,13 +1,13 @@
 class Test {
-  float deltaTime;
-  float viewWidth;
-  float viewHeight;
-  float touchStartX;
-  float touchStartY;
-  float lastTouchX;
-  float lastTouchY;
-  float touchX;
-  float touchY;
+  double deltaTime;
+  double viewWidth;
+  double viewHeight;
+  double touchStartX;
+  double touchStartY;
+  double lastTouchX;
+  double lastTouchY;
+  double touchX;
+  double touchY;
 
   Test({
     required this.deltaTime,
