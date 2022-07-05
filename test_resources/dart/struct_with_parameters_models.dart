@@ -20,4 +20,21 @@ class Test {
     required this.touchX,
     required this.touchY,
   });
+
+  Test.createDefault()
+      : deltaTime = 0.0,
+        viewWidth = 0.0,
+        viewHeight = 0.0,
+        touchStartX = 0.0,
+        touchStartY = 0.0,
+        lastTouchX = 0.0,
+        lastTouchY = 0.0,
+        touchX = 0.0,
+        touchY = 0.0;
+}
+
+class TestBuffersFactory implements BuffersFactory<Test> {
+  const TestBuffersFactory();
+
+  Test createDefault() => Test.createDefault();
 }
