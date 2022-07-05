@@ -80,6 +80,24 @@ pub enum TypeIDASTNode {
     },
 }
 
+impl EnumItemASTNode {
+    pub fn id(&self) -> &str {
+        match self {
+            EnumItemASTNode::Empty { position: _, id } => &id,
+            EnumItemASTNode::Tuple {
+                position: _,
+                id,
+                values: _,
+            } => &id,
+            EnumItemASTNode::Struct {
+                position: _,
+                id,
+                fields: _,
+            } => &id,
+        }
+    }
+}
+
 impl TypeIDASTNode {
     pub fn u32_type_id() -> Self {
         TypeIDASTNode::Integer {
