@@ -1,4 +1,4 @@
-class MyEnumValue {
+enum MyEnumValue {
   idle,
   move,
   update,
@@ -39,6 +39,12 @@ class MyEnumIdle implements MyEnum {
   const MyEnumIdle();
 }
 
+class MyEnumIdleBuffersFactory implements BuffersFactory<MyEnumIdle> {
+  const MyEnumIdleBuffersFactory();
+
+  MyEnumIdle createDefault() => const MyEnumIdle();
+}
+
 class MyEnumMove implements MyEnum {
   double x;
   double y;
@@ -51,6 +57,12 @@ class MyEnumMove implements MyEnum {
   MyEnumMove.createDefault()
       : x = 0.0,
         y = 0.0;
+}
+
+class MyEnumMoveBuffersFactory implements BuffersFactory<MyEnumMove> {
+  const MyEnumMoveBuffersFactory();
+
+  MyEnumMove createDefault() => MyEnumMove.createDefault();
 }
 
 class MyEnumUpdate implements MyEnum {
@@ -68,4 +80,10 @@ class MyEnumUpdate implements MyEnum {
       : v0 = 0.0,
         v1 = 0.0,
         v2 = const StringBuffersFactory().createDefault();
+}
+
+class MyEnumUpdateBuffersFactory implements BuffersFactory<MyEnumUpdate> {
+  const MyEnumUpdateBuffersFactory();
+
+  MyEnumUpdate createDefault() => MyEnumUpdate.createDefault();
 }

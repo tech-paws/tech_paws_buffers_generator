@@ -19,6 +19,11 @@ impl Writer {
         self.res += data;
     }
 
+    pub fn write_tab(&mut self, tab: usize, data: &str) {
+        self.res += &self.tab.repeat(tab);
+        self.res += data;
+    }
+
     pub fn writeln(&mut self, data: &str) {
         self.res += data;
         self.res += "\n";
