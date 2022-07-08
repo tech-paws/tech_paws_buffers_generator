@@ -1,10 +1,7 @@
 use convert_case::{Case, Casing};
 
 use crate::{
-    dart_generator::{
-        generate_read, generate_read_emplace, generate_read_skip, generate_read_skip_emplace,
-        generate_write, generate_write_emplace,
-    },
+    dart_generator::{generate_read_emplace, generate_read_skip_emplace, generate_write_emplace},
     parser::{StructASTNode, TypeIDASTNode},
     writer::Writer,
 };

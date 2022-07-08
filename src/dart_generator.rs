@@ -516,7 +516,7 @@ pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String
 pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
     let mut writer = Writer::new(2);
 
-    // writer.writeln(&generate_enum_into_buffers(node));
+    writer.writeln(&generate_enum_into_buffers(node));
     writer.write(&generate_enum_emplace_buffers(node));
 
     writer.show().to_string()

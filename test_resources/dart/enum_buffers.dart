@@ -1,3 +1,157 @@
+class MyEnumIdleIntoToBuffers implements IntoToBuffers<MyEnumIdle> {
+  const MyEnumIdleIntoToBuffers();
+
+  @override
+  MyEnumIdle read(BytesReader reader) {
+
+    return MyEnumIdle(
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, MyEnumIdle model) {
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+    }
+  }
+}
+
+class MyEnumMoveIntoToBuffers implements IntoToBuffers<MyEnumMove> {
+  const MyEnumMoveIntoToBuffers();
+
+  @override
+  MyEnumMove read(BytesReader reader) {
+    final x = reader.readDouble();
+    final y = reader.readDouble();
+
+    return MyEnumMove(
+      x: x;
+      y: y;
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, MyEnumMove model) {
+    writer.writeDouble(model.x);
+    writer.writeDouble(model.y);
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+      reader.readDouble();
+      reader.readDouble();
+    }
+  }
+}
+
+class MyEnumUpdateIntoToBuffers implements IntoToBuffers<MyEnumUpdate> {
+  const MyEnumUpdateIntoToBuffers();
+
+  @override
+  MyEnumUpdate read(BytesReader reader) {
+    final v0 = reader.readDouble();
+    final v1 = reader.readDouble();
+    final v2 = const StringIntoBuffers().read(reader);
+
+    return MyEnumUpdate(
+      v0: v0;
+      v1: v1;
+      v2: v2;
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, MyEnumUpdate model) {
+    writer.writeDouble(model.v0);
+    writer.writeDouble(model.v1);
+    const StringIntoBuffers().write(writer, model.v2);
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    const StringIntoBuffers().skip(reader, count);
+
+    for (int i = 0; i < count; i += 1) {
+      reader.readDouble();
+      reader.readDouble();
+    }
+  }
+}
+
+class MyEnumIntoToBuffers implements IntoToBuffers<MyEnum> {
+  const MyEnumIntoToBuffers();
+
+  @override
+  void read(BytesReader reader) {
+    final value = reader.readInt32();
+
+    switch (value) {
+      case 1:
+        return const MyEnumIdleIntoBuffers().read(reader);
+
+      case 2:
+        return const MyEnumMoveIntoBuffers().read(reader);
+
+      case 3:
+        return const MyEnumUpdateIntoBuffers().read(reader);
+
+      default:
+        throw StateError('Unsupported enum value: $value');
+    }
+  }
+
+  @override
+  void write(BytesWriter writer, MyEnum model) {
+    switch (model.runtimeType) {
+      case MyEnumIdle:
+        writer.writeInt32(1);
+        const MyEnumIdleIntoToBuffers().write(writer, model.idle);
+        return;
+
+      case MyEnumMove:
+        writer.writeInt32(2);
+        const MyEnumMoveIntoToBuffers().write(writer, model.move);
+        return;
+
+      case MyEnumUpdate:
+        writer.writeInt32(3);
+        const MyEnumUpdateIntoToBuffers().write(writer, model.update);
+        return;
+
+      default:
+        throw StateError('Unsupported enum type: ${model.runtimeType}');
+    }
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+      final value = reader.readInt32();
+
+      switch (value) {
+        case 1:
+          const MyEnumIdleIntoToBuffers().skip(reader, 1);
+          continue;
+
+        case 2:
+          const MyEnumMoveIntoToBuffers().skip(reader, 1);
+          continue;
+
+        case 3:
+          const MyEnumUpdateIntoToBuffers().skip(reader, 1);
+          continue;
+
+        default:
+          throw StateError('Unsupported enum value: $value');
+      }
+    }
+  }
+}
+
 class MyEnumIdleEmplaceToBuffers implements EmplaceToBuffers<MyEnumIdle> {
   const MyEnumIdleEmplaceToBuffers();
 
