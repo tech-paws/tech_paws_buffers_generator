@@ -10,7 +10,7 @@ pub fn generate_struct_into_buffers(node: &StructASTNode) -> String {
         node.id, node.id
     ));
 
-    writer.writeln_tab(1, &format!("const {}IntoToBuffers()", node.id));
+    writer.writeln_tab(1, &format!("const {}IntoToBuffers();", node.id));
     writer.writeln("");
 
     writer.writeln(&generate_struct_into_buffers_read(node));

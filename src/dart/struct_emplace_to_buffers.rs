@@ -1,6 +1,13 @@
 use convert_case::{Case, Casing};
 
-use crate::{dart_generator::{generate_read, generate_read_emplace, generate_read_skip, generate_read_skip_emplace, generate_write, generate_write_emplace}, parser::{StructASTNode, TypeIDASTNode}, writer::Writer};
+use crate::{
+    dart_generator::{
+        generate_read, generate_read_emplace, generate_read_skip, generate_read_skip_emplace,
+        generate_write, generate_write_emplace,
+    },
+    parser::{StructASTNode, TypeIDASTNode},
+    writer::Writer,
+};
 
 pub fn generate_struct_emplace_buffers(node: &StructASTNode) -> String {
     let mut writer = Writer::new(2);
@@ -10,7 +17,7 @@ pub fn generate_struct_emplace_buffers(node: &StructASTNode) -> String {
         node.id, node.id
     ));
 
-    writer.writeln_tab(1, &format!("const {}EmplaceToBuffers()", node.id));
+    writer.writeln_tab(1, &format!("const {}EmplaceToBuffers();", node.id));
     writer.writeln("");
 
     writer.writeln(&generate_struct_emplace_buffers_read(node));

@@ -1,5 +1,5 @@
 class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
-  const TestEmplaceToBuffers()
+  const TestEmplaceToBuffers();
 
   @override
   void read(BytesReader reader, Test model) {
@@ -44,7 +44,7 @@ class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
 }
 
 class TestIntoToBuffers implements IntoToBuffers<Test> {
-  const TestIntoToBuffers()
+  const TestIntoToBuffers();
 
   @override
   Test read(BytesReader reader) {

@@ -1,6 +1,8 @@
 use crate::{
     dart::{
+        enum_emplace_buffers::generate_enum_emplace_buffers,
         enum_into_buffers::generate_enum_into_buffers,
+        enum_models::create_enum_item_struct_ast_node,
         struct_emplace_to_buffers::generate_struct_emplace_buffers,
         struct_into_buffers::generate_struct_into_buffers,
     },
@@ -322,60 +324,11 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     writer.writeln("");
 
     for (item_idx, item) in node.items.iter().enumerate() {
-        match item {
-            EnumItemASTNode::Empty { position: _, id } => {
-                let class_id = format!("{}{}", node.id, id);
-
-                let enum_class = StructASTNode {
-                    id: class_id.clone(),
-                    fields: vec![],
-                };
-                writer.write(&generate_struct_model(
-                    &enum_class,
-                    &format!(" implements {}", node.id),
-                ));
-            }
-            EnumItemASTNode::Tuple {
-                position: _,
-                id,
-                values,
-            } => {
-                let class_id = format!("{}{}", node.id, id);
-                let mut args_struct_fields = vec![];
-
-                for (i, value) in values.iter().enumerate() {
-                    args_struct_fields.push(StructFieldASTNode {
-                        position: i as u32,
-                        name: format!("v{}", i),
-                        type_id: value.type_id.clone(),
-                    });
-                }
-
-                let enum_class = StructASTNode {
-                    id: class_id.clone(),
-                    fields: args_struct_fields,
-                };
-                writer.write(&generate_struct_model(
-                    &enum_class,
-                    &format!(" implements {}", node.id),
-                ));
-            }
-            EnumItemASTNode::Struct {
-                position: _,
-                id,
-                fields,
-            } => {
-                let class_id = format!("{}{}", node.id, id);
-                let enum_class = StructASTNode {
-                    id: class_id.clone(),
-                    fields: fields.to_vec(),
-                };
-                writer.write(&generate_struct_model(
-                    &enum_class,
-                    &format!(" implements {}", node.id),
-                ));
-            }
-        }
+        let enum_class = create_enum_item_struct_ast_node(node, item);
+        writer.write(&generate_struct_model(
+            &enum_class,
+            &format!(" implements {}", node.id),
+        ));
 
         if item_idx != node.items.len() - 1 {
             writer.writeln("");
@@ -563,7 +516,8 @@ pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String
 pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
     let mut writer = Writer::new(2);
 
-    writer.writeln(&generate_enum_into_buffers(node));
+    // writer.writeln(&generate_enum_into_buffers(node));
+    writer.write(&generate_enum_emplace_buffers(node));
 
     writer.show().to_string()
 }
