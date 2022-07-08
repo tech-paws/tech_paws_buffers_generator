@@ -40,7 +40,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
 
     for node in ast {
         match node {
-            ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node)),
+            ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, true)),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
         }
@@ -95,18 +95,57 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
     res
 }
 
-pub fn generate_struct_model(node: &StructASTNode) -> String {
+pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> String {
     let mut writer = Writer::default();
 
     if node.fields.is_empty() {
         writer.writeln("#[derive(Debug, Clone, PartialEq)]");
         writer.writeln(&format!("pub struct {};", node.id));
+
+        if generate_default {
+            writer.writeln("");
+            writer.writeln(&format!("impl Default for {} {{", node.id));
+            writer.writeln_tab(1, "fn default() -> Self {");
+            writer.writeln_tab(2, "Self");
+            writer.writeln_tab(1, "}");
+            writer.writeln("}");
+        }
     } else {
         writer.writeln("#[derive(Debug, Clone, PartialEq)]");
         writer.writeln(&format!("pub struct {} {{", node.id));
         writer.write(&generate_struct_parameters(1, &node.fields));
         writer.writeln("}");
+
+        if generate_default {
+            writer.writeln("");
+            writer.writeln(&generate_struct_default(&node));
+        }
     }
+
+    writer.show().to_string()
+}
+
+fn generate_struct_default(node: &StructASTNode) -> String {
+    let mut writer = Writer::default();
+
+    writer.writeln(&format!("impl Default for {} {{", node.id));
+    writer.writeln_tab(1, "fn default() -> Self {");
+    writer.writeln_tab(2, "Self {");
+
+    for field in node.fields.iter() {
+        writer.writeln_tab(
+            3,
+            &format!(
+                "{}: {},",
+                field.name,
+                generate_default_const(&field.type_id)
+            ),
+        );
+    }
+
+    writer.writeln_tab(2, "}");
+    writer.writeln_tab(1, "}");
+    writer.write("}");
 
     writer.show().to_string()
 }
@@ -131,7 +170,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         fields: args_struct_fields,
     };
 
-    writer.writeln(&generate_struct_model(&args_struct));
+    writer.writeln(&generate_struct_model(&args_struct, false));
 
     writer.writeln(&generate_struct_buffers(&args_struct));
 
@@ -152,9 +191,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         3,
         &format!(
             "Some({})",
-            &generate_read(&TypeIDASTNode::Other {
-                id: args_struct_id,
-            })
+            &generate_read(&TypeIDASTNode::Other { id: args_struct_id })
         ),
     );
     writer.writeln_tab(2, "} else {");
@@ -616,6 +653,20 @@ pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str, deref: bool) -> S
         TypeIDASTNode::Other { id: _ } => {
             format!("{}.write_to_buffers(bytes_writer);", accessor)
         }
+    }
+}
+
+pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id: _,
+            size: _,
+            signed: _,
+        } => String::from(""),
+        TypeIDASTNode::Number { id: _, size: _ } => String::from("0.0"),
+        TypeIDASTNode::Bool { id: _ } => String::from("false"),
+        TypeIDASTNode::Char { id: _ } => String::from("0"),
+        TypeIDASTNode::Other { id } => format!("{}::default()", id),
     }
 }
 
