@@ -32,7 +32,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
 
     for node in ast {
         match node {
-            ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, "")),
+            ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, "", true)),
             ASTNode::Enum(node) => writer.write(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
         }
@@ -87,7 +87,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
     res
 }
 
-pub fn generate_struct_model(node: &StructASTNode, def: &str) -> String {
+pub fn generate_struct_model(node: &StructASTNode, def: &str, generate_default: bool) -> String {
     let mut writer = Writer::new(2);
 
     writer.writeln(&format!("class {}{} {{", node.id, def));
@@ -95,18 +95,21 @@ pub fn generate_struct_model(node: &StructASTNode, def: &str) -> String {
     if node.fields.is_empty() {
         writer.writeln_tab(1, &format!("const {}();", node.id));
         writer.writeln("}");
-        writer.writeln("");
-        writer.writeln(&format!(
-            "class {}BuffersFactory implements BuffersFactory<{}> {{",
-            node.id, node.id
-        ));
-        writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
-        writer.writeln("");
-        writer.writeln_tab(
-            1,
-            &format!("{} createDefault() => const {}();", node.id, node.id),
-        );
-        writer.writeln("}");
+
+        if generate_default {
+            writer.writeln("");
+            writer.writeln(&format!(
+                "class {}BuffersFactory implements BuffersFactory<{}> {{",
+                node.id, node.id
+            ));
+            writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
+            writer.writeln("");
+            writer.writeln_tab(
+                1,
+                &format!("{} createDefault() => const {}();", node.id, node.id),
+            );
+            writer.writeln("}");
+        }
 
         return writer.show().to_string();
     }
@@ -132,47 +135,49 @@ pub fn generate_struct_model(node: &StructASTNode, def: &str) -> String {
 
     writer.writeln_tab(1, "});");
 
-    writer.writeln("");
-
     // Create Default
+    if generate_default {
+        writer.writeln("");
+        writer.writeln_tab(1, &format!("{}.createDefault()", node.id));
+        writer.write_tab(3, ": ");
 
-    writer.writeln_tab(1, &format!("{}.createDefault()", node.id));
-    writer.write_tab(3, ": ");
+        for (idx, field) in node.fields.iter().enumerate() {
+            writer.write(&format!(
+                "{} = {}",
+                field.name.to_case(Case::Camel),
+                &generate_default_const(&field.type_id)
+            ));
 
-    for (idx, field) in node.fields.iter().enumerate() {
-        writer.write(&format!(
-            "{} = {}",
-            field.name.to_case(Case::Camel),
-            &generate_default_const(&field.type_id)
-        ));
-
-        if idx == node.fields.len() - 1 {
-            writer.writeln(";");
-        } else {
-            writer.writeln(",");
-            writer.write_tab(3, "  ");
+            if idx == node.fields.len() - 1 {
+                writer.writeln(";");
+            } else {
+                writer.writeln(",");
+                writer.write_tab(3, "  ");
+            }
         }
-    }
 
-    writer.writeln("}");
+        writer.writeln("}");
 
-    // Create Factory class
+        // Create Factory class
 
-    writer.writeln("");
-    writer.writeln(&format!(
-        "class {}BuffersFactory implements BuffersFactory<{}> {{",
-        node.id, node.id
-    ));
-    writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
-    writer.writeln("");
-    writer.writeln_tab(
-        1,
-        &format!(
-            "{} createDefault() => {}.createDefault();",
+        writer.writeln("");
+        writer.writeln(&format!(
+            "class {}BuffersFactory implements BuffersFactory<{}> {{",
             node.id, node.id
-        ),
-    );
-    writer.writeln("}");
+        ));
+        writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
+        writer.writeln("");
+        writer.writeln_tab(
+            1,
+            &format!(
+                "{} createDefault() => {}.createDefault();",
+                node.id, node.id
+            ),
+        );
+        writer.writeln("}");
+    } else {
+        writer.writeln("}");
+    }
 
     writer.show().to_string()
 }
@@ -247,7 +252,21 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     writer.writeln("}");
     writer.writeln("");
 
-    //
+    // Create default for union
+    writer.writeln(&format!(
+        "class {}UnionBuffersFactory implements BuffersFactory<{}Union> {{",
+        node.id, node.id
+    ));
+    writer.writeln_tab(1, &format!("const {}UnionBuffersFactory();", node.id));
+    writer.writeln("");
+    writer.writeln_tab(
+        1,
+        &format!("{}Union createDefault() => {}Union();", node.id, node.id),
+    );
+    writer.writeln("}");
+    writer.writeln("");
+
+    // enum
 
     writer.writeln(&format!("abstract class {} {{", node.id));
 
@@ -323,11 +342,32 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     writer.writeln("}");
     writer.writeln("");
 
+    // Generate enum default
+
+    writer.writeln(&format!(
+        "class {}BuffersFactory implements BuffersFactory<{}> {{",
+        node.id, node.id
+    ));
+    writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
+    writer.writeln("");
+    writer.writeln_tab(
+        1,
+        &format!(
+            "{} createDefault() => const {}{}BuffersFactory().createDefault();",
+            node.id,
+            node.id,
+            node.items.first().unwrap().id()
+        ),
+    );
+    writer.writeln("}");
+    writer.writeln("");
+
     for (item_idx, item) in node.items.iter().enumerate() {
         let enum_class = create_enum_item_struct_ast_node(node, item);
         writer.write(&generate_struct_model(
             &enum_class,
             &format!(" implements {}", node.id),
+            true,
         ));
 
         if item_idx != node.items.len() - 1 {
@@ -372,7 +412,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         fields: args_struct_fields,
     };
 
-    writer.writeln(&generate_struct_model(&args_struct, ""));
+    writer.writeln(&generate_struct_model(&args_struct, "", false));
 
     writer.writeln(&generate_struct_buffers(&args_struct));
 

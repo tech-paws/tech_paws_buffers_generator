@@ -1,6 +1,10 @@
 use convert_case::{Case, Casing};
 
-use crate::{dart_generator::{generate_read, generate_read_skip, generate_write}, parser::{StructASTNode, TypeIDASTNode}, writer::Writer};
+use crate::{
+    dart_generator::{generate_read, generate_read_skip, generate_write},
+    parser::{StructASTNode, TypeIDASTNode},
+    writer::Writer,
+};
 
 pub fn generate_struct_into_buffers(node: &StructASTNode) -> String {
     let mut writer = Writer::new(2);

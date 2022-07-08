@@ -11,6 +11,12 @@ class MyEnumUnion {
   MyEnumUpdate update = MyEnumUpdate.createDefault();
 }
 
+class MyEnumUnionBuffersFactory implements BuffersFactory<MyEnumUnion> {
+  const MyEnumUnionBuffersFactory();
+
+  MyEnumUnion createDefault() => MyEnumUnion();
+}
+
 abstract class MyEnum {
   static const idle = MyEnumIdle();
 
@@ -33,6 +39,12 @@ abstract class MyEnum {
         v1: v1,
         v2: v2,
       );
+}
+
+class MyEnumBuffersFactory implements BuffersFactory<MyEnum> {
+  const MyEnumBuffersFactory();
+
+  MyEnum createDefault() => const MyEnumIdleBuffersFactory().createDefault();
 }
 
 class MyEnumIdle implements MyEnum {
