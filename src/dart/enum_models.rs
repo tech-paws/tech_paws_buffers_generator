@@ -9,7 +9,7 @@ pub fn create_enum_item_struct_ast_node(
             let class_id = format!("{}{}", node.id, id);
 
             StructASTNode {
-                id: class_id.clone(),
+                id: class_id,
                 fields: vec![],
             }
         }
@@ -30,7 +30,7 @@ pub fn create_enum_item_struct_ast_node(
             }
 
             StructASTNode {
-                id: class_id.clone(),
+                id: class_id,
                 fields: args_struct_fields,
             }
         }
@@ -41,7 +41,7 @@ pub fn create_enum_item_struct_ast_node(
         } => {
             let class_id = format!("{}{}", node.id, id);
             StructASTNode {
-                id: class_id.clone(),
+                id: class_id,
                 fields: fields.to_vec(),
             }
         }

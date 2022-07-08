@@ -153,7 +153,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         &format!(
             "Some({})",
             &generate_read(&TypeIDASTNode::Other {
-                id: args_struct_id.clone(),
+                id: args_struct_id,
             })
         ),
     );

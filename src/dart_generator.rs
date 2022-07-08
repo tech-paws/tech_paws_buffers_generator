@@ -14,7 +14,7 @@ use crate::{
 };
 use convert_case::{Case, Casing};
 
-pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> String {
+pub fn generate(_ast: &[ASTNode], _models: bool, buffers: bool, _rpc: bool) -> String {
     let mut writer = Writer::new(2);
 
     writer.writeln("// GENERATED, DO NOT EDIT");
@@ -368,7 +368,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     }
 
     let args_struct = StructASTNode {
-        id: args_struct_id.clone(),
+        id: args_struct_id,
         fields: args_struct_fields,
     };
 
