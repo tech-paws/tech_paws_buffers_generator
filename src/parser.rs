@@ -83,17 +83,33 @@ pub enum TypeIDASTNode {
 impl EnumItemASTNode {
     pub fn id(&self) -> &str {
         match self {
-            EnumItemASTNode::Empty { position: _, id } => &id,
+            EnumItemASTNode::Empty { position: _, id } => id,
             EnumItemASTNode::Tuple {
                 position: _,
                 id,
                 values: _,
-            } => &id,
+            } => id,
             EnumItemASTNode::Struct {
                 position: _,
                 id,
                 fields: _,
-            } => &id,
+            } => id,
+        }
+    }
+
+    pub fn position(&self) -> u32 {
+        match self {
+            EnumItemASTNode::Empty { position, id: _ } => *position,
+            EnumItemASTNode::Tuple {
+                position,
+                id: _,
+                values: _,
+            } => *position,
+            EnumItemASTNode::Struct {
+                position,
+                id: _,
+                fields: _,
+            } => *position,
         }
     }
 }

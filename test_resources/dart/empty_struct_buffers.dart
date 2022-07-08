@@ -1,5 +1,5 @@
 class EmptyEmplaceToBuffers implements EmplaceToBuffers<Empty> {
-  const EmptyEmplaceToBuffers()
+  const EmptyEmplaceToBuffers();
 
   @override
   void read(BytesReader reader, Empty model) {}
@@ -12,7 +12,7 @@ class EmptyEmplaceToBuffers implements EmplaceToBuffers<Empty> {
 }
 
 class EmptyIntoToBuffers implements IntoToBuffers<Empty> {
-  const EmptyIntoToBuffers()
+  const EmptyIntoToBuffers();
 
   @override
   Empty read(BytesReader reader) {
