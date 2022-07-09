@@ -26,8 +26,8 @@ class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
   }
 }
 
-class TestIntoToBuffers implements IntoToBuffers<Test> {
-  const TestIntoToBuffers();
+class TestIntoBuffers implements IntoBuffers<Test> {
+  const TestIntoBuffers();
 
   @override
   Test read(BytesReader reader) {

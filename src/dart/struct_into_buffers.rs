@@ -10,11 +10,11 @@ pub fn generate_struct_into_buffers(node: &StructASTNode) -> String {
     let mut writer = Writer::new(2);
 
     writer.writeln(&format!(
-        "class {}IntoToBuffers implements IntoToBuffers<{}> {{",
+        "class {}IntoBuffers implements IntoBuffers<{}> {{",
         node.id, node.id
     ));
 
-    writer.writeln_tab(1, &format!("const {}IntoToBuffers();", node.id));
+    writer.writeln_tab(1, &format!("const {}IntoBuffers();", node.id));
     writer.writeln("");
 
     writer.writeln(&generate_struct_into_buffers_read(node));

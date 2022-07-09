@@ -1,0 +1,32 @@
+DirectiveASTNode::Value {
+  id: "namespace"
+  value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
+}
+Fn {
+  id: "print_hello_world",
+  return_type_id: None,
+  args: [
+  ]
+}
+Fn {
+  id: "hello_world",
+  return_type_id: Some(Other { id: "String" }),
+  args: [
+  ]
+}
+Fn {
+  id: "say_hello",
+  return_type_id: Some(Other { id: "String" }),
+  args: [
+    FnArgASTNode { id: "name", type_id: Other { id: "String" } }
+  ]
+}
+Fn {
+  id: "sum",
+  return_type_id: None,
+  args: [
+    FnArgASTNode { id: "a", type_id: Integer { id: "i32", size: 4, signed: true } }
+    FnArgASTNode { id: "b", type_id: Number { id: "f32", size: 4 } }
+    FnArgASTNode { id: "c", type_id: Number { id: "f64", size: 8 } }
+  ]
+}

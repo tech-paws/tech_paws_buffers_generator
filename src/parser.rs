@@ -601,7 +601,7 @@ mod tests {
         }
 
         println!("{}", writer.show());
-        writer.into()
+        writer.show().to_string()
     }
 
     #[test]
@@ -662,19 +662,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_rpc_method_test() {
-        let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
-        let target_ast = fs::read_to_string("test_resources/rpc_method.ast").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(&parse(&mut lexer));
-
-        assert_eq!(actual_ast, target_ast);
-    }
-
-    #[test]
-    fn parse_rpc_method_without_ret() {
-        let src = fs::read_to_string("test_resources/rpc_method_without_ret.tpb").unwrap();
-        let target_ast = fs::read_to_string("test_resources/rpc_method_without_ret.ast").unwrap();
+    fn parse_rpc_methods_test() {
+        let src = fs::read_to_string("test_resources/rpc_methods.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/rpc_methods.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(&parse(&mut lexer));
 

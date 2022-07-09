@@ -1,3 +1,7 @@
+DirectiveASTNode::Value {
+  id: "namespace"
+  value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
+}
 Enum {
   id: "MyEnum",
   items: [

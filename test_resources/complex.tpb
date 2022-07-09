@@ -1,3 +1,5 @@
+#[namespace = "test"]
+
 enum MyEnum {
     #[1] Idle,
     #[2] Move {

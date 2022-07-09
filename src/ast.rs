@@ -158,23 +158,24 @@ pub struct FnArgASTNode {
     pub type_id: TypeIDASTNode,
 }
 
+pub fn find_fn_nodes(ast: &[ASTNode]) -> Vec<&FnASTNode> {
+    let mut res = vec![];
+
+    for node in ast {
+        if let ASTNode::Fn(node) = node {
+            res.push(node);
+        }
+    }
+
+    res
+}
+
 pub fn find_directive_value(target_id: &str, ast: &[ASTNode]) -> Option<ConstValueASTNode> {
     for node in ast {
-        match node {
-            ASTNode::Directive(node) => {
-                match node {
-                    DirectiveASTNode::Value { id, value } => {
-                        if target_id == id {
-                            return Some(value.clone());
-                        }
-                    }
-                    DirectiveASTNode::Group {
-                        group_id: _,
-                        values: _,
-                    } => (),
-                }
+        if let ASTNode::Directive(DirectiveASTNode::Value { id, value }) = node {
+            if target_id == id {
+                return Some(value.clone());
             }
-            _ => (),
         }
     }
 
@@ -187,22 +188,14 @@ pub fn find_directive_group_value(
     ast: &[ASTNode],
 ) -> Option<ConstValueASTNode> {
     for node in ast {
-        match node {
-            ASTNode::Directive(node) => {
-                match node {
-                    DirectiveASTNode::Value { id: _, value: _ } => (),
-                    DirectiveASTNode::Group { group_id, values } => {
-                        if target_group_id == group_id {
-                            for value in values {
-                                if value.id == target_id {
-                                    return Some(value.value.clone());
-                                }
-                            }
-                        }
+        if let ASTNode::Directive(DirectiveASTNode::Group { group_id, values }) = node {
+            if target_group_id == group_id {
+                for value in values {
+                    if value.id == target_id {
+                        return Some(value.value.clone());
                     }
                 }
             }
-            _ => (),
         }
     }
 

@@ -3,7 +3,7 @@ use crate::{
     dart::{
         enum_emplace_buffers::generate_enum_emplace_buffers,
         enum_into_buffers::generate_enum_into_buffers,
-        enum_models::create_enum_item_struct_ast_node, rpc::generate_rpc_method,
+        enum_models::create_enum_item_struct_ast_node, rpc::generate_rpc_methods,
         struct_emplace_to_buffers::generate_struct_emplace_buffers,
         struct_into_buffers::generate_struct_into_buffers,
     },
@@ -68,12 +68,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
 pub fn generate_rpc(ast: &[ASTNode]) -> String {
     let mut writer = Writer::new(2);
 
-    for node in ast {
-        match node {
-            ASTNode::Fn(node) => writer.writeln(&generate_rpc_method(node)),
-            _ => (),
-        }
-    }
+    writer.writeln(&generate_rpc_methods(ast));
 
     let mut res = writer.show().to_string();
 
@@ -394,6 +389,13 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
     }
 }
 
+pub fn generate_option_type_id(type_id: &Option<TypeIDASTNode>) -> String {
+    match type_id {
+        Some(type_id) => generate_type_id(type_id),
+        None => String::from("void"),
+    }
+}
+
 pub fn generate_read(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Integer {
@@ -506,11 +508,7 @@ pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
         TypeIDASTNode::Bool { id: _ } => format!("writer.writeBool({});", accessor),
         TypeIDASTNode::Char { id: _ } => format!("writer.writeInt8({});", accessor),
         TypeIDASTNode::Other { id } => {
-            format!(
-                "const {}IntoBuffers().write(writer, {});",
-                id.to_case(Case::Pascal),
-                accessor
-            )
+            format!("const {}IntoBuffers().write(writer, {});", id, accessor)
         }
     }
 }
@@ -664,22 +662,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn generate_rpc_method() {
-        let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/dart/rpc_method.dart").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    #[ignore]
-    fn generate_rpc_method_without_ret() {
-        let src = fs::read_to_string("test_resources/rpc_method_without_ret.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/dart/rpc_method_without_ret.dart").unwrap();
+    fn generate_rpc_methods() {
+        let src = fs::read_to_string("test_resources/rpc_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/dart/rpc_methods.dart").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);

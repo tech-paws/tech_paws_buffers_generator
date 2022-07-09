@@ -115,7 +115,7 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> St
 
         if generate_default {
             writer.writeln("");
-            writer.writeln(&generate_struct_default(&node));
+            writer.writeln(&generate_struct_default(node));
         }
     }
 
@@ -779,20 +779,9 @@ mod tests {
     }
 
     #[test]
-    fn generate_rpc_method() {
-        let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/rust/rpc_method.rs").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_rpc_method_without_ret() {
-        let src = fs::read_to_string("test_resources/rpc_method_without_ret.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/rust/rpc_method_without_ret.rs").unwrap();
+    fn generate_rpc_methods() {
+        let src = fs::read_to_string("test_resources/rpc_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/rpc_methods.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);

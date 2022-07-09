@@ -18,11 +18,11 @@ pub fn generate_enum_into_buffers(node: &EnumASTNode) -> String {
     }
 
     writer.writeln(&format!(
-        "class {}IntoToBuffers implements IntoToBuffers<{}> {{",
+        "class {}IntoBuffers implements IntoBuffers<{}> {{",
         node.id, node.id
     ));
 
-    writer.writeln_tab(1, &format!("const {}IntoToBuffers();", node.id));
+    writer.writeln_tab(1, &format!("const {}IntoBuffers();", node.id));
     writer.writeln("");
     writer.writeln(&generate_read(node));
     writer.writeln(&generate_write(node));
@@ -80,7 +80,7 @@ fn generate_write(node: &EnumASTNode) -> String {
         writer.writeln_tab(
             4,
             &format!(
-                "const {}{}IntoToBuffers().write(writer, model.{});",
+                "const {}{}IntoBuffers().write(writer, model.{});",
                 node.id,
                 item.id(),
                 item.id().to_case(Case::Camel),
@@ -116,7 +116,7 @@ fn generate_skip(node: &EnumASTNode) -> String {
         writer.writeln_tab(
             5,
             &format!(
-                "const {}{}IntoToBuffers().skip(reader, 1);",
+                "const {}{}IntoBuffers().skip(reader, 1);",
                 node.id,
                 item.id(),
             ),

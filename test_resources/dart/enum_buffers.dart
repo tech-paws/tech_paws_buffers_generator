@@ -1,5 +1,5 @@
-class MyEnumIdleIntoToBuffers implements IntoToBuffers<MyEnumIdle> {
-  const MyEnumIdleIntoToBuffers();
+class MyEnumIdleIntoBuffers implements IntoBuffers<MyEnumIdle> {
+  const MyEnumIdleIntoBuffers();
 
   @override
   MyEnumIdle read(BytesReader reader) {
@@ -19,8 +19,8 @@ class MyEnumIdleIntoToBuffers implements IntoToBuffers<MyEnumIdle> {
   }
 }
 
-class MyEnumMoveIntoToBuffers implements IntoToBuffers<MyEnumMove> {
-  const MyEnumMoveIntoToBuffers();
+class MyEnumMoveIntoBuffers implements IntoBuffers<MyEnumMove> {
+  const MyEnumMoveIntoBuffers();
 
   @override
   MyEnumMove read(BytesReader reader) {
@@ -48,8 +48,8 @@ class MyEnumMoveIntoToBuffers implements IntoToBuffers<MyEnumMove> {
   }
 }
 
-class MyEnumUpdateIntoToBuffers implements IntoToBuffers<MyEnumUpdate> {
-  const MyEnumUpdateIntoToBuffers();
+class MyEnumUpdateIntoBuffers implements IntoBuffers<MyEnumUpdate> {
+  const MyEnumUpdateIntoBuffers();
 
   @override
   MyEnumUpdate read(BytesReader reader) {
@@ -82,8 +82,8 @@ class MyEnumUpdateIntoToBuffers implements IntoToBuffers<MyEnumUpdate> {
   }
 }
 
-class MyEnumIntoToBuffers implements IntoToBuffers<MyEnum> {
-  const MyEnumIntoToBuffers();
+class MyEnumIntoBuffers implements IntoBuffers<MyEnum> {
+  const MyEnumIntoBuffers();
 
   @override
   void read(BytesReader reader) {
@@ -109,17 +109,17 @@ class MyEnumIntoToBuffers implements IntoToBuffers<MyEnum> {
     switch (model.runtimeType) {
       case MyEnumIdle:
         writer.writeInt32(1);
-        const MyEnumIdleIntoToBuffers().write(writer, model.idle);
+        const MyEnumIdleIntoBuffers().write(writer, model.idle);
         return;
 
       case MyEnumMove:
         writer.writeInt32(2);
-        const MyEnumMoveIntoToBuffers().write(writer, model.move);
+        const MyEnumMoveIntoBuffers().write(writer, model.move);
         return;
 
       case MyEnumUpdate:
         writer.writeInt32(3);
-        const MyEnumUpdateIntoToBuffers().write(writer, model.update);
+        const MyEnumUpdateIntoBuffers().write(writer, model.update);
         return;
 
       default:
@@ -134,15 +134,15 @@ class MyEnumIntoToBuffers implements IntoToBuffers<MyEnum> {
 
       switch (value) {
         case 1:
-          const MyEnumIdleIntoToBuffers().skip(reader, 1);
+          const MyEnumIdleIntoBuffers().skip(reader, 1);
           continue;
 
         case 2:
-          const MyEnumMoveIntoToBuffers().skip(reader, 1);
+          const MyEnumMoveIntoBuffers().skip(reader, 1);
           continue;
 
         case 3:
-          const MyEnumUpdateIntoToBuffers().skip(reader, 1);
+          const MyEnumUpdateIntoBuffers().skip(reader, 1);
           continue;
 
         default:
