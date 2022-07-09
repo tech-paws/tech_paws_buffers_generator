@@ -329,6 +329,57 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     }
 
     writer.writeln("}");
+
+    writer.writeln("");
+
+    // Default
+    writer.writeln(&format!("impl Default for {} {{", node.id));
+    writer.writeln_tab(1, "fn default() -> Self {");
+
+    let default_item = node.items.first().unwrap();
+
+    match default_item {
+        EnumItemASTNode::Empty { position: _, id } => {
+            writer.writeln_tab(2, &format!("Self::{}", id))
+        }
+        EnumItemASTNode::Tuple {
+            position: _,
+            id,
+            values,
+        } => {
+            writer.writeln_tab(2, &format!("Self::{}(", id));
+
+            for value in values {
+                writer.writeln_tab(3, &format!("{},", generate_default_const(&value.type_id)));
+            }
+
+            writer.writeln_tab(2, ")");
+        }
+        EnumItemASTNode::Struct {
+            position: _,
+            id,
+            fields,
+        } => {
+            writer.writeln_tab(2, &format!("Self::{} {{", id));
+
+            for field in fields {
+                writer.writeln_tab(
+                    3,
+                    &format!(
+                        "{}: {},",
+                        field.name,
+                        generate_default_const(&field.type_id)
+                    ),
+                );
+            }
+
+            writer.writeln_tab(2, "}");
+        }
+    }
+
+    writer.writeln_tab(1, "}");
+    writer.write("}");
+
     writer.show().to_string()
 }
 

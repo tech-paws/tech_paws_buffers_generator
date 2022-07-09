@@ -11,3 +11,9 @@ pub enum MyEnum {
         String,
     ),
 }
+
+impl Default for MyEnum {
+    fn default() -> Self {
+        Self::Idle
+    }
+}
