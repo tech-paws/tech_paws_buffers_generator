@@ -63,6 +63,16 @@ impl Lexer {
             } else if ch == ' ' || ch == '\n' || ch == '\r' {
                 string_reader.next();
                 continue;
+            } else if ch == '/' {
+                match string_reader.next() {
+                    Some('/') => lex_single_line_comment(&mut string_reader),
+                    Some('*') => lex_multi_line_comment(&mut string_reader),
+                    _ => {
+                        tokens.push(Token::Symbol('/'));
+                        tokens.push(Token::Symbol(ch));
+                        string_reader.next();
+                    }
+                }
             } else {
                 tokens.push(Token::Symbol(ch));
                 string_reader.next();
@@ -100,6 +110,30 @@ fn is_char_id(ch: char, first_char: bool) -> bool {
         letters.contains(ch)
     } else {
         letters.contains(ch) || numbers.contains(ch)
+    }
+}
+
+fn lex_single_line_comment(string_reader: &mut StringReader) {
+    while let Some(ch) = string_reader.current() {
+        if ch == '\r' || ch == '\n' {
+            string_reader.next();
+            return;
+        }
+
+        string_reader.next();
+    }
+}
+
+fn lex_multi_line_comment(string_reader: &mut StringReader) {
+    while let Some(ch) = string_reader.current() {
+        if ch == '*' {
+            if let Some('/') = string_reader.next() {
+                string_reader.next();
+                return;
+            }
+        }
+
+        string_reader.next();
     }
 }
 
@@ -336,6 +370,19 @@ mod tests {
         assert_eq!(token.clone(), Token::Enum);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Fn);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::EOF);
+    }
+
+    #[test]
+    fn lex_comments() {
+        let mut lexer = Lexer::tokenize("struct /*enum*/ fn\n // Hello world\n enum");
+        let token = lexer.current_token();
+        assert_eq!(token.clone(), Token::Struct);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Fn);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Enum);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }

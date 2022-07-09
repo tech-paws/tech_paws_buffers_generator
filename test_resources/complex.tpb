@@ -1,5 +1,6 @@
 #[namespace = "test"]
 
+// My Fancy Enum
 enum MyEnum {
     #[1] Idle,
     #[2] Move {
@@ -9,6 +10,9 @@ enum MyEnum {
     #[3] Update(#[1] f64, #[2] f64, #[4] String),
 }
 
+/*
+ Hello World!
+ */
 struct ViewData {
     #[1]  delta_time: f32,
     #[2]  view_width: f32,
