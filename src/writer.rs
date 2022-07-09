@@ -36,6 +36,12 @@ impl Writer {
     }
 }
 
+impl Into<String> for Writer {
+    fn into(self) -> String {
+        self.res.clone()
+    }
+}
+
 impl Default for Writer {
     fn default() -> Self {
         Self::new(4)

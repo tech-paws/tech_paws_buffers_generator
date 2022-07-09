@@ -5,6 +5,13 @@ pub enum ASTNode {
     Enum(EnumASTNode),
     Struct(StructASTNode),
     Fn(FnASTNode),
+    Mod(ModASTNode),
+}
+
+#[derive(Debug)]
+pub struct ModASTNode {
+    pub id: String,
+    pub items: Vec<ASTNode>,
 }
 
 #[derive(Debug)]
@@ -17,6 +24,8 @@ pub struct EnumASTNode {
 pub struct StructASTNode {
     pub id: String,
     pub fields: Vec<StructFieldASTNode>,
+    pub emplace_buffers: bool,
+    pub into_buffers: bool,
 }
 
 #[derive(Debug)]
@@ -175,6 +184,8 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
         return ASTNode::Struct(StructASTNode {
             id: name,
             fields: Vec::new(),
+            emplace_buffers: true,
+            into_buffers: true,
         });
     }
 
@@ -194,6 +205,8 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
     ASTNode::Struct(StructASTNode {
         id: name,
         fields: parameters,
+        emplace_buffers: true,
+        into_buffers: true,
     })
 }
 
@@ -546,15 +559,31 @@ pub fn parse_position(lexer: &mut Lexer) -> u32 {
 mod tests {
     use std::fs;
 
+    use crate::writer::Writer;
+
     use super::*;
 
-    fn stringify_ast(ast: Vec<ASTNode>) -> String {
-        let mut res = String::new();
+    fn stringify_ast(ast: &[ASTNode]) -> String {
+        stringify_ast_impl(0, ast)
+    }
+
+    fn stringify_ast_impl(tab: usize, ast: &[ASTNode]) -> String {
+        let mut writer = Writer::new(2);
 
         for node in ast {
             match node {
+                ASTNode::Mod(node) => {
+                    writer.writeln_tab(tab, "Mod {");
+                    writer.writeln_tab(tab + 1, &format!("id: \"{}\",", node.id));
+                    writer.writeln_tab(tab + 1, "nodes: [");
+                    writer.write(&stringify_ast_impl(tab + 2, &ast));
+                    writer.writeln_tab(tab + 1, "]");
+                    writer.writeln_tab(tab, "}");
+                }
                 ASTNode::Enum(EnumASTNode { id, items }) => {
-                    let mut items_res = String::new();
+                    writer.writeln_tab(tab, "Enum {");
+                    writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
+                    writer.writeln_tab(tab + 1, "items: [");
 
                     for item in items {
                         match &item {
@@ -563,75 +592,81 @@ mod tests {
                                 id,
                                 values,
                             } => {
-                                let mut values_res = String::new();
+                                writer.writeln_tab(tab + 2, "TupleFieldASTNode {");
+                                writer.writeln_tab(tab + 3, &format!("position: {},", position));
+                                writer.writeln_tab(tab + 3, &format!("id: \"{}\",", id));
+                                writer.writeln_tab(tab + 3, "items: [");
 
                                 for value in values {
-                                    values_res += &format!("        {:?}\n", value);
+                                    writer.writeln_tab(tab + 4, &format!("{:?}", value));
                                 }
 
-                                items_res += &format!(
-                                    "    TupleFieldASTNode {{\n      position: {},\n      id: \"{}\",\n      items: [\n{}      ]\n    }}\n",
-                                    position, id, values_res
-                                );
+                                writer.writeln_tab(tab + 3, "]");
+                                writer.writeln_tab(tab + 2, "}");
                             }
                             EnumItemASTNode::Struct {
                                 position,
                                 id,
                                 fields,
                             } => {
-                                let mut fields_res = String::new();
+                                writer.writeln_tab(tab + 2, "EnumItemASTNode {");
+                                writer.writeln_tab(tab + 3, &format!("position: {},", position));
+                                writer.writeln_tab(tab + 3, &format!("id: \"{}\",", id));
+                                writer.writeln_tab(tab + 3, "fields: [");
 
                                 for field in fields {
-                                    fields_res += &format!("        {:?}\n", field);
+                                    writer.writeln_tab(tab + 4, &format!("{:?}", field));
                                 }
 
-                                items_res += &format!(
-                                    "    EnumItemASTNode {{\n      position: {},\n      id: \"{}\",\n      fields: [\n{}      ]\n    }}\n",
-                                    position, id, fields_res
-                                );
+                                writer.writeln_tab(tab + 3, "]");
+                                writer.writeln_tab(tab + 2, "}");
                             }
-                            _ => items_res += &format!("    {:?}\n", item),
+                            _ => writer.writeln_tab(tab + 2, &format!("{:?}", item)),
                         }
                     }
 
-                    res += &format!(
-                        "Enum {{\n  id: \"{}\",\n  items: [\n{}  ]\n}}\n",
-                        id, items_res
-                    );
+                    writer.writeln_tab(tab + 1, "]");
+                    writer.writeln_tab(tab, "}");
                 }
-                ASTNode::Struct(StructASTNode { id, fields }) => {
-                    let mut fields_res = String::new();
+                ASTNode::Struct(StructASTNode {
+                    id,
+                    fields,
+                    emplace_buffers: _,
+                    into_buffers: _,
+                }) => {
+                    writer.writeln_tab(tab, "Struct {");
+                    writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
+                    writer.writeln_tab(tab + 1, "fields: [");
 
                     for field in fields {
-                        fields_res += &format!("    {:?}\n", field);
+                        writer.writeln_tab(tab + 2, &format!("{:?}", field));
                     }
 
-                    res += &format!(
-                        "Struct {{\n  id: \"{}\",\n  fields: [\n{}  ]\n}}\n",
-                        id, fields_res
-                    );
+                    writer.writeln_tab(tab + 1, "]");
+                    writer.writeln_tab(tab, "}");
                 }
                 ASTNode::Fn(FnASTNode {
                     id,
                     args,
                     return_type_id,
                 }) => {
-                    let mut args_res = String::new();
+                    writer.writeln_tab(tab, "Fn {");
+                    writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
+                    writer.writeln_tab(tab + 1, &format!("return_type_id: {:?},", return_type_id));
+                    writer.writeln_tab(tab + 1, "args: [");
 
                     for arg in args {
-                        args_res += &format!("    {:?}\n", arg);
+                        writer.writeln_tab(tab + 2, &format!("{:?}", arg));
                     }
 
-                    res += &format!(
-                        "Fn {{\n  id: \"{}\",\n  return_type_id: {:?},\n  args: [\n{}  ]\n}}\n",
-                        id, return_type_id, args_res
-                    );
+                    writer.writeln_tab(tab + 1, "]");
+                    writer.writeln_tab(tab, "}");
                 }
             }
         }
 
-        println!("{}", res);
-        res
+        println!("{}", writer.show());
+        writer.into()
     }
 
     #[test]
@@ -646,7 +681,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/empty.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/empty.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }
@@ -656,7 +691,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/empty_struct.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/empty_struct.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }
@@ -666,7 +701,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/two_empty_structs.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/two_empty_structs.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }
@@ -676,7 +711,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/struct_with_parameters.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/struct_with_parameters.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }
@@ -686,7 +721,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/enum.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/enum.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }
@@ -696,7 +731,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/rpc_method.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }
@@ -706,7 +741,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/rpc_method_without_ret.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/rpc_method_without_ret.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }
@@ -716,7 +751,7 @@ mod tests {
         let src = fs::read_to_string("test_resources/complex.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/complex.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(parse(&mut lexer));
+        let actual_ast = stringify_ast(&parse(&mut lexer));
 
         assert_eq!(actual_ast, target_ast);
     }

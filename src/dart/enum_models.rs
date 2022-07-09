@@ -11,6 +11,8 @@ pub fn create_enum_item_struct_ast_node(
             StructASTNode {
                 id: class_id,
                 fields: vec![],
+                emplace_buffers: true,
+                into_buffers: true,
             }
         }
         EnumItemASTNode::Tuple {
@@ -32,6 +34,8 @@ pub fn create_enum_item_struct_ast_node(
             StructASTNode {
                 id: class_id,
                 fields: args_struct_fields,
+                emplace_buffers: true,
+                into_buffers: true,
             }
         }
         EnumItemASTNode::Struct {
@@ -43,6 +47,8 @@ pub fn create_enum_item_struct_ast_node(
             StructASTNode {
                 id: class_id,
                 fields: fields.to_vec(),
+                emplace_buffers: true,
+                into_buffers: true,
             }
         }
     }

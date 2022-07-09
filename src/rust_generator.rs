@@ -43,6 +43,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, true)),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
+            ASTNode::Mod(_) => (),
         }
     }
 
@@ -63,6 +64,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_buffers(node)),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_buffers(node)),
             ASTNode::Fn(_) => (),
+            ASTNode::Mod(_) => (),
         }
     }
 
@@ -83,6 +85,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
             ASTNode::Struct(_) => (),
             ASTNode::Enum(_) => (),
             ASTNode::Fn(node) => writer.writeln(&generate_rpc_method(node)),
+            ASTNode::Mod(_) => (),
         }
     }
 
@@ -168,6 +171,8 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     let args_struct = StructASTNode {
         id: args_struct_id.clone(),
         fields: args_struct_fields,
+        emplace_buffers: false,
+        into_buffers: true,
     };
 
     writer.writeln(&generate_struct_model(&args_struct, false));

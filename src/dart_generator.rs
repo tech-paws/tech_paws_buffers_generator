@@ -2,16 +2,14 @@ use crate::{
     dart::{
         enum_emplace_buffers::generate_enum_emplace_buffers,
         enum_into_buffers::generate_enum_into_buffers,
-        enum_models::create_enum_item_struct_ast_node,
+        enum_models::create_enum_item_struct_ast_node, rpc::generate_rpc_method,
         struct_emplace_to_buffers::generate_struct_emplace_buffers,
         struct_into_buffers::generate_struct_into_buffers,
     },
-    parser::{
-        ASTNode, EnumASTNode, EnumItemASTNode, FnASTNode, StructASTNode, StructFieldASTNode,
-        TypeIDASTNode,
-    },
+    parser::{ASTNode, EnumASTNode, EnumItemASTNode, StructASTNode, TypeIDASTNode},
     writer::Writer,
 };
+
 use convert_case::{Case, Casing};
 
 pub fn generate(_ast: &[ASTNode], _models: bool, buffers: bool, _rpc: bool) -> String {
@@ -35,6 +33,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, "", true)),
             ASTNode::Enum(node) => writer.write(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
+            ASTNode::Mod(_) => (),
         }
     }
 
@@ -55,6 +54,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_buffers(node)),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_buffers(node)),
             ASTNode::Fn(_) => (),
+            ASTNode::Mod(_) => (),
         }
     }
 
@@ -75,6 +75,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
             ASTNode::Struct(_) => (),
             ASTNode::Enum(_) => (),
             ASTNode::Fn(node) => writer.writeln(&generate_rpc_method(node)),
+            ASTNode::Mod(_) => (),
         }
     }
 
@@ -185,8 +186,13 @@ pub fn generate_struct_model(node: &StructASTNode, def: &str, generate_default: 
 pub fn generate_struct_buffers(node: &StructASTNode) -> String {
     let mut writer = Writer::new(2);
 
-    writer.writeln(&generate_struct_emplace_buffers(node));
-    writer.writeln(&generate_struct_into_buffers(node));
+    if node.emplace_buffers {
+        writer.writeln(&generate_struct_emplace_buffers(node));
+    }
+
+    if node.into_buffers {
+        writer.writeln(&generate_struct_into_buffers(node));
+    }
 
     writer.show().to_string()
 }
@@ -390,33 +396,6 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Char { id: _ } => String::from("int"),
         TypeIDASTNode::Other { id } => id.clone(),
     }
-}
-
-fn generate_rpc_method(node: &FnASTNode) -> String {
-    let mut writer = Writer::new(2);
-
-    let args_struct_id = format!("__{}_rpc_args__", node.id);
-
-    let mut args_struct_fields = vec![];
-
-    for (i, arg) in node.args.iter().enumerate() {
-        args_struct_fields.push(StructFieldASTNode {
-            position: i as u32,
-            name: arg.id.clone(),
-            type_id: arg.type_id.clone(),
-        });
-    }
-
-    let args_struct = StructASTNode {
-        id: args_struct_id,
-        fields: args_struct_fields,
-    };
-
-    writer.writeln(&generate_struct_model(&args_struct, "", false));
-
-    writer.writeln(&generate_struct_buffers(&args_struct));
-
-    writer.show().to_string()
 }
 
 pub fn generate_read(type_id: &TypeIDASTNode) -> String {
@@ -689,7 +668,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn generate_rpc_method() {
         let src = fs::read_to_string("test_resources/rpc_method.tpb").unwrap();
         let target = fs::read_to_string("test_resources/dart/rpc_method.dart").unwrap();
