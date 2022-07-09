@@ -1,156 +1,5 @@
+use crate::ast::*;
 use crate::lexer::{Lexer, Literal, Token};
-
-#[derive(Debug)]
-pub enum ASTNode {
-    Enum(EnumASTNode),
-    Struct(StructASTNode),
-    Fn(FnASTNode),
-    Mod(ModASTNode),
-}
-
-#[derive(Debug)]
-pub struct ModASTNode {
-    pub id: String,
-    pub items: Vec<ASTNode>,
-}
-
-#[derive(Debug)]
-pub struct EnumASTNode {
-    pub id: String,
-    pub items: Vec<EnumItemASTNode>,
-}
-
-#[derive(Debug)]
-pub struct StructASTNode {
-    pub id: String,
-    pub fields: Vec<StructFieldASTNode>,
-    pub emplace_buffers: bool,
-    pub into_buffers: bool,
-}
-
-#[derive(Debug)]
-pub struct FnASTNode {
-    pub id: String,
-    pub args: Vec<FnArgASTNode>,
-    pub return_type_id: Option<TypeIDASTNode>,
-}
-
-#[derive(Debug)]
-pub enum EnumItemASTNode {
-    Empty {
-        position: u32,
-        id: String,
-    },
-    Tuple {
-        position: u32,
-        id: String,
-        values: Vec<TupleFieldASTNode>,
-    },
-    Struct {
-        position: u32,
-        id: String,
-        fields: Vec<StructFieldASTNode>,
-    },
-}
-
-#[derive(Debug)]
-pub enum ConstValueASTNode {
-    Literal {
-        literal: Literal,
-        type_id: TypeIDASTNode,
-    },
-}
-
-#[derive(Debug)]
-pub struct IdValuePair {
-    pub id: String,
-    pub value: ConstValueASTNode,
-}
-
-#[derive(Debug, Clone)]
-pub enum TypeIDASTNode {
-    Integer {
-        id: String,
-        size: usize,
-        signed: bool,
-    },
-    Number {
-        id: String,
-        size: usize,
-    },
-    Bool {
-        id: String,
-    },
-    Char {
-        id: String,
-    },
-    Other {
-        id: String,
-    },
-}
-
-impl EnumItemASTNode {
-    pub fn id(&self) -> &str {
-        match self {
-            EnumItemASTNode::Empty { position: _, id } => id,
-            EnumItemASTNode::Tuple {
-                position: _,
-                id,
-                values: _,
-            } => id,
-            EnumItemASTNode::Struct {
-                position: _,
-                id,
-                fields: _,
-            } => id,
-        }
-    }
-
-    pub fn position(&self) -> u32 {
-        match self {
-            EnumItemASTNode::Empty { position, id: _ } => *position,
-            EnumItemASTNode::Tuple {
-                position,
-                id: _,
-                values: _,
-            } => *position,
-            EnumItemASTNode::Struct {
-                position,
-                id: _,
-                fields: _,
-            } => *position,
-        }
-    }
-}
-
-impl TypeIDASTNode {
-    pub fn u32_type_id() -> Self {
-        TypeIDASTNode::Integer {
-            id: String::from("u32"),
-            size: 8,
-            signed: false,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct TupleFieldASTNode {
-    pub position: u32,
-    pub type_id: TypeIDASTNode,
-}
-
-#[derive(Debug, Clone)]
-pub struct StructFieldASTNode {
-    pub position: u32,
-    pub name: String,
-    pub type_id: TypeIDASTNode,
-}
-
-#[derive(Debug, Clone)]
-pub struct FnArgASTNode {
-    pub id: String,
-    pub type_id: TypeIDASTNode,
-}
 
 pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
     let mut ast_nodes = vec![];
@@ -160,6 +9,7 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
             Token::Struct => ast_nodes.push(parse_struct(lexer)),
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
             Token::Fn => ast_nodes.push(parse_fn(lexer)),
+            Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
             _ => panic!("Unexpected token: {:?}", lexer.current_token()),
         }
     }
@@ -555,6 +405,75 @@ pub fn parse_position(lexer: &mut Lexer) -> u32 {
     position as u32
 }
 
+/// Parse:
+/// #[<id> = <const>] | #[<id>(<args>)]
+/// args: <id> = <const>, args
+pub fn parse_directive(lexer: &mut Lexer) -> ASTNode {
+    if *lexer.current_token() != Token::Symbol('#') {
+        panic!("Expected '#' but got {:?}", lexer.current_token());
+    }
+
+    if *lexer.next_token() != Token::Symbol('[') {
+        panic!("Expected '[' but got {:?}", lexer.current_token());
+    }
+
+    let id = if let Token::ID { name } = lexer.next_token() {
+        name.clone()
+    } else {
+        panic!("Expected id but got {:?}", lexer.current_token());
+    };
+
+    let directive = match lexer.next_token() {
+        Token::Symbol('=') => parse_value_directive(id, lexer),
+        Token::Symbol('(') => parse_group_directive(id, lexer),
+        _ => panic!("Expected '=' or '(' but got {:?}", lexer.current_token()),
+    };
+
+    if *lexer.next_token() != Token::Symbol(']') {
+        panic!("Expected ']' but got {:?}", lexer.current_token());
+    }
+
+    lexer.next_token();
+
+    ASTNode::Directive(directive)
+}
+
+fn parse_value_directive(id: String, lexer: &mut Lexer) -> DirectiveASTNode {
+    lexer.next_token();
+    let value = parse_const_value(lexer);
+    DirectiveASTNode::Value { id, value }
+}
+
+fn parse_group_directive(id: String, lexer: &mut Lexer) -> DirectiveASTNode {
+    lexer.next_token();
+
+    let mut values = vec![];
+
+    while let Token::ID { name } = lexer.current_token() {
+        let id = name.clone();
+
+        if *lexer.next_token() != Token::Symbol('=') {
+            panic!("Expected '=', but got {:?}", lexer.current_token());
+        }
+
+        lexer.next_token();
+        let value = parse_const_value(lexer);
+        values.push(IdValuePair { id, value });
+        lexer.next_token();
+
+        if *lexer.current_token() != Token::Symbol(',') {
+            break;
+        } else {
+            lexer.next_token();
+        }
+    }
+
+    DirectiveASTNode::Group {
+        group_id: id,
+        values,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -572,12 +491,28 @@ mod tests {
 
         for node in ast {
             match node {
-                ASTNode::Mod(node) => {
-                    writer.writeln_tab(tab, "Mod {");
-                    writer.writeln_tab(tab + 1, &format!("id: \"{}\",", node.id));
-                    writer.writeln_tab(tab + 1, "nodes: [");
-                    writer.write(&stringify_ast_impl(tab + 2, &ast));
+                ASTNode::Directive(DirectiveASTNode::Group {
+                    group_id,
+                    values: args,
+                }) => {
+                    writer.writeln_tab(tab, "DirectiveASTNode::Group {");
+                    writer.writeln_tab(tab + 1, &format!("group_id: \"{}\",", group_id));
+                    writer.writeln_tab(tab + 1, "args: [");
+
+                    for arg in args {
+                        writer.writeln_tab(tab + 2, "IdValuePair {");
+                        writer.writeln_tab(tab + 3, &format!("id: \"{}\"", arg.id));
+                        writer.writeln_tab(tab + 3, &format!("value: {:?}", arg.value));
+                        writer.writeln_tab(tab + 2, "}");
+                    }
+
                     writer.writeln_tab(tab + 1, "]");
+                    writer.writeln_tab(tab, "}");
+                }
+                ASTNode::Directive(DirectiveASTNode::Value { id, value }) => {
+                    writer.writeln_tab(tab, "DirectiveASTNode::Value {");
+                    writer.writeln_tab(tab + 1, &format!("id: \"{}\"", id));
+                    writer.writeln_tab(tab + 1, &format!("value: {:?}", value));
                     writer.writeln_tab(tab, "}");
                 }
                 ASTNode::Enum(EnumASTNode { id, items }) => {
@@ -750,6 +685,16 @@ mod tests {
     fn parse_complex_test() {
         let src = fs::read_to_string("test_resources/complex.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/complex.ast").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let actual_ast = stringify_ast(&parse(&mut lexer));
+
+        assert_eq!(actual_ast, target_ast);
+    }
+
+    #[test]
+    fn parse_directive_test() {
+        let src = fs::read_to_string("test_resources/directive.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/directive.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(&parse(&mut lexer));
 

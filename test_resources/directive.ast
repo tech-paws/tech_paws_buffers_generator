@@ -1,0 +1,17 @@
+DirectiveASTNode::Value {
+  id: "namespace"
+  value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
+}
+DirectiveASTNode::Group {
+  group_id: "dart",
+  args: [
+    IdValuePair {
+      id: "file_name"
+      value: Literal { literal: StringLiteral("test.dart"), type_id: Other { id: "String" } }
+    }
+    IdValuePair {
+      id: "rpc_prefix"
+      value: Literal { literal: StringLiteral("Prefix"), type_id: Other { id: "String" } }
+    }
+  ]
+}

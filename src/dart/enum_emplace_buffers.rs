@@ -1,11 +1,11 @@
 use convert_case::{Case, Casing};
 
+use crate::ast::*;
 use crate::{
     dart::{
         enum_models::create_enum_item_struct_ast_node,
         struct_emplace_to_buffers::generate_struct_emplace_buffers,
     },
-    parser::EnumASTNode,
     writer::Writer,
 };
 

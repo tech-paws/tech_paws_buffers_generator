@@ -1,6 +1,7 @@
 use convert_case::{Case, Casing};
 
-use crate::{parser::EnumASTNode, writer::Writer};
+use crate::ast::*;
+use crate::writer::Writer;
 
 use super::{
     enum_models::create_enum_item_struct_ast_node,

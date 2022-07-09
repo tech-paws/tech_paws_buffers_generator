@@ -1,0 +1,210 @@
+use crate::lexer::Literal;
+
+#[derive(Debug)]
+pub enum ASTNode {
+    Enum(EnumASTNode),
+    Struct(StructASTNode),
+    Fn(FnASTNode),
+    Directive(DirectiveASTNode),
+}
+
+#[derive(Debug)]
+pub enum DirectiveASTNode {
+    Value {
+        id: String,
+        value: ConstValueASTNode,
+    },
+    Group {
+        group_id: String,
+        values: Vec<IdValuePair>,
+    },
+}
+
+#[derive(Debug)]
+pub struct EnumASTNode {
+    pub id: String,
+    pub items: Vec<EnumItemASTNode>,
+}
+
+#[derive(Debug)]
+pub struct StructASTNode {
+    pub id: String,
+    pub fields: Vec<StructFieldASTNode>,
+    pub emplace_buffers: bool,
+    pub into_buffers: bool,
+}
+
+#[derive(Debug)]
+pub struct FnASTNode {
+    pub id: String,
+    pub args: Vec<FnArgASTNode>,
+    pub return_type_id: Option<TypeIDASTNode>,
+}
+
+#[derive(Debug)]
+pub enum EnumItemASTNode {
+    Empty {
+        position: u32,
+        id: String,
+    },
+    Tuple {
+        position: u32,
+        id: String,
+        values: Vec<TupleFieldASTNode>,
+    },
+    Struct {
+        position: u32,
+        id: String,
+        fields: Vec<StructFieldASTNode>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ConstValueASTNode {
+    Literal {
+        literal: Literal,
+        type_id: TypeIDASTNode,
+    },
+}
+
+#[derive(Debug)]
+pub struct IdValuePair {
+    pub id: String,
+    pub value: ConstValueASTNode,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeIDASTNode {
+    Integer {
+        id: String,
+        size: usize,
+        signed: bool,
+    },
+    Number {
+        id: String,
+        size: usize,
+    },
+    Bool {
+        id: String,
+    },
+    Char {
+        id: String,
+    },
+    Other {
+        id: String,
+    },
+}
+
+impl EnumItemASTNode {
+    pub fn id(&self) -> &str {
+        match self {
+            EnumItemASTNode::Empty { position: _, id } => id,
+            EnumItemASTNode::Tuple {
+                position: _,
+                id,
+                values: _,
+            } => id,
+            EnumItemASTNode::Struct {
+                position: _,
+                id,
+                fields: _,
+            } => id,
+        }
+    }
+
+    pub fn position(&self) -> u32 {
+        match self {
+            EnumItemASTNode::Empty { position, id: _ } => *position,
+            EnumItemASTNode::Tuple {
+                position,
+                id: _,
+                values: _,
+            } => *position,
+            EnumItemASTNode::Struct {
+                position,
+                id: _,
+                fields: _,
+            } => *position,
+        }
+    }
+}
+
+impl TypeIDASTNode {
+    pub fn u32_type_id() -> Self {
+        TypeIDASTNode::Integer {
+            id: String::from("u32"),
+            size: 8,
+            signed: false,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TupleFieldASTNode {
+    pub position: u32,
+    pub type_id: TypeIDASTNode,
+}
+
+#[derive(Debug, Clone)]
+pub struct StructFieldASTNode {
+    pub position: u32,
+    pub name: String,
+    pub type_id: TypeIDASTNode,
+}
+
+#[derive(Debug, Clone)]
+pub struct FnArgASTNode {
+    pub id: String,
+    pub type_id: TypeIDASTNode,
+}
+
+pub fn find_directive_value(target_id: &str, ast: &[ASTNode]) -> Option<ConstValueASTNode> {
+    for node in ast {
+        match node {
+            ASTNode::Directive(node) => {
+                match node {
+                    DirectiveASTNode::Value { id, value } => {
+                        if target_id == id {
+                            return Some(value.clone());
+                        }
+                    }
+                    DirectiveASTNode::Group {
+                        group_id: _,
+                        values: _,
+                    } => (),
+                }
+            }
+            _ => (),
+        }
+    }
+
+    None
+}
+
+pub fn find_directive_group_value(
+    target_group_id: &str,
+    target_id: &str,
+    ast: &[ASTNode],
+) -> Option<ConstValueASTNode> {
+    for node in ast {
+        match node {
+            ASTNode::Directive(node) => {
+                match node {
+                    DirectiveASTNode::Value { id: _, value: _ } => (),
+                    DirectiveASTNode::Group { group_id, values } => {
+                        if target_group_id == group_id {
+                            for value in values {
+                                if value.id == target_id {
+                                    return Some(value.value.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+
+    None
+}

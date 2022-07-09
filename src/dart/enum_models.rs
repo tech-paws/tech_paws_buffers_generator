@@ -1,4 +1,4 @@
-use crate::parser::{EnumASTNode, EnumItemASTNode, StructASTNode, StructFieldASTNode};
+use crate::ast::*;
 
 pub fn create_enum_item_struct_ast_node(
     node: &EnumASTNode,

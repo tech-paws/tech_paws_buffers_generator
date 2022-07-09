@@ -1,11 +1,5 @@
-use crate::{
-    lexer::Literal,
-    parser::{
-        ASTNode, ConstValueASTNode, EnumASTNode, EnumItemASTNode, FnASTNode, StructASTNode,
-        StructFieldASTNode, TupleFieldASTNode, TypeIDASTNode,
-    },
-    writer::Writer,
-};
+use crate::ast::*;
+use crate::{lexer::Literal, writer::Writer};
 
 const RPC_NEW_DATA_STATUS: &str = "0xFF";
 const RPC_NO_DATA_STATUS: &str = "0x00";
@@ -43,7 +37,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_model(node, true)),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
-            ASTNode::Mod(_) => (),
+            ASTNode::Directive(_) => (),
         }
     }
 
@@ -64,7 +58,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
             ASTNode::Struct(node) => writer.writeln(&generate_struct_buffers(node)),
             ASTNode::Enum(node) => writer.writeln(&generate_enum_buffers(node)),
             ASTNode::Fn(_) => (),
-            ASTNode::Mod(_) => (),
+            ASTNode::Directive(_) => (),
         }
     }
 
@@ -85,7 +79,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
             ASTNode::Struct(_) => (),
             ASTNode::Enum(_) => (),
             ASTNode::Fn(node) => writer.writeln(&generate_rpc_method(node)),
-            ASTNode::Mod(_) => (),
+            ASTNode::Directive(_) => (),
         }
     }
 

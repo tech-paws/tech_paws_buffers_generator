@@ -328,19 +328,14 @@ mod tests {
     }
 
     #[test]
-    fn lex_struct_keyword() {
-        let mut lexer = Lexer::tokenize("struct");
+    fn lex_keywords() {
+        let mut lexer = Lexer::tokenize("struct enum fn");
         let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Struct);
         let token = lexer.next_token();
-        assert_eq!(token.clone(), Token::EOF);
-    }
-
-    #[test]
-    fn lex_enum_keyword() {
-        let mut lexer = Lexer::tokenize("enum");
-        let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Enum);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Fn);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }

@@ -1,8 +1,8 @@
 use convert_case::{Case, Casing};
 
+use crate::ast::*;
 use crate::{
     dart_generator::{generate_read_emplace, generate_read_skip_emplace, generate_write_emplace},
-    parser::{StructASTNode, TypeIDASTNode},
     writer::Writer,
 };
 
