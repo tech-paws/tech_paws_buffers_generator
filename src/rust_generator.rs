@@ -15,18 +15,27 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     }
 
     if models {
+        writer.writeln("");
         writer.write(&generate_models(ast));
     }
 
     if buffers {
+        writer.writeln("");
         writer.write(&generate_buffers(ast));
     }
 
     if rpc {
+        writer.writeln("");
         writer.write(&generate_rpc(ast));
     }
 
-    writer.show().to_string()
+    let mut res = writer.show().to_string();
+
+    while res.ends_with("\n\n") {
+        res.pop();
+    }
+
+    res
 }
 
 pub fn generate_models(ast: &[ASTNode]) -> String {

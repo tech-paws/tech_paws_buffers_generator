@@ -12,7 +12,7 @@ use crate::{
 
 use convert_case::{Case, Casing};
 
-pub fn generate(_ast: &[ASTNode], _models: bool, buffers: bool, _rpc: bool) -> String {
+pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> String {
     let mut writer = Writer::new(2);
 
     writer.writeln("// GENERATED, DO NOT EDIT");
@@ -22,7 +22,28 @@ pub fn generate(_ast: &[ASTNode], _models: bool, buffers: bool, _rpc: bool) -> S
         writer.writeln("import 'package:buffers/buffers.dart';");
     }
 
-    writer.show().to_string()
+    if models {
+        writer.writeln("");
+        writer.write(&generate_models(ast));
+    }
+
+    if buffers {
+        writer.writeln("");
+        writer.write(&generate_buffers(ast));
+    }
+
+    if rpc {
+        writer.writeln("");
+        writer.write(&generate_rpc(ast));
+    }
+
+    let mut res = writer.show().to_string();
+
+    while res.ends_with("\n\n") {
+        res.pop();
+    }
+
+    res
 }
 
 pub fn generate_models(ast: &[ASTNode]) -> String {
@@ -68,15 +89,9 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
 pub fn generate_rpc(ast: &[ASTNode]) -> String {
     let mut writer = Writer::new(2);
 
-    writer.writeln(&generate_rpc_methods(ast));
+    writer.write(&generate_rpc_methods(ast));
 
-    let mut res = writer.show().to_string();
-
-    if res.ends_with("\n\n") {
-        res.pop();
-    }
-
-    res
+    writer.show().to_string()
 }
 
 pub fn generate_struct_model(node: &StructASTNode, def: &str, generate_default: bool) -> String {
@@ -609,18 +624,6 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_models(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    #[ignore]
-    fn generate_empty_struct_buffers() {
-        let src = fs::read_to_string("test_resources/empty_struct.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/dart/empty_struct_buffers.dart").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_buffers(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }
