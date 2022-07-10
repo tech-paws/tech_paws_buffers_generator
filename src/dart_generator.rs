@@ -575,46 +575,9 @@ mod tests {
     }
 
     #[test]
-    fn generate_empty_struct_model() {
-        let src = fs::read_to_string("test_resources/empty_struct.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/dart/empty_struct_models.dart").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_models(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_struct_with_parameters_model() {
-        let src = fs::read_to_string("test_resources/struct_with_parameters.tpb").unwrap();
-        let target =
-            fs::read_to_string("test_resources/dart/struct_with_parameters_models.dart").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_models(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_two_structs_models() {
-        let src = fs::read_to_string("test_resources/two_empty_structs.tpb").unwrap();
-        let target =
-            fs::read_to_string("test_resources/dart/two_empty_structs_models.dart").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_models(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_struct_with_external_type_models() {
-        let src = fs::read_to_string("test_resources/struct_with_external_type.tpb").unwrap();
-        let target =
-            fs::read_to_string("test_resources/dart/struct_with_external_type_models.dart")
-                .unwrap();
+    fn generate_struct_model() {
+        let src = fs::read_to_string("test_resources/struct.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/dart/struct_models.dart").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_models(&ast);
@@ -634,23 +597,10 @@ mod tests {
     }
 
     #[test]
-    fn generate_struct_with_parameters_buffer() {
-        let src = fs::read_to_string("test_resources/struct_with_parameters.tpb").unwrap();
+    fn generate_struct_buffer() {
+        let src = fs::read_to_string("test_resources/struct.tpb").unwrap();
         let target =
-            fs::read_to_string("test_resources/dart/struct_with_parameters_buffers.dart").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_buffers(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_struct_with_external_type_buffer() {
-        let src = fs::read_to_string("test_resources/struct_with_external_type.tpb").unwrap();
-        let target =
-            fs::read_to_string("test_resources/dart/struct_with_external_type_buffers.dart")
-                .unwrap();
+            fs::read_to_string("test_resources/dart/struct_buffers.dart").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_buffers(&ast);

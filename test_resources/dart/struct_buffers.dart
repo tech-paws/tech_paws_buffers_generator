@@ -1,3 +1,42 @@
+class EmptyEmplaceToBuffers implements EmplaceToBuffers<Empty> {
+  const EmptyEmplaceToBuffers();
+
+  @override
+  void read(BytesReader reader, Empty model) {
+  }
+
+  @override
+  void write(BytesWriter writer, Empty model) {
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+    }
+  }
+}
+
+class EmptyIntoBuffers implements IntoBuffers<Empty> {
+  const EmptyIntoBuffers();
+
+  @override
+  Empty read(BytesReader reader) {
+
+    return Empty(
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, Empty model) {
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+    }
+  }
+}
+
 class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
   const TestEmplaceToBuffers();
 
@@ -94,6 +133,68 @@ class TestIntoBuffers implements IntoBuffers<Test> {
       reader.readFloat();
       reader.readFloat();
       reader.readFloat();
+      reader.readFloat();
+      reader.readFloat();
+    }
+  }
+}
+
+class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
+  const TestEmplaceToBuffers();
+
+  @override
+  void read(BytesReader reader, Test model) {
+    model.touchX = reader.readFloat();
+    model.touchY = reader.readFloat();
+    const TouchStatusEmplaceToBuffers().read(reader, model.touchStatus);
+  }
+
+  @override
+  void write(BytesWriter writer, Test model) {
+    writer.writeFloat(model.touchX);
+    writer.writeFloat(model.touchY);
+    const TouchStatusEmplaceToBuffers().write(writer, model.touchStatus);
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    const TouchStatusEmplaceToBuffers().skip(reader, count);
+
+    for (int i = 0; i < count; i += 1) {
+      reader.readFloat();
+      reader.readFloat();
+    }
+  }
+}
+
+class TestIntoBuffers implements IntoBuffers<Test> {
+  const TestIntoBuffers();
+
+  @override
+  Test read(BytesReader reader) {
+    final touchX = reader.readFloat();
+    final touchY = reader.readFloat();
+    final touchStatus = const TouchStatusIntoBuffers().read(reader);
+
+    return Test(
+      touchX: touchX,
+      touchY: touchY,
+      touchStatus: touchStatus,
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, Test model) {
+    writer.writeFloat(model.touchX);
+    writer.writeFloat(model.touchY);
+    const TouchStatusIntoBuffers().write(writer, model.touchStatus);
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    const TouchStatusIntoBuffers().skip(reader, count);
+
+    for (int i = 0; i < count; i += 1) {
       reader.readFloat();
       reader.readFloat();
     }

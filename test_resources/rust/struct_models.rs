@@ -1,4 +1,13 @@
 #[derive(Debug, Clone, PartialEq)]
+pub struct Empty;
+
+impl Default for Empty {
+    fn default() -> Self {
+        Self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Test {
     pub delta_time: f32,
     pub view_width: f32,
@@ -23,6 +32,23 @@ impl Default for Test {
             last_touch_y: 0.0,
             touch_x: 0.0,
             touch_y: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Test {
+    pub touch_x: f32,
+    pub touch_y: f32,
+    pub touch_status: TouchStatus,
+}
+
+impl Default for Test {
+    fn default() -> Self {
+        Self {
+            touch_x: 0.0,
+            touch_y: 0.0,
+            touch_status: TouchStatus::default(),
         }
     }
 }

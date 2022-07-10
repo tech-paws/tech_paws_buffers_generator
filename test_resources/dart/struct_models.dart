@@ -1,3 +1,14 @@
+class Empty {
+  const Empty();
+}
+
+class EmptyBuffersFactory implements BuffersFactory<Empty> {
+  const EmptyBuffersFactory();
+
+  @override
+  Empty createDefault() => const Empty();
+}
+
 class Test {
   double deltaTime;
   double viewWidth;
@@ -31,6 +42,30 @@ class Test {
         lastTouchY = 0.0,
         touchX = 0.0,
         touchY = 0.0;
+}
+
+class TestBuffersFactory implements BuffersFactory<Test> {
+  const TestBuffersFactory();
+
+  @override
+  Test createDefault() => Test.createDefault();
+}
+
+class Test {
+  double touchX;
+  double touchY;
+  TouchStatus touchStatus;
+
+  Test({
+    required this.touchX,
+    required this.touchY,
+    required this.touchStatus,
+  });
+
+  Test.createDefault()
+      : touchX = 0.0,
+        touchY = 0.0,
+        touchStatus = const TouchStatusBuffersFactory().createDefault();
 }
 
 class TestBuffersFactory implements BuffersFactory<Test> {

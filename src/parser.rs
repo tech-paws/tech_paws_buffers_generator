@@ -622,29 +622,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_empty_struct_test() {
-        let src = fs::read_to_string("test_resources/empty_struct.tpb").unwrap();
-        let target_ast = fs::read_to_string("test_resources/empty_struct.ast").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(&parse(&mut lexer));
-
-        assert_eq!(actual_ast, target_ast);
-    }
-
-    #[test]
-    fn parse_two_empty_structs_test() {
-        let src = fs::read_to_string("test_resources/two_empty_structs.tpb").unwrap();
-        let target_ast = fs::read_to_string("test_resources/two_empty_structs.ast").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let actual_ast = stringify_ast(&parse(&mut lexer));
-
-        assert_eq!(actual_ast, target_ast);
-    }
-
-    #[test]
-    fn parse_struct_with_parameters_test() {
-        let src = fs::read_to_string("test_resources/struct_with_parameters.tpb").unwrap();
-        let target_ast = fs::read_to_string("test_resources/struct_with_parameters.ast").unwrap();
+    fn parse_struct_test() {
+        let src = fs::read_to_string("test_resources/struct.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/struct.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(&parse(&mut lexer));
 
