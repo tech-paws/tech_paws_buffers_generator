@@ -1,3 +1,3 @@
 // GENERATED, DO NOT EDIT
 
-import 'package:buffers/buffers.dart';
+import 'package:tech_paws_buffers/tech_paws_buffers.dart';

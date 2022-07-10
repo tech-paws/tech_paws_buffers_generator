@@ -4,60 +4,54 @@ enum MyEnumValue {
   update,
 }
 
-class MyEnumUnion {
+class MyEnum {
   MyEnumValue value = MyEnumValue.idle;
   MyEnumIdle idle = const MyEnumIdle();
   MyEnumMove move = MyEnumMove.createDefault();
   MyEnumUpdate update = MyEnumUpdate.createDefault();
-}
 
-class MyEnumUnionBuffersFactory implements BuffersFactory<MyEnumUnion> {
-  const MyEnumUnionBuffersFactory();
+  void toIdle() => value = MyEnumValue.idle;
 
-  MyEnumUnion createDefault() => MyEnumUnion();
-}
-
-abstract class MyEnum {
-  static const idle = MyEnumIdle();
-
-  static MyEnumMove move({
+  void toMove({
     required double x,
     required double y,
-  }) =>
-      MyEnumMove(
-        x: x,
-        y: y,
-      );
+  }) {
+    value = MyEnumValue.move;
+    move.x = x,
+    move.y = y,
+  }
 
-  static MyEnumUpdate update({
-    required double v0,
-    required double v1,
-    required String v2,
-  }) =>
-      MyEnumUpdate(
-        v0: v0,
-        v1: v1,
-        v2: v2,
-      );
+  void toUpdate(
+    double v0,
+    double v1,
+    String v2,
+  ) {
+    value = MyEnumValue.update;
+    update.v0 = v0;
+    update.v1 = v1;
+    update.v2 = v2;
+  }
 }
 
 class MyEnumBuffersFactory implements BuffersFactory<MyEnum> {
   const MyEnumBuffersFactory();
 
-  MyEnum createDefault() => const MyEnumIdleBuffersFactory().createDefault();
+  @override
+  MyEnum createDefault() => MyEnum();
 }
 
-class MyEnumIdle implements MyEnum {
+class MyEnumIdle {
   const MyEnumIdle();
 }
 
 class MyEnumIdleBuffersFactory implements BuffersFactory<MyEnumIdle> {
   const MyEnumIdleBuffersFactory();
 
+  @override
   MyEnumIdle createDefault() => const MyEnumIdle();
 }
 
-class MyEnumMove implements MyEnum {
+class MyEnumMove {
   double x;
   double y;
 
@@ -74,10 +68,11 @@ class MyEnumMove implements MyEnum {
 class MyEnumMoveBuffersFactory implements BuffersFactory<MyEnumMove> {
   const MyEnumMoveBuffersFactory();
 
+  @override
   MyEnumMove createDefault() => MyEnumMove.createDefault();
 }
 
-class MyEnumUpdate implements MyEnum {
+class MyEnumUpdate {
   double v0;
   double v1;
   String v2;
@@ -97,5 +92,6 @@ class MyEnumUpdate implements MyEnum {
 class MyEnumUpdateBuffersFactory implements BuffersFactory<MyEnumUpdate> {
   const MyEnumUpdateBuffersFactory();
 
+  @override
   MyEnumUpdate createDefault() => MyEnumUpdate.createDefault();
 }

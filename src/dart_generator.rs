@@ -1,4 +1,5 @@
-use crate::ast::*;
+use crate::ast::{self, *};
+use crate::lexer::Literal;
 use crate::{
     dart::{
         enum_emplace_buffers::generate_enum_emplace_buffers,
@@ -19,7 +20,24 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     writer.writeln("");
 
     if buffers {
-        writer.writeln("import 'package:buffers/buffers.dart';");
+        writer.writeln("import 'package:tech_paws_buffers/tech_paws_buffers.dart';");
+    }
+
+    let imports = ast::find_directive_group_values(ast, "dart", "import");
+
+    for import in imports {
+        let import = match import {
+            ast::ConstValueASTNode::Literal {
+                literal,
+                type_id: _,
+            } => {
+                match literal {
+                    Literal::StringLiteral(value) => value,
+                    _ => panic!("dart import should be a string literal"),
+                }
+            }
+        };
+        writer.writeln(&format!("import '{}';", import));
     }
 
     if models {
@@ -111,6 +129,7 @@ pub fn generate_struct_model(node: &StructASTNode, def: &str, generate_default: 
             ));
             writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
             writer.writeln("");
+            writer.writeln_tab(1, "@override");
             writer.writeln_tab(
                 1,
                 &format!("{} createDefault() => const {}();", node.id, node.id),
@@ -174,6 +193,7 @@ pub fn generate_struct_model(node: &StructASTNode, def: &str, generate_default: 
         ));
         writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
         writer.writeln("");
+        writer.writeln_tab(1, "@override");
         writer.writeln_tab(
             1,
             &format!(
@@ -216,8 +236,8 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     writer.writeln("}");
     writer.writeln("");
 
-    // Union type
-    writer.writeln(&format!("class {}Union {{", node.id));
+    // Enum
+    writer.writeln(&format!("class {} {{", node.id));
     let default_union_value = node
         .items
         .first()
@@ -261,26 +281,9 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
         );
     }
 
-    writer.writeln("}");
-    writer.writeln("");
+    // Enum helper functions
 
-    // Create default for union
-    writer.writeln(&format!(
-        "class {}UnionBuffersFactory implements BuffersFactory<{}Union> {{",
-        node.id, node.id
-    ));
-    writer.writeln_tab(1, &format!("const {}UnionBuffersFactory();", node.id));
     writer.writeln("");
-    writer.writeln_tab(
-        1,
-        &format!("{}Union createDefault() => {}Union();", node.id, node.id),
-    );
-    writer.writeln("}");
-    writer.writeln("");
-
-    // enum
-
-    writer.writeln(&format!("abstract class {} {{", node.id));
 
     for (item_idx, item) in node.items.iter().enumerate() {
         match item {
@@ -288,10 +291,10 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
                 writer.writeln_tab(
                     1,
                     &format!(
-                        "static const {} = {}{}();",
-                        id.to_case(Case::Camel),
+                        "void to{}() => value = {}Value.{};",
+                        id.to_case(Case::Pascal),
                         node.id,
-                        id
+                        id.to_case(Case::Camel)
                     ),
                 );
             }
@@ -300,34 +303,31 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
                 id,
                 values,
             } => {
-                writer.writeln_tab(
-                    1,
-                    &format!("static {}{} {}({{", node.id, id, id.to_case(Case::Camel)),
-                );
+                writer.writeln_tab(1, &format!("void to{}(", id.to_case(Case::Pascal)));
 
                 for (i, value) in values.iter().enumerate() {
                     let type_id = generate_type_id(&value.type_id);
-                    writer.writeln_tab(2, &format!("required {} v{},", type_id, i));
+                    writer.writeln_tab(2, &format!("{} v{},", type_id, i));
                 }
 
-                writer.writeln_tab(1, "}) =>");
-                writer.writeln_tab(3, &format!("{}{}(", node.id, id));
+                writer.writeln_tab(1, ") {");
+                writer.writeln_tab(
+                    2,
+                    &format!("value = {}Value.{};", node.id, id.to_case(Case::Camel)),
+                );
 
                 for (i, _) in values.iter().enumerate() {
-                    writer.writeln_tab(4, &format!("v{}: v{},", i, i));
+                    writer.writeln_tab(2, &format!("{}.v{} = v{};", id.to_case(Case::Camel), i, i));
                 }
 
-                writer.writeln_tab(3, ");");
+                writer.writeln_tab(1, "}");
             }
             EnumItemASTNode::Struct {
                 position: _,
                 id,
                 fields,
             } => {
-                writer.writeln_tab(
-                    1,
-                    &format!("static {}{} {}({{", node.id, id, id.to_case(Case::Camel)),
-                );
+                writer.writeln_tab(1, &format!("void to{}({{", id.to_case(Case::Pascal)));
                 for field in fields {
                     let type_id = generate_type_id(&field.type_id);
                     writer.writeln_tab(
@@ -335,14 +335,25 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
                         &format!("required {} {},", type_id, field.name.to_case(Case::Camel)),
                     );
                 }
-                writer.writeln_tab(1, "}) =>");
-                writer.writeln_tab(3, &format!("{}{}(", node.id, id));
+                writer.writeln_tab(1, "}) {");
+                writer.writeln_tab(
+                    2,
+                    &format!("value = {}Value.{};", node.id, id.to_case(Case::Camel)),
+                );
 
                 for field in fields {
-                    writer.writeln_tab(4, &format!("{}: {},", field.name, field.name));
+                    writer.writeln_tab(
+                        2,
+                        &format!(
+                            "{}.{} = {},",
+                            id.to_case(Case::Camel),
+                            field.name,
+                            field.name
+                        ),
+                    );
                 }
 
-                writer.writeln_tab(3, ");");
+                writer.writeln_tab(1, "}");
             }
         }
 
@@ -354,33 +365,22 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     writer.writeln("}");
     writer.writeln("");
 
-    // Generate enum default
-
+    // Create default for union
     writer.writeln(&format!(
         "class {}BuffersFactory implements BuffersFactory<{}> {{",
         node.id, node.id
     ));
     writer.writeln_tab(1, &format!("const {}BuffersFactory();", node.id));
     writer.writeln("");
-    writer.writeln_tab(
-        1,
-        &format!(
-            "{} createDefault() => const {}{}BuffersFactory().createDefault();",
-            node.id,
-            node.id,
-            node.items.first().unwrap().id()
-        ),
-    );
+    writer.writeln_tab(1, "@override");
+    writer.writeln_tab(1, &format!("{} createDefault() => {}();", node.id, node.id));
     writer.writeln("}");
     writer.writeln("");
 
+    // Enum values
     for (item_idx, item) in node.items.iter().enumerate() {
         let enum_class = create_enum_item_struct_ast_node(node, item);
-        writer.write(&generate_struct_model(
-            &enum_class,
-            &format!(" implements {}", node.id),
-            true,
-        ));
+        writer.write(&generate_struct_model(&enum_class, "", true));
 
         if item_idx != node.items.len() - 1 {
             writer.writeln("");
@@ -543,6 +543,11 @@ pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String
 
 pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
     let mut writer = Writer::new(2);
+
+    for item in node.items.iter() {
+        let enum_class = create_enum_item_struct_ast_node(node, item);
+        writer.writeln(&generate_struct_emplace_buffers(&enum_class));
+    }
 
     writer.writeln(&generate_enum_into_buffers(node));
     writer.write(&generate_enum_emplace_buffers(node));

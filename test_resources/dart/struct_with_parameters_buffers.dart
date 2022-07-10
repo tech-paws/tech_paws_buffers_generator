@@ -59,15 +59,15 @@ class TestIntoBuffers implements IntoBuffers<Test> {
     final touchY = reader.readFloat();
 
     return Test(
-      deltaTime: deltaTime;
-      viewWidth: viewWidth;
-      viewHeight: viewHeight;
-      touchStartX: touchStartX;
-      touchStartY: touchStartY;
-      lastTouchX: lastTouchX;
-      lastTouchY: lastTouchY;
-      touchX: touchX;
-      touchY: touchY;
+      deltaTime: deltaTime,
+      viewWidth: viewWidth,
+      viewHeight: viewHeight,
+      touchStartX: touchStartX,
+      touchStartY: touchStartY,
+      lastTouchX: lastTouchX,
+      lastTouchY: lastTouchY,
+      touchX: touchX,
+      touchY: touchY,
     );
   }
 

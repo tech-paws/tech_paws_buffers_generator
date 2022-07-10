@@ -3,19 +3,8 @@ use convert_case::{Case, Casing};
 use crate::ast::*;
 use crate::writer::Writer;
 
-use super::{
-    enum_models::create_enum_item_struct_ast_node,
-    struct_into_buffers::generate_struct_into_buffers,
-};
-
 pub fn generate_enum_into_buffers(node: &EnumASTNode) -> String {
     let mut writer = Writer::new(2);
-
-    for item in node.items.iter() {
-        let enum_class = create_enum_item_struct_ast_node(node, item);
-        writer.writeln(&generate_struct_into_buffers(&enum_class));
-        writer.writeln("");
-    }
 
     writer.writeln(&format!(
         "class {}IntoBuffers implements IntoBuffers<{}> {{",
@@ -35,7 +24,7 @@ pub fn generate_enum_into_buffers(node: &EnumASTNode) -> String {
 fn generate_read(node: &EnumASTNode) -> String {
     let mut writer = Writer::new(2);
     writer.writeln_tab(1, "@override");
-    writer.writeln_tab(1, "void read(BytesReader reader) {");
+    writer.writeln_tab(1, &format!("{} read(BytesReader reader) {{", node.id));
 
     writer.writeln_tab(2, "final value = reader.readInt32();");
     writer.writeln("");
@@ -43,14 +32,25 @@ fn generate_read(node: &EnumASTNode) -> String {
 
     for item in node.items.iter() {
         writer.writeln_tab(3, &format!("case {}:", item.position()));
+        writer.writeln_tab(4, &format!("final model = {}();", node.id));
         writer.writeln_tab(
             4,
             &format!(
-                "return const {}{}IntoBuffers().read(reader);",
+                "model.value = {}Value.{};",
                 node.id,
-                item.id(),
+                item.id().to_case(Case::Camel)
             ),
         );
+        writer.writeln_tab(
+            4,
+            &format!(
+                "const {}{}EmplaceToBuffers().read(reader, model.{});",
+                node.id,
+                item.id(),
+                item.id().to_case(Case::Camel),
+            ),
+        );
+        writer.writeln_tab(4, "return model;");
         writer.writeln("");
     }
 
@@ -80,7 +80,7 @@ fn generate_write(node: &EnumASTNode) -> String {
         writer.writeln_tab(
             4,
             &format!(
-                "const {}{}IntoBuffers().write(writer, model.{});",
+                "const {}{}EmplaceToBuffers().write(writer, model.{});",
                 node.id,
                 item.id(),
                 item.id().to_case(Case::Camel),
@@ -92,7 +92,10 @@ fn generate_write(node: &EnumASTNode) -> String {
 
     // Default case
     writer.writeln_tab(3, "default:");
-    writer.writeln_tab(4, "throw StateError('Unsupported enum type: ${model.runtimeType}');");
+    writer.writeln_tab(
+        4,
+        "throw StateError('Unsupported enum type: ${model.runtimeType}');",
+    );
     writer.writeln_tab(2, "}");
 
     writer.writeln_tab(1, "}");
@@ -116,12 +119,12 @@ fn generate_skip(node: &EnumASTNode) -> String {
         writer.writeln_tab(
             5,
             &format!(
-                "const {}{}IntoBuffers().skip(reader, 1);",
+                "const {}{}EmplaceToBuffers().skip(reader, 1);",
                 node.id,
                 item.id(),
             ),
         );
-        writer.writeln_tab(5, "continue;");
+        writer.writeln_tab(5, "break;");
         writer.writeln("");
     }
 

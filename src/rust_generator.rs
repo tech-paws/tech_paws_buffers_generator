@@ -119,7 +119,7 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> St
     } else {
         writer.writeln("#[derive(Debug, Clone, PartialEq)]");
         writer.writeln(&format!("pub struct {} {{", node.id));
-        writer.write(&generate_struct_parameters(1, &node.fields));
+        writer.write(&generate_struct_parameters(1, true, &node.fields));
         writer.writeln("}");
 
         if generate_default {
@@ -260,12 +260,17 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.show().to_string()
 }
 
-pub fn generate_struct_parameters(tab: usize, params: &[StructFieldASTNode]) -> String {
+pub fn generate_struct_parameters(tab: usize, is_pub: bool, params: &[StructFieldASTNode]) -> String {
     let mut writer = Writer::default();
 
     for param in params {
         let type_id = generate_type_id(&param.type_id);
-        writer.writeln_tab(tab, &format!("{}: {},", param.name, type_id));
+
+        if is_pub {
+            writer.writeln_tab(tab, &format!("pub {}: {},", param.name, type_id));
+        } else {
+            writer.writeln_tab(tab, &format!("{}: {},", param.name, type_id));
+        }
     }
 
     writer.show().to_string()
@@ -322,7 +327,7 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
                 fields,
             } => {
                 writer.writeln_tab(1, &format!("{} {{", id));
-                writer.write(&generate_struct_parameters(2, fields));
+                writer.write(&generate_struct_parameters(2, false, fields));
                 writer.writeln_tab(1, "},");
             }
         }

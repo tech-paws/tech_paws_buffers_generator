@@ -43,7 +43,7 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
         writer.writeln(&generate_struct_buffers(&args_struct));
     }
 
-    let namespace = ast::find_directive_value("namespace", ast).expect("namespace is required");
+    let namespace = ast::find_directive_value(ast, "namespace").expect("namespace is required");
 
     let namespace = match namespace {
         ast::ConstValueASTNode::Literal {

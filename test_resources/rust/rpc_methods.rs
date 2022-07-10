@@ -87,7 +87,7 @@ pub fn hello_world_rpc_handler(
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct __say_hello_rpc_args__ {
-    name: String,
+    pub name: String,
 }
 
 impl IntoVMBuffers for __say_hello_rpc_args__ {
@@ -144,9 +144,9 @@ pub fn say_hello_rpc_handler(
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct __sum_rpc_args__ {
-    a: i32,
-    b: f32,
-    c: f64,
+    pub a: i32,
+    pub b: f32,
+    pub c: f64,
 }
 
 impl IntoVMBuffers for __sum_rpc_args__ {

@@ -36,5 +36,6 @@ class Test {
 class TestBuffersFactory implements BuffersFactory<Test> {
   const TestBuffersFactory();
 
+  @override
   Test createDefault() => Test.createDefault();
 }

@@ -64,7 +64,7 @@ class __say_hello_rpc_args__IntoBuffers implements IntoBuffers<__say_hello_rpc_a
     final name = const StringIntoBuffers().read(reader);
 
     return __say_hello_rpc_args__(
-      name: name;
+      name: name,
     );
   }
 
@@ -104,9 +104,9 @@ class __sum_rpc_args__IntoBuffers implements IntoBuffers<__sum_rpc_args__> {
     final c = reader.readDouble();
 
     return __sum_rpc_args__(
-      a: a;
-      b: b;
-      c: c;
+      a: a,
+      b: b,
+      c: c,
     );
   }
 

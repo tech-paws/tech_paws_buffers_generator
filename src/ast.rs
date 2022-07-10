@@ -170,7 +170,7 @@ pub fn find_fn_nodes(ast: &[ASTNode]) -> Vec<&FnASTNode> {
     res
 }
 
-pub fn find_directive_value(target_id: &str, ast: &[ASTNode]) -> Option<ConstValueASTNode> {
+pub fn find_directive_value(ast: &[ASTNode], target_id: &str) -> Option<ConstValueASTNode> {
     for node in ast {
         if let ASTNode::Directive(DirectiveASTNode::Value { id, value }) = node {
             if target_id == id {
@@ -183,9 +183,9 @@ pub fn find_directive_value(target_id: &str, ast: &[ASTNode]) -> Option<ConstVal
 }
 
 pub fn find_directive_group_value(
+    ast: &[ASTNode],
     target_group_id: &str,
     target_id: &str,
-    ast: &[ASTNode],
 ) -> Option<ConstValueASTNode> {
     for node in ast {
         if let ASTNode::Directive(DirectiveASTNode::Group { group_id, values }) = node {
@@ -200,4 +200,26 @@ pub fn find_directive_group_value(
     }
 
     None
+}
+
+pub fn find_directive_group_values(
+    ast: &[ASTNode],
+    target_group_id: &str,
+    target_id: &str,
+) -> Vec<ConstValueASTNode> {
+    let mut res = vec![];
+
+    for node in ast {
+        if let ASTNode::Directive(DirectiveASTNode::Group { group_id, values }) = node {
+            if target_group_id == group_id {
+                for value in values {
+                    if value.id == target_id {
+                        res.push(value.value.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    res
 }

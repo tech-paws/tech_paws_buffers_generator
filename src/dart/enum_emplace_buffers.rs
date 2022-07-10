@@ -1,24 +1,18 @@
 use convert_case::{Case, Casing};
 
 use crate::ast::*;
-use crate::{
-    dart::{
-        enum_models::create_enum_item_struct_ast_node,
-        struct_emplace_to_buffers::generate_struct_emplace_buffers,
-    },
-    writer::Writer,
-};
+use crate::writer::Writer;
 
 pub fn generate_enum_emplace_buffers(node: &EnumASTNode) -> String {
     let mut writer = Writer::new(2);
 
-    for item in node.items.iter() {
-        let enum_class = create_enum_item_struct_ast_node(node, item);
-        writer.writeln(&generate_struct_emplace_buffers(&enum_class));
-    }
+    // for item in node.items.iter() {
+    //     let enum_class = create_enum_item_struct_ast_node(node, item);
+    //     writer.writeln(&generate_struct_emplace_buffers(&enum_class));
+    // }
 
     writer.writeln(&format!(
-        "class {}EmplaceToBuffers implements EmplaceToBuffers<{}Union> {{",
+        "class {}EmplaceToBuffers implements EmplaceToBuffers<{}> {{",
         node.id, node.id
     ));
 
@@ -38,7 +32,7 @@ fn generate_read(node: &EnumASTNode) -> String {
     writer.writeln_tab(1, "@override");
     writer.writeln_tab(
         1,
-        &format!("void read(BytesReader reader, {}Union model) {{", node.id),
+        &format!("void read(BytesReader reader, {} model) {{", node.id),
     );
 
     writer.writeln_tab(2, "final value = reader.readInt32();");
@@ -84,7 +78,7 @@ fn generate_write(node: &EnumASTNode) -> String {
     writer.writeln_tab(1, "@override");
     writer.writeln_tab(
         1,
-        &format!("void write(BytesWriter writer, {}Union model) {{", node.id),
+        &format!("void write(BytesWriter writer, {} model) {{", node.id),
     );
     writer.writeln_tab(2, "switch (model.value) {");
 
@@ -137,7 +131,7 @@ fn generate_skip(node: &EnumASTNode) -> String {
                 item.id(),
             ),
         );
-        writer.writeln_tab(5, "continue;");
+        writer.writeln_tab(5, "break;");
         writer.writeln("");
     }
 

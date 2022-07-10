@@ -1,14 +1,14 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct Test {
-    delta_time: f32,
-    view_width: f32,
-    view_height: f32,
-    touch_start_x: f32,
-    touch_start_y: f32,
-    last_touch_x: f32,
-    last_touch_y: f32,
-    touch_x: f32,
-    touch_y: f32,
+    pub delta_time: f32,
+    pub view_width: f32,
+    pub view_height: f32,
+    pub touch_start_x: f32,
+    pub touch_start_y: f32,
+    pub last_touch_x: f32,
+    pub last_touch_y: f32,
+    pub touch_x: f32,
+    pub touch_y: f32,
 }
 
 impl Default for Test {

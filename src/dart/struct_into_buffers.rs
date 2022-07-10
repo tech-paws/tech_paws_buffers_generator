@@ -51,7 +51,7 @@ pub fn generate_struct_into_buffers_read(node: &StructASTNode) -> String {
         writer.writeln_tab(
             3,
             &format!(
-                "{}: {};",
+                "{}: {},",
                 field.name.to_case(Case::Camel),
                 field.name.to_case(Case::Camel)
             ),

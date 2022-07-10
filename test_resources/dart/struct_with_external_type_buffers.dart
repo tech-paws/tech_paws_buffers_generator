@@ -36,9 +36,9 @@ class TestIntoBuffers implements IntoBuffers<Test> {
     final touchStatus = const TouchStatusIntoBuffers().read(reader);
 
     return Test(
-      touchX: touchX;
-      touchY: touchY;
-      touchStatus: touchStatus;
+      touchX: touchX,
+      touchY: touchY,
+      touchStatus: touchStatus,
     );
   }
 
