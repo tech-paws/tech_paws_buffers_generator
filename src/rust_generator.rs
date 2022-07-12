@@ -1,4 +1,4 @@
-use crate::ast::*;
+use crate::ast::{*, self};
 use crate::{lexer::Literal, writer::Writer};
 
 const RPC_NEW_DATA_STATUS: &str = "0xFF";
@@ -12,6 +12,23 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
 
     if buffers {
         writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
+    }
+
+    let imports = ast::find_directive_group_values(ast, "rust", "use");
+
+    for import in imports {
+        let import = match import {
+            ast::ConstValueASTNode::Literal {
+                literal,
+                type_id: _,
+            } => {
+                match literal {
+                    Literal::StringLiteral(value) => value,
+                    _ => panic!("dart use should be a string literal"),
+                }
+            }
+        };
+        writer.writeln(&format!("use {};", import));
     }
 
     if models {
