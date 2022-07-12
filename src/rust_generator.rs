@@ -755,7 +755,7 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
             id: _,
             size: _,
             signed: _,
-        } => String::from(""),
+        } => String::from("0"),
         TypeIDASTNode::Number { id: _, size: _ } => String::from("0.0"),
         TypeIDASTNode::Bool { id: _ } => String::from("false"),
         TypeIDASTNode::Char { id: _ } => String::from("0"),

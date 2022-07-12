@@ -104,14 +104,24 @@ enum MyEnumWithoutPositionsValue {
 
 class MyEnumWithoutPositions {
   MyEnumWithoutPositionsValue value = MyEnumWithoutPositionsValue.option_1;
-  MyEnumWithoutPositionsOption1 option1 = const MyEnumWithoutPositionsOption1();
-  MyEnumWithoutPositionsOption2 option2 = const MyEnumWithoutPositionsOption2();
+  MyEnumWithoutPositionsOption1 option1 = MyEnumWithoutPositionsOption1.createDefault();
+  MyEnumWithoutPositionsOption2 option2 = MyEnumWithoutPositionsOption2.createDefault();
   MyEnumWithoutPositionsOption3 option3 = const MyEnumWithoutPositionsOption3();
   MyEnumWithoutPositionsOption4 option4 = const MyEnumWithoutPositionsOption4();
 
-  void toOption1() => value = MyEnumWithoutPositionsValue.option1;
+  void toOption1(
+    int v0,
+  ) {
+    value = MyEnumWithoutPositionsValue.option1;
+    option1.v0 = v0;
+  }
 
-  void toOption2() => value = MyEnumWithoutPositionsValue.option2;
+  void toOption2({
+    required String name,
+  }) {
+    value = MyEnumWithoutPositionsValue.option2;
+    option2.name = name,
+  }
 
   void toOption3() => value = MyEnumWithoutPositionsValue.option3;
 
@@ -126,25 +136,39 @@ class MyEnumWithoutPositionsBuffersFactory implements BuffersFactory<MyEnumWitho
 }
 
 class MyEnumWithoutPositionsOption1 {
-  const MyEnumWithoutPositionsOption1();
+  int v0;
+
+  MyEnumWithoutPositionsOption1({
+    required this.v0,
+  });
+
+  MyEnumWithoutPositionsOption1.createDefault()
+      : v0 = ;
 }
 
 class MyEnumWithoutPositionsOption1BuffersFactory implements BuffersFactory<MyEnumWithoutPositionsOption1> {
   const MyEnumWithoutPositionsOption1BuffersFactory();
 
   @override
-  MyEnumWithoutPositionsOption1 createDefault() => const MyEnumWithoutPositionsOption1();
+  MyEnumWithoutPositionsOption1 createDefault() => MyEnumWithoutPositionsOption1.createDefault();
 }
 
 class MyEnumWithoutPositionsOption2 {
-  const MyEnumWithoutPositionsOption2();
+  String name;
+
+  MyEnumWithoutPositionsOption2({
+    required this.name,
+  });
+
+  MyEnumWithoutPositionsOption2.createDefault()
+      : name = const StringBuffersFactory().createDefault();
 }
 
 class MyEnumWithoutPositionsOption2BuffersFactory implements BuffersFactory<MyEnumWithoutPositionsOption2> {
   const MyEnumWithoutPositionsOption2BuffersFactory();
 
   @override
-  MyEnumWithoutPositionsOption2 createDefault() => const MyEnumWithoutPositionsOption2();
+  MyEnumWithoutPositionsOption2 createDefault() => MyEnumWithoutPositionsOption2.createDefault();
 }
 
 class MyEnumWithoutPositionsOption3 {

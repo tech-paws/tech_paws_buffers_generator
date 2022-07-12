@@ -305,6 +305,14 @@ pub fn parse_struct_parameters_with_positions(lexer: &mut Lexer) -> Vec<StructFi
 }
 
 pub fn parse_tuple_parameters(lexer: &mut Lexer) -> Vec<TupleFieldASTNode> {
+    if let Token::Symbol('#') = lexer.current_token() {
+        parse_tuple_parameters_with_positions(lexer)
+    } else {
+        parse_tuple_parameters_without_positions(lexer)
+    }
+}
+
+pub fn parse_tuple_parameters_with_positions(lexer: &mut Lexer) -> Vec<TupleFieldASTNode> {
     let mut fields = vec![];
 
     while *lexer.current_token() == Token::Symbol('#') {
@@ -312,6 +320,26 @@ pub fn parse_tuple_parameters(lexer: &mut Lexer) -> Vec<TupleFieldASTNode> {
         let type_id = parse_type_id(lexer);
 
         fields.push(TupleFieldASTNode { position, type_id });
+
+        if *lexer.current_token() != Token::Symbol(',') {
+            break;
+        }
+
+        lexer.next_token();
+    }
+
+    fields
+}
+
+pub fn parse_tuple_parameters_without_positions(lexer: &mut Lexer) -> Vec<TupleFieldASTNode> {
+    let mut fields = vec![];
+    let mut position = 0;
+
+    while let Token::ID { name: _ } = lexer.current_token() {
+        let type_id = parse_type_id(lexer);
+
+        fields.push(TupleFieldASTNode { position, type_id });
+        position += 1;
 
         if *lexer.current_token() != Token::Symbol(',') {
             break;

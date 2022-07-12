@@ -20,14 +20,20 @@ impl Default for MyEnum {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MyEnumWithoutPositions {
-    Option1,
-    Option2,
+    Option1(
+        u64,
+    ),
+    Option2 {
+        name: String,
+    },
     Option3,
     Option4,
 }
 
 impl Default for MyEnumWithoutPositions {
     fn default() -> Self {
-        Self::Option1
+        Self::Option1(
+            0,
+        )
     }
 }

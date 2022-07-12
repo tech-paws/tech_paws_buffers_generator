@@ -225,15 +225,18 @@ class MyEnumWithoutPositionsOption1EmplaceToBuffers implements EmplaceToBuffers<
 
   @override
   void read(BytesReader reader, MyEnumWithoutPositionsOption1 model) {
+    model.v0 = reader.readInt64();
   }
 
   @override
   void write(BytesWriter writer, MyEnumWithoutPositionsOption1 model) {
+    writer.writeInt64(model.v0);
   }
 
   @override
   void skip(BytesReader reader, int count) {
     for (int i = 0; i < count; i += 1) {
+      reader.readInt64();
     }
   }
 }
@@ -243,14 +246,18 @@ class MyEnumWithoutPositionsOption2EmplaceToBuffers implements EmplaceToBuffers<
 
   @override
   void read(BytesReader reader, MyEnumWithoutPositionsOption2 model) {
+    const StringEmplaceToBuffers().read(reader, model.name);
   }
 
   @override
   void write(BytesWriter writer, MyEnumWithoutPositionsOption2 model) {
+    const StringEmplaceToBuffers().write(writer, model.name);
   }
 
   @override
   void skip(BytesReader reader, int count) {
+    const StringEmplaceToBuffers().skip(reader, count);
+
     for (int i = 0; i < count; i += 1) {
     }
   }

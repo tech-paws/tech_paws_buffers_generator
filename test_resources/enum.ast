@@ -24,8 +24,20 @@ Enum {
 Enum {
   id: "MyEnumWithoutPositions",
   items: [
-    Empty { position: 0, id: "Option1" }
-    Empty { position: 1, id: "Option2" }
+    TupleFieldASTNode {
+      position: 0,
+      id: "Option1",
+      items: [
+        TupleFieldASTNode { position: 0, type_id: Integer { id: "u64", size: 8, signed: false } }
+      ]
+    }
+    EnumItemASTNode {
+      position: 1,
+      id: "Option2",
+      fields: [
+        StructFieldASTNode { position: 0, name: "name", type_id: Other { id: "String" } }
+      ]
+    }
     Empty { position: 2, id: "Option3" }
     Empty { position: 3, id: "Option4" }
   ]
