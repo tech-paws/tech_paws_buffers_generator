@@ -55,14 +55,14 @@ impl Default for Test {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenericType {
-    pub items: BuffersIterable<Test>,
+    pub items: Vec<Test>,
     pub table: LinearTable<f32, Test>,
 }
 
 impl Default for GenericType {
     fn default() -> Self {
         Self {
-            items: BuffersIterable::<Test>::default(),
+            items: Vec::<Test>::default(),
             table: LinearTable::<f32, Test>::default(),
         }
     }

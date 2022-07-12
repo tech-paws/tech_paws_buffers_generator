@@ -77,7 +77,7 @@ impl IntoVMBuffers for Test {
 impl IntoVMBuffers for GenericType {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         Self {
-            items: BuffersIterable::<Test>::read_from_buffers(bytes_reader),
+            items: Vec::<Test>::read_from_buffers(bytes_reader),
             table: LinearTable::<f32, Test>::read_from_buffers(bytes_reader),
         }
     }
@@ -89,7 +89,7 @@ impl IntoVMBuffers for GenericType {
 
     fn skip_in_buffers(bytes_reader: &mut BytesReader, count: u64) {
         for _ in 0..count {
-            BuffersIterable::<Test>::read_from_buffers(bytes_reader);
+            Vec::<Test>::read_from_buffers(bytes_reader);
             LinearTable::<f32, Test>::read_from_buffers(bytes_reader);
         }
     }

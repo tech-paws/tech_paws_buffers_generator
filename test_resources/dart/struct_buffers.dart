@@ -206,20 +206,20 @@ class GenericTypeEmplaceToBuffers implements EmplaceToBuffers<GenericType> {
 
   @override
   void read(BytesReader reader, GenericType model) {
-    const BuffersIterableEmplaceToBuffers<Test>().read(reader, model.items);
+    const ListEmplaceToBuffers<Test>().read(reader, model.items);
     const LinearTableEmplaceToBuffers<double, Test>().read(reader, model.table);
   }
 
   @override
   void write(BytesWriter writer, GenericType model) {
-    const BuffersIterableEmplaceToBuffers<Test>().write(writer, model.items);
+    const ListEmplaceToBuffers<Test>().write(writer, model.items);
     const LinearTableEmplaceToBuffers<double, Test>().write(writer, model.table);
   }
 
   @override
   void skip(BytesReader reader, int count) {
     for (int i = 0; i < count; i += 1) {
-      const BuffersIterableEmplaceToBuffers<Test>().read(reader, count);
+      const ListEmplaceToBuffers<Test>().read(reader, count);
       const LinearTableEmplaceToBuffers<double, Test>().read(reader, count);
     }
   }
@@ -230,7 +230,7 @@ class GenericTypeIntoBuffers implements IntoBuffers<GenericType> {
 
   @override
   GenericType read(BytesReader reader) {
-    final items = const BuffersIterableIntoBuffers<Test>().read(reader);
+    final items = const ListIntoBuffers<Test>().read(reader);
     final table = const LinearTableIntoBuffers<double, Test>().read(reader);
 
     return GenericType(
@@ -241,14 +241,14 @@ class GenericTypeIntoBuffers implements IntoBuffers<GenericType> {
 
   @override
   void write(BytesWriter writer, GenericType model) {
-    const BuffersIterableIntoBuffers<Test>().write(writer, model.items);
+    const ListIntoBuffers<Test>().write(writer, model.items);
     const LinearTableIntoBuffers<double, Test>().write(writer, model.table);
   }
 
   @override
   void skip(BytesReader reader, int count) {
     for (int i = 0; i < count; i += 1) {
-      const BuffersIterableIntoBuffers<Test>().read(reader, count);
+      const ListIntoBuffers<Test>().read(reader, count);
       const LinearTableIntoBuffers<double, Test>().read(reader, count);
     }
   }

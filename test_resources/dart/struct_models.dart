@@ -76,7 +76,7 @@ class TestBuffersFactory implements BuffersFactory<Test> {
 }
 
 class GenericType {
-  BuffersIterable<Test> items;
+  List<Test> items;
   LinearTable<double, Test> table;
 
   GenericType({
@@ -85,7 +85,7 @@ class GenericType {
   });
 
   GenericType.createDefault()
-      : items = const BuffersIterableBuffersFactory<Test>().createDefault(),
+      : items = const ListBuffersFactory<Test>().createDefault(),
         table = const LinearTableBuffersFactory<double, Test>().createDefault();
 }
 

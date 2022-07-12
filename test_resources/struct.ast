@@ -28,7 +28,7 @@ Struct {
 Struct {
   id: "GenericType",
   fields: [
-    StructFieldASTNode { position: 0, name: "items", type_id: Generic { id: "BuffersIterable", generics: [Other { id: "Test" }] } }
+    StructFieldASTNode { position: 0, name: "items", type_id: Generic { id: "Vec", generics: [Other { id: "Test" }] } }
     StructFieldASTNode { position: 1, name: "table", type_id: Generic { id: "LinearTable", generics: [Number { id: "f32", size: 4 }, Other { id: "Test" }] } }
   ]
 }

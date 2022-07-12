@@ -19,6 +19,6 @@ struct Test {
 }
 
 struct GenericType {
-    #[0] items: BuffersIterable<Test>,
+    #[0] items: Vec<Test>,
     #[1] table: LinearTable<f32, Test>,
 }

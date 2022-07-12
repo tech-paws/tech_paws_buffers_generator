@@ -402,6 +402,11 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Char { id: _ } => String::from("int"),
         TypeIDASTNode::Other { id } => id.clone(),
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
+
             format!(
                 "{}<{}>",
                 id,
@@ -452,6 +457,10 @@ pub fn generate_read(type_id: &TypeIDASTNode) -> String {
             )
         }
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
             format!(
                 "const {}IntoBuffers<{}>().read(reader)",
                 id,
@@ -482,6 +491,10 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
             )
         }
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
             format!(
                 "const {}BuffersFactory<{}>().createDefault()",
                 id,
@@ -505,6 +518,10 @@ pub fn generate_read_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String 
             )
         }
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
             format!(
                 "const {}EmplaceToBuffers<{}>().read(reader, {});",
                 id,
@@ -529,6 +546,10 @@ pub fn generate_read_skip(type_id: &TypeIDASTNode) -> String {
             )
         }
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
             format!(
                 "const {}IntoBuffers<{}>().read(reader, count);",
                 id,
@@ -552,6 +573,10 @@ pub fn generate_read_skip_emplace(type_id: &TypeIDASTNode) -> String {
             )
         }
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
             format!(
                 "const {}EmplaceToBuffers<{}>().read(reader, count);",
                 id,
@@ -593,6 +618,10 @@ pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
             format!("const {}IntoBuffers().write(writer, {});", id, accessor)
         }
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
             format!(
                 "const {}IntoBuffers<{}>().write(writer, {});",
                 id,
@@ -617,6 +646,10 @@ pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String
             )
         }
         TypeIDASTNode::Generic { id, generics } => {
+            let id = match id.as_str() {
+                "Vec" => "List",
+                _ => id,
+            };
             format!(
                 "const {}EmplaceToBuffers<{}>().write(writer, {});",
                 id,
