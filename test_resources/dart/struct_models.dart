@@ -9,7 +9,7 @@ class EmptyBuffersFactory implements BuffersFactory<Empty> {
   Empty createDefault() => const Empty();
 }
 
-class Test {
+class ViewData {
   double deltaTime;
   double viewWidth;
   double viewHeight;
@@ -20,7 +20,7 @@ class Test {
   double touchX;
   double touchY;
 
-  Test({
+  ViewData({
     required this.deltaTime,
     required this.viewWidth,
     required this.viewHeight,
@@ -32,7 +32,7 @@ class Test {
     required this.touchY,
   });
 
-  Test.createDefault()
+  ViewData.createDefault()
       : deltaTime = 0.0,
         viewWidth = 0.0,
         viewHeight = 0.0,
@@ -44,11 +44,11 @@ class Test {
         touchY = 0.0;
 }
 
-class TestBuffersFactory implements BuffersFactory<Test> {
-  const TestBuffersFactory();
+class ViewDataBuffersFactory implements BuffersFactory<ViewData> {
+  const ViewDataBuffersFactory();
 
   @override
-  Test createDefault() => Test.createDefault();
+  ViewData createDefault() => ViewData.createDefault();
 }
 
 class Test {
@@ -73,4 +73,25 @@ class TestBuffersFactory implements BuffersFactory<Test> {
 
   @override
   Test createDefault() => Test.createDefault();
+}
+
+class GenericType {
+  BuffersIterable<Test> items;
+  LinearTable<double, Test> table;
+
+  GenericType({
+    required this.items,
+    required this.table,
+  });
+
+  GenericType.createDefault()
+      : items = const BuffersIterableBuffersFactory<Test>().createDefault(),
+        table = const LinearTableBuffersFactory<double, Test>().createDefault();
+}
+
+class GenericTypeBuffersFactory implements BuffersFactory<GenericType> {
+  const GenericTypeBuffersFactory();
+
+  @override
+  GenericType createDefault() => GenericType.createDefault();
 }

@@ -37,11 +37,11 @@ class EmptyIntoBuffers implements IntoBuffers<Empty> {
   }
 }
 
-class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
-  const TestEmplaceToBuffers();
+class ViewDataEmplaceToBuffers implements EmplaceToBuffers<ViewData> {
+  const ViewDataEmplaceToBuffers();
 
   @override
-  void read(BytesReader reader, Test model) {
+  void read(BytesReader reader, ViewData model) {
     model.deltaTime = reader.readFloat();
     model.viewWidth = reader.readFloat();
     model.viewHeight = reader.readFloat();
@@ -54,7 +54,7 @@ class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
   }
 
   @override
-  void write(BytesWriter writer, Test model) {
+  void write(BytesWriter writer, ViewData model) {
     writer.writeFloat(model.deltaTime);
     writer.writeFloat(model.viewWidth);
     writer.writeFloat(model.viewHeight);
@@ -82,11 +82,11 @@ class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
   }
 }
 
-class TestIntoBuffers implements IntoBuffers<Test> {
-  const TestIntoBuffers();
+class ViewDataIntoBuffers implements IntoBuffers<ViewData> {
+  const ViewDataIntoBuffers();
 
   @override
-  Test read(BytesReader reader) {
+  ViewData read(BytesReader reader) {
     final deltaTime = reader.readFloat();
     final viewWidth = reader.readFloat();
     final viewHeight = reader.readFloat();
@@ -97,7 +97,7 @@ class TestIntoBuffers implements IntoBuffers<Test> {
     final touchX = reader.readFloat();
     final touchY = reader.readFloat();
 
-    return Test(
+    return ViewData(
       deltaTime: deltaTime,
       viewWidth: viewWidth,
       viewHeight: viewHeight,
@@ -111,7 +111,7 @@ class TestIntoBuffers implements IntoBuffers<Test> {
   }
 
   @override
-  void write(BytesWriter writer, Test model) {
+  void write(BytesWriter writer, ViewData model) {
     writer.writeFloat(model.deltaTime);
     writer.writeFloat(model.viewWidth);
     writer.writeFloat(model.viewHeight);
@@ -197,6 +197,59 @@ class TestIntoBuffers implements IntoBuffers<Test> {
     for (int i = 0; i < count; i += 1) {
       reader.readFloat();
       reader.readFloat();
+    }
+  }
+}
+
+class GenericTypeEmplaceToBuffers implements EmplaceToBuffers<GenericType> {
+  const GenericTypeEmplaceToBuffers();
+
+  @override
+  void read(BytesReader reader, GenericType model) {
+    const BuffersIterableEmplaceToBuffers<Test>().read(reader, model.items);
+    const LinearTableEmplaceToBuffers<double, Test>().read(reader, model.table);
+  }
+
+  @override
+  void write(BytesWriter writer, GenericType model) {
+    const BuffersIterableEmplaceToBuffers<Test>().write(writer, model.items);
+    const LinearTableEmplaceToBuffers<double, Test>().write(writer, model.table);
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+      const BuffersIterableEmplaceToBuffers<Test>().read(reader, count);
+      const LinearTableEmplaceToBuffers<double, Test>().read(reader, count);
+    }
+  }
+}
+
+class GenericTypeIntoBuffers implements IntoBuffers<GenericType> {
+  const GenericTypeIntoBuffers();
+
+  @override
+  GenericType read(BytesReader reader) {
+    final items = const BuffersIterableIntoBuffers<Test>().read(reader);
+    final table = const LinearTableIntoBuffers<double, Test>().read(reader);
+
+    return GenericType(
+      items: items,
+      table: table,
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, GenericType model) {
+    const BuffersIterableIntoBuffers<Test>().write(writer, model.items);
+    const LinearTableIntoBuffers<double, Test>().write(writer, model.table);
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+      const BuffersIterableIntoBuffers<Test>().read(reader, count);
+      const LinearTableIntoBuffers<double, Test>().read(reader, count);
     }
   }
 }

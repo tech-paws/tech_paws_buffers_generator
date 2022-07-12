@@ -260,7 +260,11 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.show().to_string()
 }
 
-pub fn generate_struct_parameters(tab: usize, is_pub: bool, params: &[StructFieldASTNode]) -> String {
+pub fn generate_struct_parameters(
+    tab: usize,
+    is_pub: bool,
+    params: &[StructFieldASTNode],
+) -> String {
     let mut writer = Writer::default();
 
     for param in params {
@@ -298,6 +302,17 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Bool { id } => id.clone(),
         TypeIDASTNode::Char { id } => id.clone(),
         TypeIDASTNode::Other { id } => id.clone(),
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "{}<{}>",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
     }
 }
 
@@ -696,6 +711,17 @@ pub fn generate_read(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Bool { id } => format!("bytes_reader.read_{}()", id),
         TypeIDASTNode::Char { id } => format!("bytes_reader.read_{}()", id),
         TypeIDASTNode::Other { id } => format!("{}::read_from_buffers(bytes_reader)", id),
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "{}::<{}>::read_from_buffers(bytes_reader)",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
     }
 }
 
@@ -717,6 +743,9 @@ pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str, deref: bool) -> S
         TypeIDASTNode::Other { id: _ } => {
             format!("{}.write_to_buffers(bytes_writer);", accessor)
         }
+        TypeIDASTNode::Generic { id: _, generics: _ } => {
+            format!("{}.write_to_buffers(bytes_writer);", accessor)
+        }
     }
 }
 
@@ -731,6 +760,17 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Bool { id: _ } => String::from("false"),
         TypeIDASTNode::Char { id: _ } => String::from("0"),
         TypeIDASTNode::Other { id } => format!("{}::default()", id),
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "{}::<{}>::default()",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
     }
 }
 

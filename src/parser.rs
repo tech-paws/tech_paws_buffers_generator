@@ -249,7 +249,26 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
     } else {
         panic!("Expected string value, but got {:?}", lexer.current_token());
     };
-    lexer.next_token();
+
+    if let Token::Symbol('<') = lexer.next_token() {
+        let mut generics = vec![];
+
+        while let Token::ID { name: _ } = lexer.next_token() {
+            let type_id = parse_type_id(lexer);
+            generics.push(type_id);
+
+            match lexer.current_token() {
+                Token::Symbol('>') => {
+                    lexer.next_token();
+                    return TypeIDASTNode::Generic { id: name, generics };
+                }
+                Token::Symbol(',') => {
+                    continue;
+                }
+                _ => panic!("Expected ',' or '>' but got {:?}", lexer.current_token()),
+            }
+        }
+    }
 
     match name.as_str() {
         "i8" => {

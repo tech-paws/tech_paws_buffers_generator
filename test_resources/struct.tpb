@@ -1,6 +1,6 @@
 struct Empty;
 
-struct Test {
+struct ViewData {
     #[0] delta_time: f32,
     #[1] view_width: f32,
     #[2] view_height: f32,
@@ -16,4 +16,9 @@ struct Test {
     #[0] touch_x: f32,
     #[1] touch_y: f32,
     #[2] touch_status: TouchStatus,
+}
+
+struct GenericType {
+    #[0] items: BuffersIterable<Test>,
+    #[1] table: LinearTable<f32, Test>,
 }

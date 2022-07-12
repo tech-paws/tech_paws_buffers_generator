@@ -401,6 +401,17 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Bool { id: _ } => String::from("bool"),
         TypeIDASTNode::Char { id: _ } => String::from("int"),
         TypeIDASTNode::Other { id } => id.clone(),
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "{}<{}>",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
     }
 }
 
@@ -440,6 +451,17 @@ pub fn generate_read(type_id: &TypeIDASTNode) -> String {
                 id.to_case(Case::Pascal)
             )
         }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}IntoBuffers<{}>().read(reader)",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
     }
 }
 
@@ -459,6 +481,17 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
                 id.to_case(Case::Pascal)
             )
         }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}BuffersFactory<{}>().createDefault()",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
     }
 }
 
@@ -468,6 +501,18 @@ pub fn generate_read_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String 
             format!(
                 "const {}EmplaceToBuffers().read(reader, {});",
                 id.to_case(Case::Pascal),
+                accessor,
+            )
+        }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}EmplaceToBuffers<{}>().read(reader, {});",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", "),
                 accessor,
             )
         }
@@ -483,6 +528,17 @@ pub fn generate_read_skip(type_id: &TypeIDASTNode) -> String {
                 id.to_case(Case::Pascal),
             )
         }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}IntoBuffers<{}>().read(reader, count);",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            )
+        }
         _ => format!("{};", &generate_read(type_id)),
     }
 }
@@ -493,6 +549,17 @@ pub fn generate_read_skip_emplace(type_id: &TypeIDASTNode) -> String {
             format!(
                 "const {}EmplaceToBuffers().skip(reader, count);",
                 id.to_case(Case::Pascal),
+            )
+        }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}EmplaceToBuffers<{}>().read(reader, count);",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", "),
             )
         }
         _ => format!("{};", &generate_read(type_id)),
@@ -525,6 +592,18 @@ pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
         TypeIDASTNode::Other { id } => {
             format!("const {}IntoBuffers().write(writer, {});", id, accessor)
         }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}IntoBuffers<{}>().write(writer, {});",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", "),
+                accessor,
+            )
+        }
     }
 }
 
@@ -535,6 +614,18 @@ pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String
                 "const {}EmplaceToBuffers().write(writer, {});",
                 id.to_case(Case::Pascal),
                 accessor
+            )
+        }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}EmplaceToBuffers<{}>().write(writer, {});",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", "),
+                accessor,
             )
         }
         _ => generate_write(type_id, accessor),
@@ -599,8 +690,7 @@ mod tests {
     #[test]
     fn generate_struct_buffer() {
         let src = fs::read_to_string("test_resources/struct.tpb").unwrap();
-        let target =
-            fs::read_to_string("test_resources/dart/struct_buffers.dart").unwrap();
+        let target = fs::read_to_string("test_resources/dart/struct_buffers.dart").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_buffers(&ast);

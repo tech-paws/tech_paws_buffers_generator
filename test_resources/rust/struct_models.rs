@@ -8,7 +8,7 @@ impl Default for Empty {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Test {
+pub struct ViewData {
     pub delta_time: f32,
     pub view_width: f32,
     pub view_height: f32,
@@ -20,7 +20,7 @@ pub struct Test {
     pub touch_y: f32,
 }
 
-impl Default for Test {
+impl Default for ViewData {
     fn default() -> Self {
         Self {
             delta_time: 0.0,
@@ -49,6 +49,21 @@ impl Default for Test {
             touch_x: 0.0,
             touch_y: 0.0,
             touch_status: TouchStatus::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GenericType {
+    pub items: BuffersIterable<Test>,
+    pub table: LinearTable<f32, Test>,
+}
+
+impl Default for GenericType {
+    fn default() -> Self {
+        Self {
+            items: BuffersIterable::<Test>::default(),
+            table: LinearTable::<f32, Test>::default(),
         }
     }
 }

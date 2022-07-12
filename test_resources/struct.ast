@@ -4,7 +4,7 @@ Struct {
   ]
 }
 Struct {
-  id: "Test",
+  id: "ViewData",
   fields: [
     StructFieldASTNode { position: 0, name: "delta_time", type_id: Number { id: "f32", size: 4 } }
     StructFieldASTNode { position: 1, name: "view_width", type_id: Number { id: "f32", size: 4 } }
@@ -23,5 +23,12 @@ Struct {
     StructFieldASTNode { position: 0, name: "touch_x", type_id: Number { id: "f32", size: 4 } }
     StructFieldASTNode { position: 1, name: "touch_y", type_id: Number { id: "f32", size: 4 } }
     StructFieldASTNode { position: 2, name: "touch_status", type_id: Other { id: "TouchStatus" } }
+  ]
+}
+Struct {
+  id: "GenericType",
+  fields: [
+    StructFieldASTNode { position: 0, name: "items", type_id: Generic { id: "BuffersIterable", generics: [Other { id: "Test" }] } }
+    StructFieldASTNode { position: 1, name: "table", type_id: Generic { id: "LinearTable", generics: [Number { id: "f32", size: 4 }, Other { id: "Test" }] } }
   ]
 }

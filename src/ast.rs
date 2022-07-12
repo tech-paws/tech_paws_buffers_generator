@@ -90,6 +90,10 @@ pub enum TypeIDASTNode {
     Char {
         id: String,
     },
+    Generic {
+        id: String,
+        generics: Vec<TypeIDASTNode>,
+    },
     Other {
         id: String,
     },
