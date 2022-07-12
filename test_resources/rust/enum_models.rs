@@ -17,6 +17,7 @@ impl Default for MyEnum {
         Self::Idle
     }
 }
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum MyEnumWithoutPositions {
     Option1,

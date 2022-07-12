@@ -398,7 +398,7 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     }
 
     writer.writeln_tab(1, "}");
-    writer.write("}");
+    writer.writeln("}");
 
     writer.show().to_string()
 }
