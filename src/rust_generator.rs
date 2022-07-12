@@ -24,7 +24,7 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
             } => {
                 match literal {
                     Literal::StringLiteral(value) => value,
-                    _ => panic!("dart use should be a string literal"),
+                    _ => panic!("rust use should be a string literal"),
                 }
             }
         };
