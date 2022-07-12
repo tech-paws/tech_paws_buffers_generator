@@ -17,3 +17,16 @@ impl Default for MyEnum {
         Self::Idle
     }
 }
+#[derive(Debug, Clone, PartialEq)]
+pub enum MyEnumWithoutPositions {
+    Option1,
+    Option2,
+    Option3,
+    Option4,
+}
+
+impl Default for MyEnumWithoutPositions {
+    fn default() -> Self {
+        Self::Option1
+    }
+}

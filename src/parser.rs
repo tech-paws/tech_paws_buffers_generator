@@ -43,7 +43,12 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
         panic!("Expected ';' or '{{', but got {:?}", lexer.current_token());
     }
 
-    lexer.next_token();
+    match lexer.next_token() {
+        Token::Symbol('#') => (),
+        Token::ID { name: _ } => (),
+        _ => panic!("Expected '#' or Id, but got {:?}", lexer.current_token()),
+    }
+
     let parameters = parse_struct_parameters(lexer);
 
     if *lexer.current_token() != Token::Symbol('}') {
@@ -75,8 +80,10 @@ pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
         panic!("Expected '{{', but got {:?}", lexer.current_token());
     }
 
-    if *lexer.next_token() != Token::Symbol('#') {
-        panic!("Expected '#', but got {:?}", lexer.current_token());
+    match lexer.next_token() {
+        Token::Symbol('#') => (),
+        Token::ID { name: _ } => (),
+        _ => panic!("Expected '#' or Id, but got {:?}", lexer.current_token()),
     }
 
     let node = parse_enum_items(name, lexer);
@@ -90,6 +97,14 @@ pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
 }
 
 pub fn parse_enum_items(id: String, lexer: &mut Lexer) -> ASTNode {
+    if let Token::Symbol('#') = lexer.current_token() {
+        parse_enum_items_with_positions(id, lexer)
+    } else {
+        parse_enum_items_without_positions(id, lexer)
+    }
+}
+
+pub fn parse_enum_items_with_positions(id: String, lexer: &mut Lexer) -> ASTNode {
     let mut items = vec![];
 
     while let Token::Symbol('#') = lexer.current_token() {
@@ -106,6 +121,32 @@ pub fn parse_enum_items(id: String, lexer: &mut Lexer) -> ASTNode {
             _ => EnumItemASTNode::Empty { position, id: name },
         };
 
+        items.push(item);
+
+        if *lexer.current_token() != Token::Symbol(',') {
+            break;
+        }
+
+        lexer.next_token();
+    }
+
+    ASTNode::Enum(EnumASTNode { id, items })
+}
+
+pub fn parse_enum_items_without_positions(id: String, lexer: &mut Lexer) -> ASTNode {
+    let mut items = vec![];
+    let mut position = 0;
+
+    while let Token::ID { name } = lexer.current_token() {
+        let name = name.clone();
+
+        let item = match *lexer.next_token() {
+            Token::Symbol('(') => parse_tuple_enum(position, name, lexer),
+            Token::Symbol('{') => parse_struct_enum(position, name, lexer),
+            _ => EnumItemASTNode::Empty { position, id: name },
+        };
+
+        position += 1;
         items.push(item);
 
         if *lexer.current_token() != Token::Symbol(',') {
@@ -192,9 +233,48 @@ pub fn parse_const_value(lexer: &mut Lexer) -> ConstValueASTNode {
 }
 
 pub fn parse_struct_parameters(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
+    if let Token::Symbol('#') = lexer.current_token() {
+        parse_struct_parameters_with_positions(lexer)
+    } else {
+        parse_struct_parameters_without_positions(lexer)
+    }
+}
+
+pub fn parse_struct_parameters_without_positions(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
+    let mut fields = vec![];
+    let mut position = 0;
+
+    while let Token::ID { name } = lexer.current_token() {
+        let name = name.clone();
+
+        if *lexer.next_token() != Token::Symbol(':') {
+            panic!("Expected ':', but got {:?}", lexer.current_token());
+        }
+
+        lexer.next_token();
+        let type_id = parse_type_id(lexer);
+        fields.push(StructFieldASTNode {
+            position,
+            name,
+            type_id,
+        });
+
+        position += 1;
+
+        if *lexer.current_token() != Token::Symbol(',') {
+            break;
+        }
+
+        lexer.next_token();
+    }
+
+    fields
+}
+
+pub fn parse_struct_parameters_with_positions(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
     let mut fields = vec![];
 
-    while *lexer.current_token() == Token::Symbol('#') {
+    while let Token::Symbol('#') = lexer.current_token() {
         let position = parse_position(lexer);
         let name = if let Token::ID { name } = lexer.current_token() {
             name.clone()

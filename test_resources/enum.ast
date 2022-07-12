@@ -21,3 +21,12 @@ Enum {
     }
   ]
 }
+Enum {
+  id: "MyEnumWithoutPositions",
+  items: [
+    Empty { position: 0, id: "Option1" }
+    Empty { position: 1, id: "Option2" }
+    Empty { position: 2, id: "Option3" }
+    Empty { position: 3, id: "Option4" }
+  ]
+}

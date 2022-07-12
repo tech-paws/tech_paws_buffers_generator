@@ -63,3 +63,48 @@ impl IntoVMBuffers for MyEnum {
         }
     }
 }
+
+impl IntoVMBuffers for MyEnumWithoutPositions {
+    fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
+        let value = bytes_reader.read_u32();
+
+        match value {
+            0 => return MyEnumWithoutPositions::Option1,
+            1 => return MyEnumWithoutPositions::Option2,
+            2 => return MyEnumWithoutPositions::Option3,
+            3 => return MyEnumWithoutPositions::Option4,
+            _ => panic!("Unsupported enum value: {}", value),
+        }
+    }
+
+    fn write_to_buffers(&self, bytes_writer: &mut BytesWriter) {
+        match self {
+            MyEnumWithoutPositions::Option1 => {
+                bytes_writer.write_u32(0);
+            },
+            MyEnumWithoutPositions::Option2 => {
+                bytes_writer.write_u32(1);
+            },
+            MyEnumWithoutPositions::Option3 => {
+                bytes_writer.write_u32(2);
+            },
+            MyEnumWithoutPositions::Option4 => {
+                bytes_writer.write_u32(3);
+            },
+        }
+    }
+
+    fn skip_in_buffers(bytes_reader: &mut BytesReader, count: u64) {
+        for _ in 0..count {
+            let value = bytes_reader.read_u32();
+
+            match value {
+                0 => (),
+                1 => (),
+                2 => (),
+                3 => (),
+                _ => panic!("Unsupported enum value: {}", value),
+            }
+        }
+    }
+}

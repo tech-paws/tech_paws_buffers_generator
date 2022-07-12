@@ -6,3 +6,10 @@ enum MyEnum {
     },
     #[3] Update(#[1] f64, #[2] f64, #[4] String),
 }
+
+enum MyEnumWithoutPositions {
+    Option1,
+    Option2,
+    Option3,
+    Option4,
+}
