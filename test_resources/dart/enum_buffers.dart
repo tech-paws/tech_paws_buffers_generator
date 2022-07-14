@@ -59,7 +59,7 @@ class MyEnumUpdateEmplaceToBuffers implements EmplaceToBuffers<MyEnumUpdate> {
 
   @override
   void skip(BytesReader reader, int count) {
-    const StringEmplaceToBuffers().skip(reader, count);
+    const StringEmplaceToBuffers().skip(reader, 1);
 
     for (int i = 0; i < count; i += 1) {
       reader.readDouble();
@@ -256,7 +256,7 @@ class MyEnumWithoutPositionsOption2EmplaceToBuffers implements EmplaceToBuffers<
 
   @override
   void skip(BytesReader reader, int count) {
-    const StringEmplaceToBuffers().skip(reader, count);
+    const StringEmplaceToBuffers().skip(reader, 1);
 
     for (int i = 0; i < count; i += 1) {
     }

@@ -209,6 +209,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         1,
         "let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {",
     );
+    writer.writeln_tab(2, "bytes_reader.reset();");
     writer.writeln_tab(2, "let status = bytes_reader.read_byte();");
     writer.writeln("");
     writer.writeln_tab(2, &format!("if status == {} {{", RPC_NEW_DATA_STATUS));
@@ -238,7 +239,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.writeln_tab(2, "});");
 
     if let Some(return_type_id) = &node.return_type_id {
-        writer.writeln_tab(2, &format!("let ret = {}_rpc_handler_impl(", node.id));
+        writer.writeln_tab(2, &format!("let ret = {}(", node.id));
         writer.writeln_tab(3, "state,");
 
         for arg in node.args.iter() {
@@ -259,7 +260,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         writer.writeln_tab(3, &generate_write(return_type_id, "ret", false));
         writer.writeln_tab(2, "});");
     } else {
-        writer.writeln_tab(2, &format!("{}_rpc_handler_impl(", node.id));
+        writer.writeln_tab(2, &format!("{}(", node.id));
         writer.writeln_tab(3, "state,");
 
         for arg in node.args.iter() {

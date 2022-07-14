@@ -67,7 +67,7 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
         writer.writeln_tab(
             1,
             &format!(
-                "final _read{}Streams <StreamController<{}>>[];",
+                "final _read{}Streams = <StreamController<{}>>[];",
                 node.id.to_case(Case::Pascal),
                 generate_option_type_id(&node.return_type_id)
             ),
@@ -161,7 +161,7 @@ fn generate_rpc_read(node: &ast::FnASTNode) -> String {
     writer.writeln_tab(
         2,
         &format!(
-            "final task = _scheduler.read({}ClientAddress, (reader) {{",
+            "final task = _scheduler.read(k{}ClientAddress, (reader) {{",
             node.id.to_case(Case::Pascal)
         ),
     );
@@ -234,7 +234,7 @@ fn generate_rpc_write(node: &ast::FnASTNode) -> String {
     writer.writeln_tab(
         2,
         &format!(
-            "final task = _scheduler.write({}ServerAddress, (writer) {{",
+            "_scheduler.write(k{}ServerAddress, (writer) {{",
             node.id.to_case(Case::Pascal)
         ),
     );
@@ -306,10 +306,11 @@ fn generate_rpc_async(node: &ast::FnASTNode) -> String {
     );
     writer.writeln("");
 
+    writer.writeln_tab(2, "late VMChannelReadTask task;");
     writer.writeln_tab(
         2,
         &format!(
-            "final task = _scheduler.read({}ClientAddress, (reader) {{",
+            "task = _scheduler.read(k{}ClientAddress, (reader) {{",
             node.id.to_case(Case::Pascal)
         ),
     );
@@ -329,7 +330,10 @@ fn generate_rpc_async(node: &ast::FnASTNode) -> String {
     }
 
     writer.writeln_tab(4, "_scheduler.disconnect(task);");
-    writer.writeln_tab(4, "_readGreetingTasks.remove(task);");
+    writer.writeln_tab(
+        4,
+        &format!("_read{}Tasks.remove(task);", node.id.to_case(Case::Pascal)),
+    );
 
     writer.writeln_tab(3, "}");
     writer.writeln_tab(2, "});");

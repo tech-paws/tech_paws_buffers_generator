@@ -17,6 +17,7 @@ pub fn print_hello_world_rpc_handler(
     server_buffer_address: vm::BufferAddress,
 ) -> bool {
     let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+        bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
         if status == 0xFF {
@@ -31,7 +32,7 @@ pub fn print_hello_world_rpc_handler(
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        print_hello_world_rpc_handler_impl(
+        print_hello_world(
             state,
         );
     }
@@ -58,6 +59,7 @@ pub fn hello_world_rpc_handler(
     server_buffer_address: vm::BufferAddress,
 ) -> bool {
     let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+        bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
         if status == 0xFF {
@@ -72,7 +74,7 @@ pub fn hello_world_rpc_handler(
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        let ret = hello_world_rpc_handler_impl(
+        let ret = hello_world(
             state,
         );
         vm::buffer_write(state, client_buffer_address, |bytes_writer| {
@@ -114,6 +116,7 @@ pub fn say_hello_rpc_handler(
     server_buffer_address: vm::BufferAddress,
 ) -> bool {
     let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+        bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
         if status == 0xFF {
@@ -128,7 +131,7 @@ pub fn say_hello_rpc_handler(
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        let ret = say_hello_rpc_handler_impl(
+        let ret = say_hello(
             state,
             args.clone().name,
         );
@@ -179,6 +182,7 @@ pub fn sum_rpc_handler(
     server_buffer_address: vm::BufferAddress,
 ) -> bool {
     let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+        bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
         if status == 0xFF {
@@ -193,7 +197,7 @@ pub fn sum_rpc_handler(
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        sum_rpc_handler_impl(
+        sum(
             state,
             args.clone().a,
             args.clone().b,

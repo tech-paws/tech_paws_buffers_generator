@@ -158,7 +158,7 @@ class TestEmplaceToBuffers implements EmplaceToBuffers<Test> {
 
   @override
   void skip(BytesReader reader, int count) {
-    const TouchStatusEmplaceToBuffers().skip(reader, count);
+    const TouchStatusEmplaceToBuffers().skip(reader, 1);
 
     for (int i = 0; i < count; i += 1) {
       reader.readFloat();
@@ -192,7 +192,7 @@ class TestIntoBuffers implements IntoBuffers<Test> {
 
   @override
   void skip(BytesReader reader, int count) {
-    const TouchStatusIntoBuffers().skip(reader, count);
+    const TouchStatusIntoBuffers().skip(reader, 1);
 
     for (int i = 0; i < count; i += 1) {
       reader.readFloat();
@@ -206,21 +206,21 @@ class GenericTypeEmplaceToBuffers implements EmplaceToBuffers<GenericType> {
 
   @override
   void read(BytesReader reader, GenericType model) {
-    const ListEmplaceToBuffers<Test>().read(reader, model.items);
+    const ListEmplaceToBuffers<Test>(const TestIntoBuffers()).read(reader, model.items);
     const LinearTableEmplaceToBuffers<double, Test>().read(reader, model.table);
   }
 
   @override
   void write(BytesWriter writer, GenericType model) {
-    const ListEmplaceToBuffers<Test>().write(writer, model.items);
+    const ListEmplaceToBuffers<Test>(const TestIntoBuffers()).write(writer, model.items);
     const LinearTableEmplaceToBuffers<double, Test>().write(writer, model.table);
   }
 
   @override
   void skip(BytesReader reader, int count) {
     for (int i = 0; i < count; i += 1) {
-      const ListEmplaceToBuffers<Test>().read(reader, count);
-      const LinearTableEmplaceToBuffers<double, Test>().read(reader, count);
+      const ListEmplaceToBuffers<Test>(const TestIntoBuffers()).skip(reader, 1);
+      const LinearTableEmplaceToBuffers<double, Test>().skip(reader, 1);
     }
   }
 }
@@ -230,7 +230,7 @@ class GenericTypeIntoBuffers implements IntoBuffers<GenericType> {
 
   @override
   GenericType read(BytesReader reader) {
-    final items = const ListIntoBuffers<Test>().read(reader);
+    final items = const ListIntoBuffers<Test>(const TestIntoBuffers()).read(reader);
     final table = const LinearTableIntoBuffers<double, Test>().read(reader);
 
     return GenericType(
@@ -241,15 +241,15 @@ class GenericTypeIntoBuffers implements IntoBuffers<GenericType> {
 
   @override
   void write(BytesWriter writer, GenericType model) {
-    const ListIntoBuffers<Test>().write(writer, model.items);
+    const ListIntoBuffers<Test>(const TestIntoBuffers()).write(writer, model.items);
     const LinearTableIntoBuffers<double, Test>().write(writer, model.table);
   }
 
   @override
   void skip(BytesReader reader, int count) {
     for (int i = 0; i < count; i += 1) {
-      const ListIntoBuffers<Test>().read(reader, count);
-      const LinearTableIntoBuffers<double, Test>().read(reader, count);
+      const ListIntoBuffers<Test>(const TestIntoBuffers()).skip(reader, 1);
+      const LinearTableIntoBuffers<double, Test>().skip(reader, 1);
     }
   }
 }

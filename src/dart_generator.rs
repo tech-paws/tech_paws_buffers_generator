@@ -249,7 +249,7 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
             "{}Value value = {}Value.{};",
             node.id,
             node.id,
-            default_union_value.id().to_case(Case::Snake)
+            default_union_value.id().to_case(Case::Camel)
         ),
     );
 
@@ -345,10 +345,10 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
                     writer.writeln_tab(
                         2,
                         &format!(
-                            "{}.{} = {},",
+                            "{}.{} = {};",
                             id.to_case(Case::Camel),
-                            field.name,
-                            field.name
+                            field.name.to_case(Case::Camel),
+                            field.name.to_case(Case::Camel),
                         ),
                     );
                 }
@@ -420,6 +420,26 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
     }
 }
 
+pub fn generate_class_prefix(type_id: &TypeIDASTNode) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id: _,
+            size: _,
+            signed: _,
+        } => String::from("Int"),
+        TypeIDASTNode::Number { id: _, size: _ } => String::from("Double"),
+        TypeIDASTNode::Bool { id: _ } => String::from("Bool"),
+        TypeIDASTNode::Char { id: _ } => String::from("Int"),
+        TypeIDASTNode::Other { id } => id.clone(),
+        TypeIDASTNode::Generic { id, generics: _ } => {
+            match id.as_str() {
+                "Vec" => String::from("List"),
+                _ => id.clone(),
+            }
+        }
+    }
+}
+
 pub fn generate_option_type_id(type_id: &Option<TypeIDASTNode>) -> String {
     match type_id {
         Some(type_id) => generate_type_id(type_id),
@@ -456,11 +476,15 @@ pub fn generate_read(type_id: &TypeIDASTNode) -> String {
                 id.to_case(Case::Pascal)
             )
         }
+        TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
+            let generic = generics.first().unwrap();
+            format!(
+                "const ListIntoBuffers<{}>(const {}IntoBuffers()).read(reader)",
+                generate_type_id(generic),
+                generate_class_prefix(generic),
+            )
+        }
         TypeIDASTNode::Generic { id, generics } => {
-            let id = match id.as_str() {
-                "Vec" => "List",
-                _ => id,
-            };
             format!(
                 "const {}IntoBuffers<{}>().read(reader)",
                 id,
@@ -480,7 +504,7 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
             id: _,
             size: _,
             signed: _,
-        } => String::from(""),
+        } => String::from("0"),
         TypeIDASTNode::Number { id: _, size: _ } => String::from("0.0"),
         TypeIDASTNode::Bool { id: _ } => String::from("false"),
         TypeIDASTNode::Char { id: _ } => String::from("0"),
@@ -517,11 +541,16 @@ pub fn generate_read_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String 
                 accessor,
             )
         }
+        TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
+            let generic = generics.first().unwrap();
+            format!(
+                "const ListEmplaceToBuffers<{}>(const {}IntoBuffers()).read(reader, {});",
+                generate_type_id(generic),
+                generate_class_prefix(generic),
+                accessor,
+            )
+        }
         TypeIDASTNode::Generic { id, generics } => {
-            let id = match id.as_str() {
-                "Vec" => "List",
-                _ => id,
-            };
             format!(
                 "const {}EmplaceToBuffers<{}>().read(reader, {});",
                 id,
@@ -541,17 +570,21 @@ pub fn generate_read_skip(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Other { id } => {
             format!(
-                "const {}IntoBuffers().skip(reader, count);",
+                "const {}IntoBuffers().skip(reader, 1);",
                 id.to_case(Case::Pascal),
             )
         }
-        TypeIDASTNode::Generic { id, generics } => {
-            let id = match id.as_str() {
-                "Vec" => "List",
-                _ => id,
-            };
+        TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
+            let generic = generics.first().unwrap();
             format!(
-                "const {}IntoBuffers<{}>().read(reader, count);",
+                "const ListIntoBuffers<{}>(const {}IntoBuffers()).skip(reader, 1);",
+                generate_type_id(generic),
+                generate_class_prefix(generic),
+            )
+        }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}IntoBuffers<{}>().skip(reader, 1);",
                 id,
                 generics
                     .iter()
@@ -568,17 +601,21 @@ pub fn generate_read_skip_emplace(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Other { id } => {
             format!(
-                "const {}EmplaceToBuffers().skip(reader, count);",
+                "const {}EmplaceToBuffers().skip(reader, 1);",
                 id.to_case(Case::Pascal),
             )
         }
-        TypeIDASTNode::Generic { id, generics } => {
-            let id = match id.as_str() {
-                "Vec" => "List",
-                _ => id,
-            };
+        TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
+            let generic = generics.first().unwrap();
             format!(
-                "const {}EmplaceToBuffers<{}>().read(reader, count);",
+                "const ListEmplaceToBuffers<{}>(const {}IntoBuffers()).skip(reader, 1);",
+                generate_type_id(generic),
+                generate_class_prefix(generic),
+            )
+        }
+        TypeIDASTNode::Generic { id, generics } => {
+            format!(
+                "const {}EmplaceToBuffers<{}>().skip(reader, 1);",
                 id,
                 generics
                     .iter()
@@ -617,11 +654,16 @@ pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
         TypeIDASTNode::Other { id } => {
             format!("const {}IntoBuffers().write(writer, {});", id, accessor)
         }
+        TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
+            let generic = generics.first().unwrap();
+            format!(
+                "const ListIntoBuffers<{}>(const {}IntoBuffers()).write(writer, {});",
+                generate_type_id(generic),
+                generate_class_prefix(generic),
+                accessor,
+            )
+        }
         TypeIDASTNode::Generic { id, generics } => {
-            let id = match id.as_str() {
-                "Vec" => "List",
-                _ => id,
-            };
             format!(
                 "const {}IntoBuffers<{}>().write(writer, {});",
                 id,
@@ -645,11 +687,16 @@ pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String
                 accessor
             )
         }
+        TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
+            let generic = generics.first().unwrap();
+            format!(
+                "const ListEmplaceToBuffers<{}>(const {}IntoBuffers()).write(writer, {});",
+                generate_type_id(generic),
+                generate_class_prefix(generic),
+                accessor,
+            )
+        }
         TypeIDASTNode::Generic { id, generics } => {
-            let id = match id.as_str() {
-                "Vec" => "List",
-                _ => id,
-            };
             format!(
                 "const {}EmplaceToBuffers<{}>().write(writer, {});",
                 id,

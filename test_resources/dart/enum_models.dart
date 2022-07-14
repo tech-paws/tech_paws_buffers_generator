@@ -17,8 +17,8 @@ class MyEnum {
     required double y,
   }) {
     value = MyEnumValue.move;
-    move.x = x,
-    move.y = y,
+    move.x = x;
+    move.y = y;
   }
 
   void toUpdate(
@@ -103,7 +103,7 @@ enum MyEnumWithoutPositionsValue {
 }
 
 class MyEnumWithoutPositions {
-  MyEnumWithoutPositionsValue value = MyEnumWithoutPositionsValue.option_1;
+  MyEnumWithoutPositionsValue value = MyEnumWithoutPositionsValue.option1;
   MyEnumWithoutPositionsOption1 option1 = MyEnumWithoutPositionsOption1.createDefault();
   MyEnumWithoutPositionsOption2 option2 = MyEnumWithoutPositionsOption2.createDefault();
   MyEnumWithoutPositionsOption3 option3 = const MyEnumWithoutPositionsOption3();
@@ -120,7 +120,7 @@ class MyEnumWithoutPositions {
     required String name,
   }) {
     value = MyEnumWithoutPositionsValue.option2;
-    option2.name = name,
+    option2.name = name;
   }
 
   void toOption3() => value = MyEnumWithoutPositionsValue.option3;
@@ -143,7 +143,7 @@ class MyEnumWithoutPositionsOption1 {
   });
 
   MyEnumWithoutPositionsOption1.createDefault()
-      : v0 = ;
+      : v0 = 0;
 }
 
 class MyEnumWithoutPositionsOption1BuffersFactory implements BuffersFactory<MyEnumWithoutPositionsOption1> {

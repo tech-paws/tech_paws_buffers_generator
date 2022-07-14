@@ -75,7 +75,7 @@ class __say_hello_rpc_args__IntoBuffers implements IntoBuffers<__say_hello_rpc_a
 
   @override
   void skip(BytesReader reader, int count) {
-    const StringIntoBuffers().skip(reader, count);
+    const StringIntoBuffers().skip(reader, 1);
 
     for (int i = 0; i < count; i += 1) {
     }
@@ -129,13 +129,13 @@ class __sum_rpc_args__IntoBuffers implements IntoBuffers<__sum_rpc_args__> {
 
 class TestRpcClient {
   final VMChannelScheduler _scheduler;
-  final _readPrintHelloWorldStreams <StreamController<void>>[];
+  final _readPrintHelloWorldStreams = <StreamController<void>>[];
   final _readPrintHelloWorldTasks = <VMChannelReadTask>[];
-  final _readHelloWorldStreams <StreamController<String>>[];
+  final _readHelloWorldStreams = <StreamController<String>>[];
   final _readHelloWorldTasks = <VMChannelReadTask>[];
-  final _readSayHelloStreams <StreamController<String>>[];
+  final _readSayHelloStreams = <StreamController<String>>[];
   final _readSayHelloTasks = <VMChannelReadTask>[];
-  final _readSumStreams <StreamController<void>>[];
+  final _readSumStreams = <StreamController<void>>[];
   final _readSumTasks = <VMChannelReadTask>[];
 
   TestRpcClient(this._scheduler);
@@ -154,7 +154,7 @@ class TestRpcClient {
   Stream<void> readPrintHelloWorld() {
     final controller = StreamController<void>.broadcast();
 
-    final task = _scheduler.read(PrintHelloWorldClientAddress, (reader) {
+    final task = _scheduler.read(kPrintHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -170,7 +170,7 @@ class TestRpcClient {
   }
 
   void writePrintHelloWorld() {
-    final task = _scheduler.write(PrintHelloWorldServerAddress, (writer) {
+    _scheduler.write(kPrintHelloWorldServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
     });
@@ -180,14 +180,15 @@ class TestRpcClient {
     writePrintHelloWorld();
     final completer = Completer<void>();
 
-    final task = _scheduler.read(PrintHelloWorldClientAddress, (reader) {
+    late VMChannelReadTask task;
+    task = _scheduler.read(kPrintHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
         completer.complete();
         _scheduler.disconnect(task);
-        _readGreetingTasks.remove(task);
+        _readPrintHelloWorldTasks.remove(task);
       }
     });
 
@@ -198,7 +199,7 @@ class TestRpcClient {
   Stream<String> readHelloWorld() {
     final controller = StreamController<String>.broadcast();
 
-    final task = _scheduler.read(HelloWorldClientAddress, (reader) {
+    final task = _scheduler.read(kHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -214,7 +215,7 @@ class TestRpcClient {
   }
 
   void writeHelloWorld() {
-    final task = _scheduler.write(HelloWorldServerAddress, (writer) {
+    _scheduler.write(kHelloWorldServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
     });
@@ -224,14 +225,15 @@ class TestRpcClient {
     writeHelloWorld();
     final completer = Completer<String>();
 
-    final task = _scheduler.read(HelloWorldClientAddress, (reader) {
+    late VMChannelReadTask task;
+    task = _scheduler.read(kHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
         completer.complete(const StringIntoBuffers().read(reader));
         _scheduler.disconnect(task);
-        _readGreetingTasks.remove(task);
+        _readHelloWorldTasks.remove(task);
       }
     });
 
@@ -242,7 +244,7 @@ class TestRpcClient {
   Stream<String> readSayHello() {
     final controller = StreamController<String>.broadcast();
 
-    final task = _scheduler.read(SayHelloClientAddress, (reader) {
+    final task = _scheduler.read(kSayHelloClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -264,7 +266,7 @@ class TestRpcClient {
       name: name,
     );
 
-    final task = _scheduler.write(SayHelloServerAddress, (writer) {
+    _scheduler.write(kSayHelloServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
       const __say_hello_rpc_args__IntoBuffers().write(writer, args);
@@ -280,14 +282,15 @@ class TestRpcClient {
 
     final completer = Completer<String>();
 
-    final task = _scheduler.read(SayHelloClientAddress, (reader) {
+    late VMChannelReadTask task;
+    task = _scheduler.read(kSayHelloClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
         completer.complete(const StringIntoBuffers().read(reader));
         _scheduler.disconnect(task);
-        _readGreetingTasks.remove(task);
+        _readSayHelloTasks.remove(task);
       }
     });
 
@@ -298,7 +301,7 @@ class TestRpcClient {
   Stream<void> readSum() {
     final controller = StreamController<void>.broadcast();
 
-    final task = _scheduler.read(SumClientAddress, (reader) {
+    final task = _scheduler.read(kSumClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -324,7 +327,7 @@ class TestRpcClient {
       c: c,
     );
 
-    final task = _scheduler.write(SumServerAddress, (writer) {
+    _scheduler.write(kSumServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
       const __sum_rpc_args__IntoBuffers().write(writer, args);
@@ -344,14 +347,15 @@ class TestRpcClient {
 
     final completer = Completer<void>();
 
-    final task = _scheduler.read(SumClientAddress, (reader) {
+    late VMChannelReadTask task;
+    task = _scheduler.read(kSumClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
         completer.complete();
         _scheduler.disconnect(task);
-        _readGreetingTasks.remove(task);
+        _readSumTasks.remove(task);
       }
     });
 
