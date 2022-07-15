@@ -77,11 +77,17 @@ pub fn hello_world_rpc_handler(
         let ret = hello_world(
             state,
         );
-        vm::buffer_write(state, client_buffer_address, |bytes_writer| {
-            bytes_writer.clear();
-            bytes_writer.write_byte(0xFF);
-            ret.write_to_buffers(bytes_writer);
-        });
+
+        match ret {
+            RpcResult::Data(ret) => {
+                vm::buffer_write(state, client_buffer_address, |bytes_writer| {
+                    bytes_writer.clear();
+                    bytes_writer.write_byte(0xFF);
+                    ret.write_to_buffers(bytes_writer);
+                });
+            }
+            RpcResult::Skip => (),
+        }
     }
 
     args.is_some()
@@ -135,11 +141,17 @@ pub fn say_hello_rpc_handler(
             state,
             args.clone().name,
         );
-        vm::buffer_write(state, client_buffer_address, |bytes_writer| {
-            bytes_writer.clear();
-            bytes_writer.write_byte(0xFF);
-            ret.write_to_buffers(bytes_writer);
-        });
+
+        match ret {
+            RpcResult::Data(ret) => {
+                vm::buffer_write(state, client_buffer_address, |bytes_writer| {
+                    bytes_writer.clear();
+                    bytes_writer.write_byte(0xFF);
+                    ret.write_to_buffers(bytes_writer);
+                });
+            }
+            RpcResult::Skip => (),
+        }
     }
 
     args.is_some()

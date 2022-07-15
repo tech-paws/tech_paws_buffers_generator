@@ -1,4 +1,4 @@
-use crate::ast::{*, self};
+use crate::ast::{self, *};
 use crate::{lexer::Literal, writer::Writer};
 
 const RPC_NEW_DATA_STATUS: &str = "0xFF";
@@ -10,7 +10,11 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     writer.writeln("// GENERATED, DO NOT EDIT");
     writer.writeln("");
 
-    if buffers {
+    if rpc && !ast::find_fn_nodes(ast).is_empty() {
+        writer.writeln(
+            "use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers, RpcResult};",
+        );
+    } else if buffers {
         writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
     }
 
@@ -247,18 +251,34 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         }
 
         writer.writeln_tab(2, ");");
-
+        writer.writeln("");
+        writer.writeln_tab(2, "match ret {");
+        writer.writeln_tab(3, "RpcResult::Data(ret) => {");
         writer.writeln_tab(
-            2,
+            4,
             "vm::buffer_write(state, client_buffer_address, |bytes_writer| {",
         );
-        writer.writeln_tab(3, "bytes_writer.clear();");
+        writer.writeln_tab(5, "bytes_writer.clear();");
         writer.writeln_tab(
-            3,
+            5,
             &format!("bytes_writer.write_byte({});", RPC_NEW_DATA_STATUS),
         );
-        writer.writeln_tab(3, &generate_write(return_type_id, "ret", false));
-        writer.writeln_tab(2, "});");
+        writer.writeln_tab(5, &generate_write(return_type_id, "ret", false));
+        writer.writeln_tab(4, "});");
+        writer.writeln_tab(3, "}");
+        writer.writeln_tab(3, "RpcResult::Skip => (),");
+        writer.writeln_tab(2, "}");
+
+        // match ret {
+        //     RpcResult::Data(ret) => {
+        //         vm::buffer_write(state, client_buffer_address, |bytes_writer| {
+        //             bytes_writer.clear();
+        //             bytes_writer.write_byte(0xFF);
+        //             ret.write_to_buffers(bytes_writer);
+        //         })
+        //     }
+        //     RpcResult::Skip => (),
+        // }
     } else {
         writer.writeln_tab(2, &format!("{}(", node.id));
         writer.writeln_tab(3, "state,");
