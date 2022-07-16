@@ -101,24 +101,21 @@ class MyEnumIntoBuffers implements IntoBuffers<MyEnum> {
 
   @override
   void write(BytesWriter writer, MyEnum model) {
-    switch (model.runtimeType) {
-      case MyEnumIdle:
+    switch (model.value) {
+      case MyEnumValue.idle:
         writer.writeInt32(1);
         const MyEnumIdleEmplaceToBuffers().write(writer, model.idle);
         return;
 
-      case MyEnumMove:
+      case MyEnumValue.move:
         writer.writeInt32(2);
         const MyEnumMoveEmplaceToBuffers().write(writer, model.move);
         return;
 
-      case MyEnumUpdate:
+      case MyEnumValue.update:
         writer.writeInt32(3);
         const MyEnumUpdateEmplaceToBuffers().write(writer, model.update);
         return;
-
-      default:
-        throw StateError('Unsupported enum type: ${model.runtimeType}');
     }
   }
 
@@ -338,29 +335,26 @@ class MyEnumWithoutPositionsIntoBuffers implements IntoBuffers<MyEnumWithoutPosi
 
   @override
   void write(BytesWriter writer, MyEnumWithoutPositions model) {
-    switch (model.runtimeType) {
-      case MyEnumWithoutPositionsOption1:
+    switch (model.value) {
+      case MyEnumWithoutPositionsValue.option1:
         writer.writeInt32(0);
         const MyEnumWithoutPositionsOption1EmplaceToBuffers().write(writer, model.option1);
         return;
 
-      case MyEnumWithoutPositionsOption2:
+      case MyEnumWithoutPositionsValue.option2:
         writer.writeInt32(1);
         const MyEnumWithoutPositionsOption2EmplaceToBuffers().write(writer, model.option2);
         return;
 
-      case MyEnumWithoutPositionsOption3:
+      case MyEnumWithoutPositionsValue.option3:
         writer.writeInt32(2);
         const MyEnumWithoutPositionsOption3EmplaceToBuffers().write(writer, model.option3);
         return;
 
-      case MyEnumWithoutPositionsOption4:
+      case MyEnumWithoutPositionsValue.option4:
         writer.writeInt32(3);
         const MyEnumWithoutPositionsOption4EmplaceToBuffers().write(writer, model.option4);
         return;
-
-      default:
-        throw StateError('Unsupported enum type: ${model.runtimeType}');
     }
   }
 

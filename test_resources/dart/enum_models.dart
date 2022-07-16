@@ -31,6 +31,40 @@ class MyEnum {
     update.v1 = v1;
     update.v2 = v2;
   }
+
+  bool isIdle() => value == MyEnumValue.idle;
+  bool isMove() => value == MyEnumValue.move;
+  bool isUpdate() => value == MyEnumValue.update;
+
+  static MyEnum createIdle() {
+    final model = MyEnum();
+    model.value = MyEnumValue.idle;
+    return model;
+  }
+
+  static MyEnum createMove({
+    required double x,
+    required double y,
+  }) {
+    final model = MyEnum();
+    model.value = MyEnumValue.move;
+    model.move.x = x;
+    model.move.y = y;
+    return model;
+  }
+
+  static MyEnum createUpdate(
+    double v0,
+    double v1,
+    String v2,
+  ) {
+    final model = MyEnum();
+    model.value = MyEnumValue.update;
+    model.update.v0 = v0;
+    model.update.v1 = v1;
+    model.update.v2 = v2;
+    return model;
+  }
 }
 
 class MyEnumBuffersFactory implements BuffersFactory<MyEnum> {
@@ -126,6 +160,41 @@ class MyEnumWithoutPositions {
   void toOption3() => value = MyEnumWithoutPositionsValue.option3;
 
   void toOption4() => value = MyEnumWithoutPositionsValue.option4;
+
+  bool isOption1() => value == MyEnumWithoutPositionsValue.option1;
+  bool isOption2() => value == MyEnumWithoutPositionsValue.option2;
+  bool isOption3() => value == MyEnumWithoutPositionsValue.option3;
+  bool isOption4() => value == MyEnumWithoutPositionsValue.option4;
+
+  static MyEnumWithoutPositions createOption1(
+    int v0,
+  ) {
+    final model = MyEnumWithoutPositions();
+    model.value = MyEnumWithoutPositionsValue.option1;
+    model.option1.v0 = v0;
+    return model;
+  }
+
+  static MyEnumWithoutPositions createOption2({
+    required String name,
+  }) {
+    final model = MyEnumWithoutPositions();
+    model.value = MyEnumWithoutPositionsValue.option2;
+    model.option2.name = name;
+    return model;
+  }
+
+  static MyEnumWithoutPositions createOption3() {
+    final model = MyEnumWithoutPositions();
+    model.value = MyEnumWithoutPositionsValue.option3;
+    return model;
+  }
+
+  static MyEnumWithoutPositions createOption4() {
+    final model = MyEnumWithoutPositions();
+    model.value = MyEnumWithoutPositionsValue.option4;
+    return model;
+  }
 }
 
 class MyEnumWithoutPositionsBuffersFactory implements BuffersFactory<MyEnumWithoutPositions> {
