@@ -283,6 +283,7 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
 
     // Enum helper functions
 
+    // to methods
     writer.writeln("");
 
     for (item_idx, item) in node.items.iter().enumerate() {
@@ -361,6 +362,131 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
             writer.writeln("");
         }
     }
+
+    // is methods
+    writer.writeln("");
+
+    for item in node.items.iter() {
+        writer.writeln_tab(
+            1,
+            &format!(
+                "bool is{}() => value == {}Value.{};",
+                item.id().to_case(Case::Pascal),
+                node.id,
+                item.id().to_case(Case::Camel)
+            ),
+        );
+    }
+
+    // Factories
+
+    writer.writeln("");
+
+    for (item_idx, item) in node.items.iter().enumerate() {
+        match item {
+            EnumItemASTNode::Empty { position: _, id } => {
+                writer.writeln_tab(
+                    1,
+                    &format!("static {} create{}() {{", node.id, id.to_case(Case::Pascal)),
+                );
+                writer.writeln_tab(2, &format!("final model = {}();", node.id));
+                writer.writeln_tab(
+                    2,
+                    &format!(
+                        "model.value = {}Value.{};",
+                        node.id,
+                        id.to_case(Case::Camel)
+                    ),
+                );
+                writer.writeln_tab(2, "return model;");
+                writer.writeln_tab(1, "}");
+            }
+            EnumItemASTNode::Tuple {
+                position: _,
+                id,
+                values,
+            } => {
+                writer.writeln_tab(
+                    1,
+                    &format!("static {} create{}(", node.id, id.to_case(Case::Pascal)),
+                );
+
+                for (i, value) in values.iter().enumerate() {
+                    let type_id = generate_type_id(&value.type_id);
+                    writer.writeln_tab(2, &format!("{} v{},", type_id, i));
+                }
+
+                writer.writeln_tab(1, ") {");
+                writer.writeln_tab(2, &format!("final model = {}();", node.id));
+                writer.writeln_tab(
+                    2,
+                    &format!(
+                        "model.value = {}Value.{};",
+                        node.id,
+                        id.to_case(Case::Camel)
+                    ),
+                );
+
+                for (i, _) in values.iter().enumerate() {
+                    writer.writeln_tab(
+                        2,
+                        &format!("model.{}.v{} = v{};", id.to_case(Case::Camel), i, i),
+                    );
+                }
+
+                writer.writeln_tab(2, "return model;");
+                writer.writeln_tab(1, "}");
+            }
+            EnumItemASTNode::Struct {
+                position: _,
+                id,
+                fields,
+            } => {
+                writer.writeln_tab(
+                    1,
+                    &format!("static {} create{}({{", node.id, id.to_case(Case::Pascal)),
+                );
+                for field in fields {
+                    let type_id = generate_type_id(&field.type_id);
+                    writer.writeln_tab(
+                        2,
+                        &format!("required {} {},", type_id, field.name.to_case(Case::Camel)),
+                    );
+                }
+                writer.writeln_tab(1, "}) {");
+                writer.writeln_tab(2, &format!("final model = {}();", node.id));
+                writer.writeln_tab(
+                    2,
+                    &format!(
+                        "model.value = {}Value.{};",
+                        node.id,
+                        id.to_case(Case::Camel)
+                    ),
+                );
+
+                for field in fields {
+                    writer.writeln_tab(
+                        2,
+                        &format!(
+                            "model.{}.{} = {};",
+                            id.to_case(Case::Camel),
+                            field.name.to_case(Case::Camel),
+                            field.name.to_case(Case::Camel),
+                        ),
+                    );
+                }
+
+                writer.writeln_tab(2, "return model;");
+                writer.writeln_tab(1, "}");
+            }
+        }
+
+        if item_idx != node.items.len() - 1 {
+            writer.writeln("");
+        }
+    }
+
+    //
 
     writer.writeln("}");
     writer.writeln("");

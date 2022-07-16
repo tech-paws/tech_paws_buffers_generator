@@ -72,10 +72,13 @@ fn generate_write(node: &EnumASTNode) -> String {
         1,
         &format!("void write(BytesWriter writer, {} model) {{", node.id),
     );
-    writer.writeln_tab(2, "switch (model.runtimeType) {");
+    writer.writeln_tab(2, "switch (model.value) {");
 
-    for item in node.items.iter() {
-        writer.writeln_tab(3, &format!("case {}{}:", node.id, item.id()));
+    for (idx, item) in node.items.iter().enumerate() {
+        writer.writeln_tab(
+            3,
+            &format!("case {}Value.{}:", node.id, item.id().to_case(Case::Camel)),
+        );
         writer.writeln_tab(4, &format!("writer.writeInt32({});", item.position()));
         writer.writeln_tab(
             4,
@@ -87,17 +90,13 @@ fn generate_write(node: &EnumASTNode) -> String {
             ),
         );
         writer.writeln_tab(4, "return;");
-        writer.writeln("");
+
+        if idx != node.items.len() - 1 {
+            writer.writeln("");
+        }
     }
 
-    // Default case
-    writer.writeln_tab(3, "default:");
-    writer.writeln_tab(
-        4,
-        "throw StateError('Unsupported enum type: ${model.runtimeType}');",
-    );
     writer.writeln_tab(2, "}");
-
     writer.writeln_tab(1, "}");
 
     writer.show().to_string()

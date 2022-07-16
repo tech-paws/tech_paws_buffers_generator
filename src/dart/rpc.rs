@@ -1,5 +1,5 @@
 use crate::{
-    ast,
+    ast::{self, FnASTNode},
     dart_generator::{
         generate_option_type_id, generate_read, generate_read_emplace, generate_type_id,
         generate_write,
@@ -12,6 +12,14 @@ use crate::{
     dart_generator::{generate_struct_buffers, generate_struct_model},
     writer::Writer,
 };
+
+fn var_read_tasks(node: &FnASTNode) -> String {
+    format!("_read{}Tasks", node.id.to_case(Case::Pascal))
+}
+
+fn var_read_stream(node: &FnASTNode) -> String {
+    format!("_read{}Stream", node.id.to_case(Case::Pascal))
+}
 
 pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
     let mut writer = Writer::new(2);
@@ -74,9 +82,9 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
         writer.writeln_tab(
             1,
             &format!(
-                "StreamController<{}>? _read{}Stream;",
+                "StreamController<{}>? {};",
                 generate_option_type_id(&node.return_type_id),
-                node.id.to_case(Case::Pascal),
+                var_read_stream(node),
             ),
         );
     }
@@ -88,10 +96,7 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
     for node in fn_nodes.iter() {
         writer.writeln_tab(
             1,
-            &format!(
-                "final _read{}Tasks = <VMChannelReadTask>[];",
-                node.id.to_case(Case::Pascal)
-            ),
+            &format!("final {} = <VMChannelReadTask>[];", var_read_tasks(&node)),
         );
     }
 
@@ -138,8 +143,8 @@ fn generate_disconnect(nodes: &[&ast::FnASTNode]) -> String {
         writer.writeln_tab(
             2,
             &format!(
-                "for (final task in _read{}Tasks) _scheduler.disconnect(task);",
-                node.id.to_case(Case::Pascal)
+                "for (final task in {}) _scheduler.disconnect(task);",
+                var_read_tasks(node),
             ),
         );
     }
@@ -149,10 +154,7 @@ fn generate_disconnect(nodes: &[&ast::FnASTNode]) -> String {
     }
 
     for node in nodes {
-        writer.writeln_tab(
-            2,
-            &format!("_read{}Stream?.close();", node.id.to_case(Case::Pascal)),
-        );
+        writer.writeln_tab(2, &format!("{}?.close();", var_read_stream(node)));
     }
 
     writer.writeln_tab(1, "}");
@@ -172,28 +174,16 @@ fn generate_rpc_read(node: &ast::FnASTNode) -> String {
         ),
     );
 
-    writer.writeln_tab(
-        2,
-        &format!(
-            "if (_read{}Stream != null) {{",
-            node.id.to_case(Case::Pascal)
-        ),
-    );
-    writer.writeln_tab(
-        3,
-        &format!(
-            "return _read{}Stream!.stream;",
-            node.id.to_case(Case::Pascal)
-        ),
-    );
+    writer.writeln_tab(2, &format!("if ({} != null) {{", var_read_stream(node),));
+    writer.writeln_tab(3, &format!("return {}!.stream;", var_read_stream(node)));
     writer.writeln_tab(2, "}");
     writer.writeln("");
 
     writer.writeln_tab(
         2,
         &format!(
-            "_read{}Stream = StreamController<{}>.broadcast();",
-            node.id.to_case(Case::Pascal),
+            "{} = StreamController<{}>.broadcast();",
+            var_read_stream(node),
             generate_option_type_id(&node.return_type_id)
         ),
     );
@@ -216,18 +206,13 @@ fn generate_rpc_read(node: &ast::FnASTNode) -> String {
             writer.writeln_tab(
                 4,
                 &format!(
-                    "_read{}Stream!.add({});",
-                    node.id.to_case(Case::Pascal),
+                    "{}!.add({});",
+                    var_read_stream(node),
                     generate_read(type_id)
                 ),
             )
         }
-        None => {
-            writer.writeln_tab(
-                4,
-                &format!("_read{}Stream!.add(null);", node.id.to_case(Case::Pascal)),
-            )
-        }
+        None => writer.writeln_tab(4, &format!("{}!.add(null);", var_read_stream(node))),
     }
 
     writer.writeln_tab(3, "}");
@@ -238,13 +223,7 @@ fn generate_rpc_read(node: &ast::FnASTNode) -> String {
         &format!("_read{}Tasks.add(task);", node.id.to_case(Case::Pascal)),
     );
 
-    writer.writeln_tab(
-        2,
-        &format!(
-            "return _read{}Stream!.stream;",
-            node.id.to_case(Case::Pascal)
-        ),
-    );
+    writer.writeln_tab(2, &format!("return {}!.stream;", var_read_stream(node)));
     writer.writeln_tab(1, "}");
 
     writer.show().to_string()
@@ -264,28 +243,16 @@ fn generate_rpc_read_emplace(node: &ast::FnASTNode) -> String {
         ),
     );
 
-    writer.writeln_tab(
-        2,
-        &format!(
-            "if (_read{}Stream != null) {{",
-            node.id.to_case(Case::Pascal)
-        ),
-    );
-    writer.writeln_tab(
-        3,
-        &format!(
-            "return _read{}Stream!.stream;",
-            node.id.to_case(Case::Pascal)
-        ),
-    );
+    writer.writeln_tab(2, &format!("if ({} != null) {{", var_read_stream(node)));
+    writer.writeln_tab(3, &format!("return {}!.stream;", var_read_stream(node)));
     writer.writeln_tab(2, "}");
     writer.writeln("");
 
     writer.writeln_tab(
         2,
         &format!(
-            "_read{}Stream = StreamController<{}>.broadcast();",
-            node.id.to_case(Case::Pascal),
+            "{} = StreamController<{}>.broadcast();",
+            var_read_stream(node),
             generate_option_type_id(&node.return_type_id)
         ),
     );
@@ -304,10 +271,7 @@ fn generate_rpc_read_emplace(node: &ast::FnASTNode) -> String {
     writer.writeln_tab(3, "if (status == kStatusReceivedData) {");
 
     writer.writeln_tab(4, &generate_read_emplace(return_type_id, "model"));
-    writer.writeln_tab(
-        4,
-        &format!("_read{}Stream!.add(model);", node.id.to_case(Case::Pascal),),
-    );
+    writer.writeln_tab(4, &format!("{}!.add(model);", var_read_stream(node)));
 
     writer.writeln_tab(3, "}");
     writer.writeln_tab(2, "});");
@@ -316,13 +280,7 @@ fn generate_rpc_read_emplace(node: &ast::FnASTNode) -> String {
         2,
         &format!("_read{}Tasks.add(task);", node.id.to_case(Case::Pascal)),
     );
-    writer.writeln_tab(
-        2,
-        &format!(
-            "return _read{}Stream!.stream;",
-            node.id.to_case(Case::Pascal)
-        ),
-    );
+    writer.writeln_tab(2, &format!("return {}!.stream;", var_read_stream(node)));
     writer.writeln_tab(1, "}");
 
     writer.show().to_string()

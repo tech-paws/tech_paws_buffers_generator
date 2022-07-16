@@ -127,46 +127,51 @@ class __sum_rpc_args__IntoBuffers implements IntoBuffers<__sum_rpc_args__> {
   }
 }
 
-class TestRpcClient {
+class TestRpcClient implements RpcClient {
   final VMChannelScheduler _scheduler;
-  final _readPrintHelloWorldStreams = <StreamController<void>>[];
+
+  StreamController<void>? _readPrintHelloWorldStream;
+  StreamController<String>? _readHelloWorldStream;
+  StreamController<String>? _readSayHelloStream;
+  StreamController<void>? _readSumStream;
+
   final _readPrintHelloWorldTasks = <VMChannelReadTask>[];
-  final _readHelloWorldStreams = <StreamController<String>>[];
   final _readHelloWorldTasks = <VMChannelReadTask>[];
-  final _readSayHelloStreams = <StreamController<String>>[];
   final _readSayHelloTasks = <VMChannelReadTask>[];
-  final _readSumStreams = <StreamController<void>>[];
   final _readSumTasks = <VMChannelReadTask>[];
 
   TestRpcClient(this._scheduler);
 
   void disconnect() {
     for (final task in _readPrintHelloWorldTasks) _scheduler.disconnect(task);
-    for (final controller in _readPrintHelloWorldStreams) controller.close();
     for (final task in _readHelloWorldTasks) _scheduler.disconnect(task);
-    for (final controller in _readHelloWorldStreams) controller.close();
     for (final task in _readSayHelloTasks) _scheduler.disconnect(task);
-    for (final controller in _readSayHelloStreams) controller.close();
     for (final task in _readSumTasks) _scheduler.disconnect(task);
-    for (final controller in _readSumStreams) controller.close();
+
+    _readPrintHelloWorldStream?.close();
+    _readHelloWorldStream?.close();
+    _readSayHelloStream?.close();
+    _readSumStream?.close();
   }
 
   Stream<void> readPrintHelloWorld() {
-    final controller = StreamController<void>.broadcast();
+    if (_readPrintHelloWorldStream != null) {
+      return _readPrintHelloWorldStream!.stream;
+    }
+
+    _readPrintHelloWorldStream = StreamController<void>.broadcast();
 
     final task = _scheduler.read(kPrintHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
-        controller.add(null);
+        _readPrintHelloWorldStream!.add(null);
       }
     });
 
     _readPrintHelloWorldTasks.add(task);
-    _readPrintHelloWorldStreams.add(controller);
-
-    return controller.stream;
+    return _readPrintHelloWorldStream!.stream;
   }
 
   void writePrintHelloWorld() {
@@ -197,21 +202,44 @@ class TestRpcClient {
   }
 
   Stream<String> readHelloWorld() {
-    final controller = StreamController<String>.broadcast();
+    if (_readHelloWorldStream != null) {
+      return _readHelloWorldStream!.stream;
+    }
+
+    _readHelloWorldStream = StreamController<String>.broadcast();
 
     final task = _scheduler.read(kHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
-        controller.add(const StringIntoBuffers().read(reader));
+        _readHelloWorldStream!.add(const StringIntoBuffers().read(reader));
       }
     });
 
     _readHelloWorldTasks.add(task);
-    _readHelloWorldStreams.add(controller);
+    return _readHelloWorldStream!.stream;
+  }
 
-    return controller.stream;
+  Stream<String> readHelloWorldEmplace(String model) {
+    if (_readHelloWorldStream != null) {
+      return _readHelloWorldStream!.stream;
+    }
+
+    _readHelloWorldStream = StreamController<String>.broadcast();
+
+    final task = _scheduler.read(kHelloWorldClientAddress, (reader) {
+      reader.reset();
+      final status = reader.readInt8();
+
+      if (status == kStatusReceivedData) {
+        const StringEmplaceToBuffers().read(reader, model);
+        _readHelloWorldStream!.add(model);
+      }
+    });
+
+    _readHelloWorldTasks.add(task);
+    return _readHelloWorldStream!.stream;
   }
 
   void writeHelloWorld() {
@@ -242,21 +270,44 @@ class TestRpcClient {
   }
 
   Stream<String> readSayHello() {
-    final controller = StreamController<String>.broadcast();
+    if (_readSayHelloStream != null) {
+      return _readSayHelloStream!.stream;
+    }
+
+    _readSayHelloStream = StreamController<String>.broadcast();
 
     final task = _scheduler.read(kSayHelloClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
-        controller.add(const StringIntoBuffers().read(reader));
+        _readSayHelloStream!.add(const StringIntoBuffers().read(reader));
       }
     });
 
     _readSayHelloTasks.add(task);
-    _readSayHelloStreams.add(controller);
+    return _readSayHelloStream!.stream;
+  }
 
-    return controller.stream;
+  Stream<String> readSayHelloEmplace(String model) {
+    if (_readSayHelloStream != null) {
+      return _readSayHelloStream!.stream;
+    }
+
+    _readSayHelloStream = StreamController<String>.broadcast();
+
+    final task = _scheduler.read(kSayHelloClientAddress, (reader) {
+      reader.reset();
+      final status = reader.readInt8();
+
+      if (status == kStatusReceivedData) {
+        const StringEmplaceToBuffers().read(reader, model);
+        _readSayHelloStream!.add(model);
+      }
+    });
+
+    _readSayHelloTasks.add(task);
+    return _readSayHelloStream!.stream;
   }
 
   void writeSayHello({
@@ -299,21 +350,23 @@ class TestRpcClient {
   }
 
   Stream<void> readSum() {
-    final controller = StreamController<void>.broadcast();
+    if (_readSumStream != null) {
+      return _readSumStream!.stream;
+    }
+
+    _readSumStream = StreamController<void>.broadcast();
 
     final task = _scheduler.read(kSumClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
-        controller.add(null);
+        _readSumStream!.add(null);
       }
     });
 
     _readSumTasks.add(task);
-    _readSumStreams.add(controller);
-
-    return controller.stream;
+    return _readSumStream!.stream;
   }
 
   void writeSum({
