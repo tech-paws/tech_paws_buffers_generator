@@ -661,11 +661,19 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
 pub fn generate_read_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String {
     match type_id {
         TypeIDASTNode::Other { id } => {
-            format!(
-                "const {}EmplaceToBuffers().read(reader, {});",
-                id.to_case(Case::Pascal),
-                accessor,
-            )
+            if id == "String" {
+                format!(
+                    "{} = const {}IntoBuffers().read(reader);",
+                    accessor,
+                    id.to_case(Case::Pascal),
+                )
+            } else {
+                format!(
+                    "const {}EmplaceToBuffers().read(reader, {});",
+                    id.to_case(Case::Pascal),
+                    accessor,
+                )
+            }
         }
         TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
             let generic = generics.first().unwrap();
@@ -726,10 +734,17 @@ pub fn generate_read_skip(type_id: &TypeIDASTNode) -> String {
 pub fn generate_read_skip_emplace(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Other { id } => {
-            format!(
-                "const {}EmplaceToBuffers().skip(reader, 1);",
-                id.to_case(Case::Pascal),
-            )
+            if id == "String" {
+                format!(
+                    "const {}IntoBuffers().skip(reader, 1);",
+                    id.to_case(Case::Pascal),
+                )
+            } else {
+                format!(
+                    "const {}EmplaceToBuffers().skip(reader, 1);",
+                    id.to_case(Case::Pascal),
+                )
+            }
         }
         TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
             let generic = generics.first().unwrap();
@@ -807,11 +822,19 @@ pub fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> String {
 pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String {
     match type_id {
         TypeIDASTNode::Other { id } => {
-            format!(
-                "const {}EmplaceToBuffers().write(writer, {});",
-                id.to_case(Case::Pascal),
-                accessor
-            )
+            if id == "String" {
+                format!(
+                    "const {}IntoBuffers().write(writer, {});",
+                    id.to_case(Case::Pascal),
+                    accessor
+                )
+            } else {
+                format!(
+                    "const {}EmplaceToBuffers().write(writer, {});",
+                    id.to_case(Case::Pascal),
+                    accessor
+                )
+            }
         }
         TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
             let generic = generics.first().unwrap();
