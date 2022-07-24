@@ -204,14 +204,14 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.writeln(&generate_struct_buffers(&args_struct));
 
     writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
-    writer.writeln_tab(1, "state: &mut vm::CycleState,");
+    writer.writeln_tab(1, "memory: &mut vm::Memory,");
     writer.writeln_tab(1, "client_buffer_address: vm::BufferAddress,");
     writer.writeln_tab(1, "server_buffer_address: vm::BufferAddress,");
     writer.writeln(") -> bool {");
 
     writer.writeln_tab(
         1,
-        "let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {",
+        "let args = vm::buffer_read(memory, server_buffer_address, |bytes_reader| {",
     );
     writer.writeln_tab(2, "bytes_reader.reset();");
     writer.writeln_tab(2, "let status = bytes_reader.read_byte();");
@@ -233,7 +233,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.writeln_tab(1, "if let Some(args) = &args {");
     writer.writeln_tab(
         2,
-        "vm::buffer_write(state, server_buffer_address, |bytes_writer| {",
+        "vm::buffer_write(memory, server_buffer_address, |bytes_writer| {",
     );
     writer.writeln_tab(3, "bytes_writer.clear();");
     writer.writeln_tab(
@@ -244,7 +244,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
 
     if let Some(return_type_id) = &node.return_type_id {
         writer.writeln_tab(2, &format!("let ret = {}(", node.id));
-        writer.writeln_tab(3, "state,");
+        writer.writeln_tab(3, "memory,");
 
         for arg in node.args.iter() {
             writer.writeln_tab(3, &format!("args.clone().{},", arg.id));
@@ -256,7 +256,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         writer.writeln_tab(3, "RpcResult::Data(ret) => {");
         writer.writeln_tab(
             4,
-            "vm::buffer_write(state, client_buffer_address, |bytes_writer| {",
+            "vm::buffer_write(memory, client_buffer_address, |bytes_writer| {",
         );
         writer.writeln_tab(5, "bytes_writer.clear();");
         writer.writeln_tab(
@@ -268,17 +268,6 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         writer.writeln_tab(3, "}");
         writer.writeln_tab(3, "RpcResult::Skip => (),");
         writer.writeln_tab(2, "}");
-
-        // match ret {
-        //     RpcResult::Data(ret) => {
-        //         vm::buffer_write(state, client_buffer_address, |bytes_writer| {
-        //             bytes_writer.clear();
-        //             bytes_writer.write_byte(0xFF);
-        //             ret.write_to_buffers(bytes_writer);
-        //         })
-        //     }
-        //     RpcResult::Skip => (),
-        // }
     } else {
         writer.writeln_tab(2, &format!("{}(", node.id));
         writer.writeln_tab(3, "state,");
