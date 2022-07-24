@@ -303,7 +303,11 @@ fn generate_rpc_write(node: &ast::FnASTNode) -> String {
         for arg in node.args.iter() {
             writer.writeln_tab(
                 2,
-                &format!("required {} {},", generate_type_id(&arg.type_id), arg.id),
+                &format!(
+                    "required {} {},",
+                    generate_type_id(&arg.type_id),
+                    arg.id.to_case(Case::Camel)
+                ),
             )
         }
 
@@ -311,7 +315,14 @@ fn generate_rpc_write(node: &ast::FnASTNode) -> String {
         writer.writeln_tab(2, &format!("final args = __{}_rpc_args__(", node.id));
 
         for arg in node.args.iter() {
-            writer.writeln_tab(3, &format!("{}: {},", arg.id, arg.id))
+            writer.writeln_tab(
+                3,
+                &format!(
+                    "{}: {},",
+                    arg.id.to_case(Case::Camel),
+                    arg.id.to_case(Case::Camel)
+                ),
+            )
         }
 
         writer.writeln_tab(2, ");");
@@ -369,7 +380,11 @@ fn generate_rpc_async(node: &ast::FnASTNode) -> String {
         for arg in node.args.iter() {
             writer.writeln_tab(
                 2,
-                &format!("required {} {},", generate_type_id(&arg.type_id), arg.id),
+                &format!(
+                    "required {} {},",
+                    generate_type_id(&arg.type_id),
+                    arg.id.to_case(Case::Camel)
+                ),
             )
         }
 
@@ -377,7 +392,14 @@ fn generate_rpc_async(node: &ast::FnASTNode) -> String {
         writer.writeln_tab(2, &format!("write{}(", node.id.to_case(Case::Pascal)));
 
         for arg in node.args.iter() {
-            writer.writeln_tab(3, &format!("{}: {},", arg.id, arg.id))
+            writer.writeln_tab(
+                3,
+                &format!(
+                    "{}: {},",
+                    arg.id.to_case(Case::Camel),
+                    arg.id.to_case(Case::Camel)
+                ),
+            )
         }
 
         writer.writeln_tab(2, ");");
