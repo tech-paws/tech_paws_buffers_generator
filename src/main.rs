@@ -34,18 +34,14 @@ struct YamlParams {
     src: String,
     dest: String,
 
-    #[serde(default = "default_as_true")]
+    #[serde(default)]
     skip_models: bool,
 
-    #[serde(default = "default_as_true")]
+    #[serde(default)]
     skip_buffers: bool,
 
-    #[serde(default = "default_as_true")]
+    #[serde(default)]
     skip_rpc: bool,
-}
-
-fn default_as_true() -> bool {
-    true
 }
 
 #[derive(Subcommand, Debug)]

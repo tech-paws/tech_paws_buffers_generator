@@ -205,6 +205,8 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
 
     writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
     writer.writeln_tab(1, "memory: &mut vm::Memory,");
+    writer.writeln_tab(1, "state_getter: fn() -> &'static mut vm::State,");
+    writer.writeln_tab(1, "cycle_address: vm::CycleAddress,");
     writer.writeln_tab(1, "client_buffer_address: vm::BufferAddress,");
     writer.writeln_tab(1, "server_buffer_address: vm::BufferAddress,");
     writer.writeln(") -> bool {");
@@ -242,42 +244,61 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     );
     writer.writeln_tab(2, "});");
 
+    writer.writeln("");
+    writer.writeln_tab(2, "let args = args.clone();");
+    writer.writeln("");
+
+    writer.writeln_tab(2, "memory.async_spawner.spawn(async move {");
+    writer.writeln_tab(3, "unsafe {");
+    writer.writeln_tab(4, "let state = state_getter();");
+    writer.writeln_tab(4, "let cycle = state");
+    writer.writeln_tab(5, ".cycles_states");
+    writer.writeln_tab(5, ".get_by_id(cycle_address)");
+    writer.writeln_tab(5, ".clone()");
+    writer.writeln_tab(5, ".data_ptr()");
+    writer.writeln_tab(5, ".as_mut()");
+    writer.writeln_tab(5, ".unwrap();");
+    writer.writeln("");
+
     if let Some(return_type_id) = &node.return_type_id {
-        writer.writeln_tab(2, &format!("let ret = {}(", node.id));
-        writer.writeln_tab(3, "memory,");
+        writer.writeln_tab(4, &format!("let ret = {}(", node.id));
+        writer.writeln_tab(5, "cycle,");
 
         for arg in node.args.iter() {
-            writer.writeln_tab(3, &format!("args.clone().{},", arg.id));
+            writer.writeln_tab(5, &format!("args.clone().{},", arg.id));
         }
 
-        writer.writeln_tab(2, ");");
+        writer.writeln_tab(4, ").await;");
         writer.writeln("");
-        writer.writeln_tab(2, "match ret {");
-        writer.writeln_tab(3, "RpcResult::Data(ret) => {");
+        writer.writeln_tab(4, "match ret {");
+        writer.writeln_tab(5, "RpcResult::Data(ret) => {");
         writer.writeln_tab(
-            4,
-            "vm::buffer_write(memory, client_buffer_address, |bytes_writer| {",
+            6,
+            "vm::buffer_write(cycle, client_buffer_address, |bytes_writer| {",
         );
-        writer.writeln_tab(5, "bytes_writer.clear();");
+        writer.writeln_tab(7, "bytes_writer.clear();");
         writer.writeln_tab(
-            5,
+            7,
             &format!("bytes_writer.write_byte({});", RPC_NEW_DATA_STATUS),
         );
-        writer.writeln_tab(5, &generate_write(return_type_id, "ret", false));
-        writer.writeln_tab(4, "});");
-        writer.writeln_tab(3, "}");
-        writer.writeln_tab(3, "RpcResult::Skip => (),");
-        writer.writeln_tab(2, "}");
+        writer.writeln_tab(7, &generate_write(return_type_id, "ret", false));
+        writer.writeln_tab(6, "});");
+        writer.writeln_tab(5, "}");
+        writer.writeln_tab(5, "RpcResult::Skip => (),");
+        writer.writeln_tab(4, "}");
     } else {
-        writer.writeln_tab(2, &format!("{}(", node.id));
-        writer.writeln_tab(3, "state,");
+        writer.writeln_tab(4, &format!("{}(", node.id));
+        writer.writeln_tab(5, "cycle,");
 
         for arg in node.args.iter() {
-            writer.writeln_tab(3, &format!("args.clone().{},", arg.id));
+            writer.writeln_tab(5, &format!("args.clone().{},", arg.id));
         }
 
-        writer.writeln_tab(2, ");");
+        writer.writeln_tab(4, ").await;");
     }
+
+    writer.writeln_tab(3, "}");
+    writer.writeln_tab(2, "});");
 
     writer.writeln_tab(1, "}");
     writer.writeln("");
