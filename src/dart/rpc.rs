@@ -72,7 +72,7 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
         "class {}RpcClient implements RpcClient {{",
         namespace.to_case(Case::Pascal)
     ));
-    writer.writeln_tab(1, "final VMChannelScheduler _scheduler;");
+    writer.writeln_tab(1, "final TechPawsRuntimeChannelScheduler _scheduler;");
 
     if fn_nodes.len() > 1 {
         writer.writeln("");
@@ -96,7 +96,7 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
     for node in fn_nodes.iter() {
         writer.writeln_tab(
             1,
-            &format!("final {} = <VMChannelReadTask>[];", var_read_tasks(&node)),
+            &format!("final {} = <TechPawsRuntimeChannelReadTask>[];", var_read_tasks(&node)),
         );
     }
 
@@ -415,7 +415,7 @@ fn generate_rpc_async(node: &ast::FnASTNode) -> String {
     );
     writer.writeln("");
 
-    writer.writeln_tab(2, "late VMChannelReadTask task;");
+    writer.writeln_tab(2, "late TechPawsRuntimeChannelReadTask task;");
     writer.writeln_tab(
         2,
         &format!(

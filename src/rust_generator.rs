@@ -9,6 +9,10 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
 
     writer.writeln("// GENERATED, DO NOT EDIT");
     writer.writeln("");
+    writer.writeln("#![allow(warnings)]");
+    writer.writeln("#![allow(clippy)]");
+    writer.writeln("#![allow(unknown_lints)]");
+    writer.writeln("");
 
     if rpc && !ast::find_fn_nodes(ast).is_empty() {
         writer.writeln(
@@ -204,16 +208,25 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.writeln(&generate_struct_buffers(&args_struct));
 
     writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
-    writer.writeln_tab(1, "memory: &mut vm::Memory,");
-    writer.writeln_tab(1, "state_getter: fn() -> &'static mut vm::State,");
-    writer.writeln_tab(1, "cycle_address: vm::CycleAddress,");
-    writer.writeln_tab(1, "client_buffer_address: vm::BufferAddress,");
-    writer.writeln_tab(1, "server_buffer_address: vm::BufferAddress,");
+    writer.writeln_tab(1, "memory: &mut tech_paws_runtime::Memory,");
+    writer.writeln_tab(
+        1,
+        "state_getter: fn() -> &'static mut tech_paws_runtime::State,",
+    );
+    writer.writeln_tab(1, "cycle_address: tech_paws_runtime::CycleAddress,");
+    writer.writeln_tab(
+        1,
+        "client_buffer_address: tech_paws_runtime::BufferAddress,",
+    );
+    writer.writeln_tab(
+        1,
+        "server_buffer_address: tech_paws_runtime::BufferAddress,",
+    );
     writer.writeln(") -> bool {");
 
     writer.writeln_tab(
         1,
-        "let args = vm::buffer_read(memory, server_buffer_address, |bytes_reader| {",
+        "let args = tech_paws_runtime::buffer_read(memory, server_buffer_address, |bytes_reader| {",
     );
     writer.writeln_tab(2, "bytes_reader.reset();");
     writer.writeln_tab(2, "let status = bytes_reader.read_byte();");
@@ -235,7 +248,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.writeln_tab(1, "if let Some(args) = &args {");
     writer.writeln_tab(
         2,
-        "vm::buffer_write(memory, server_buffer_address, |bytes_writer| {",
+        "tech_paws_runtime::buffer_write(memory, server_buffer_address, |bytes_writer| {",
     );
     writer.writeln_tab(3, "bytes_writer.clear();");
     writer.writeln_tab(
@@ -245,11 +258,19 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.writeln_tab(2, "});");
 
     writer.writeln("");
-    writer.writeln_tab(2, "let args = args.clone();");
+    writer.writeln_tab(2, "unsafe {");
+    writer.writeln_tab(3, "let args = args.clone();");
+    writer.writeln_tab(3, "let state = state_getter();");
+    writer.writeln_tab(3, "let cycle = state");
+    writer.writeln_tab(4, ".cycles_states");
+    writer.writeln_tab(4, ".get_by_id(cycle_address)");
+    writer.writeln_tab(4, ".clone()");
+    writer.writeln_tab(4, ".data_ptr()");
+    writer.writeln_tab(4, ".as_mut()");
+    writer.writeln_tab(4, ".unwrap();");
     writer.writeln("");
 
-    writer.writeln_tab(2, "memory.async_spawner.spawn(async move {");
-    writer.writeln_tab(3, "unsafe {");
+    writer.writeln_tab(3, "cycle.async_spawner.spawn(async move {");
     writer.writeln_tab(4, "let state = state_getter();");
     writer.writeln_tab(4, "let cycle = state");
     writer.writeln_tab(5, ".cycles_states");
@@ -262,7 +283,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
 
     if let Some(return_type_id) = &node.return_type_id {
         writer.writeln_tab(4, &format!("let ret = {}(", node.id));
-        writer.writeln_tab(5, "cycle,");
+        writer.writeln_tab(5, "&mut cycle.memory,");
 
         for arg in node.args.iter() {
             writer.writeln_tab(5, &format!("args.clone().{},", arg.id));
@@ -274,7 +295,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         writer.writeln_tab(5, "RpcResult::Data(ret) => {");
         writer.writeln_tab(
             6,
-            "vm::buffer_write(cycle, client_buffer_address, |bytes_writer| {",
+            "tech_paws_runtime::buffer_write(&mut cycle.memory, client_buffer_address, |bytes_writer| {",
         );
         writer.writeln_tab(7, "bytes_writer.clear();");
         writer.writeln_tab(
@@ -288,7 +309,7 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         writer.writeln_tab(4, "}");
     } else {
         writer.writeln_tab(4, &format!("{}(", node.id));
-        writer.writeln_tab(5, "cycle,");
+        writer.writeln_tab(5, "&mut cycle.memory,");
 
         for arg in node.args.iter() {
             writer.writeln_tab(5, &format!("args.clone().{},", arg.id));
@@ -297,8 +318,8 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
         writer.writeln_tab(4, ").await;");
     }
 
-    writer.writeln_tab(3, "}");
-    writer.writeln_tab(2, "});");
+    writer.writeln_tab(3, "});");
+    writer.writeln_tab(2, "}");
 
     writer.writeln_tab(1, "}");
     writer.writeln("");
