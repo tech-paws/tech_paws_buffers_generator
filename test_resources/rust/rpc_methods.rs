@@ -56,8 +56,13 @@ pub fn print_hello_world_rpc_handler(
                     .as_mut()
                     .unwrap();
 
-                print_hello_world(
+                let mut emitter = VoidEmitter::new(
                     &mut cycle.memory,
+                    client_buffer_address,
+                );
+
+                print_hello_world(
+                    &mut emitter,
                 ).await;
             });
         }
@@ -299,8 +304,13 @@ pub fn sum_rpc_handler(
                     .as_mut()
                     .unwrap();
 
-                sum(
+                let mut emitter = VoidEmitter::new(
                     &mut cycle.memory,
+                    client_buffer_address,
+                );
+
+                sum(
+                    &mut emitter,
                     args.clone().a,
                     args.clone().b,
                     args.clone().c,
@@ -310,4 +320,78 @@ pub fn sum_rpc_handler(
     }
 
     args.is_some()
+}
+
+pub fn trigger_rpc_handler(
+    memory: &mut tech_paws_runtime::Memory,
+    state_getter: fn() -> &'static mut tech_paws_runtime::State,
+    cycle_address: tech_paws_runtime::CycleAddress,
+    client_buffer_address: tech_paws_runtime::BufferAddress,
+    server_buffer_address: tech_paws_runtime::BufferAddress,
+) -> bool {
+    unsafe {
+        let state = state_getter();
+        let cycle = state
+            .cycles_states
+            .get_by_id(cycle_address)
+            .clone()
+            .data_ptr()
+            .as_mut()
+            .unwrap();
+
+        cycle.async_spawner.spawn(async move {
+            let state = state_getter();
+            let cycle = state
+                .cycles_states
+                .get_by_id(cycle_address)
+                .clone()
+                .data_ptr()
+                .as_mut()
+                .unwrap();
+
+            let mut emitter = VoidEmitter::new(
+                &mut cycle.memory,
+                client_buffer_address,
+            );
+
+            trigger(&mut emitter).await;
+        });
+    }
+}
+
+pub fn theme_rpc_handler(
+    memory: &mut tech_paws_runtime::Memory,
+    state_getter: fn() -> &'static mut tech_paws_runtime::State,
+    cycle_address: tech_paws_runtime::CycleAddress,
+    client_buffer_address: tech_paws_runtime::BufferAddress,
+    server_buffer_address: tech_paws_runtime::BufferAddress,
+) -> bool {
+    unsafe {
+        let state = state_getter();
+        let cycle = state
+            .cycles_states
+            .get_by_id(cycle_address)
+            .clone()
+            .data_ptr()
+            .as_mut()
+            .unwrap();
+
+        cycle.async_spawner.spawn(async move {
+            let state = state_getter();
+            let cycle = state
+                .cycles_states
+                .get_by_id(cycle_address)
+                .clone()
+                .data_ptr()
+                .as_mut()
+                .unwrap();
+
+            let mut emitter = Emitter::<Theme>::new(
+                &mut cycle.memory,
+                client_buffer_address,
+            );
+
+            theme(&mut emitter).await;
+        });
+    }
 }

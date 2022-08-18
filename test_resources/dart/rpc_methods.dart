@@ -127,6 +127,56 @@ class __sum_rpc_args__IntoBuffers implements IntoBuffers<__sum_rpc_args__> {
   }
 }
 
+class __trigger_rpc_args__ {
+  const __trigger_rpc_args__();
+}
+
+class __trigger_rpc_args__IntoBuffers implements IntoBuffers<__trigger_rpc_args__> {
+  const __trigger_rpc_args__IntoBuffers();
+
+  @override
+  __trigger_rpc_args__ read(BytesReader reader) {
+
+    return __trigger_rpc_args__(
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, __trigger_rpc_args__ model) {
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+    }
+  }
+}
+
+class __theme_rpc_args__ {
+  const __theme_rpc_args__();
+}
+
+class __theme_rpc_args__IntoBuffers implements IntoBuffers<__theme_rpc_args__> {
+  const __theme_rpc_args__IntoBuffers();
+
+  @override
+  __theme_rpc_args__ read(BytesReader reader) {
+
+    return __theme_rpc_args__(
+    );
+  }
+
+  @override
+  void write(BytesWriter writer, __theme_rpc_args__ model) {
+  }
+
+  @override
+  void skip(BytesReader reader, int count) {
+    for (int i = 0; i < count; i += 1) {
+    }
+  }
+}
+
 class TestRpcClient implements RpcClient {
   final TechPawsRuntimeChannelScheduler _scheduler;
 
@@ -134,11 +184,15 @@ class TestRpcClient implements RpcClient {
   StreamController<String>? _readHelloWorldStream;
   StreamController<String>? _readSayHelloStream;
   StreamController<void>? _readSumStream;
+  StreamController<void>? _readTriggerStream;
+  StreamController<Theme>? _readThemeStream;
 
   final _readPrintHelloWorldTasks = <TechPawsRuntimeChannelReadTask>[];
   final _readHelloWorldTasks = <TechPawsRuntimeChannelReadTask>[];
   final _readSayHelloTasks = <TechPawsRuntimeChannelReadTask>[];
   final _readSumTasks = <TechPawsRuntimeChannelReadTask>[];
+  final _readTriggerTasks = <TechPawsRuntimeChannelReadTask>[];
+  final _readThemeTasks = <TechPawsRuntimeChannelReadTask>[];
 
   TestRpcClient(this._scheduler);
 
@@ -147,11 +201,15 @@ class TestRpcClient implements RpcClient {
     for (final task in _readHelloWorldTasks) _scheduler.disconnect(task);
     for (final task in _readSayHelloTasks) _scheduler.disconnect(task);
     for (final task in _readSumTasks) _scheduler.disconnect(task);
+    for (final task in _readTriggerTasks) _scheduler.disconnect(task);
+    for (final task in _readThemeTasks) _scheduler.disconnect(task);
 
     _readPrintHelloWorldStream?.close();
     _readHelloWorldStream?.close();
     _readSayHelloStream?.close();
     _readSumStream?.close();
+    _readTriggerStream?.close();
+    _readThemeStream?.close();
   }
 
   Stream<void> readPrintHelloWorld() {
@@ -415,4 +473,67 @@ class TestRpcClient implements RpcClient {
     _readSumTasks.add(task);
     return completer.future;
   }
+
+  Stream<void> readTrigger() {
+    if (_readTriggerStream != null) {
+      return _readTriggerStream!.stream;
+    }
+
+    _readTriggerStream = StreamController<void>.broadcast();
+
+    final task = _scheduler.read(kTriggerClientAddress, (reader) {
+      reader.reset();
+      final status = reader.readInt8();
+
+      if (status == kStatusReceivedData) {
+        _readTriggerStream!.add(null);
+      }
+    });
+
+    _readTriggerTasks.add(task);
+    return _readTriggerStream!.stream;
+  }
+
+
+  Stream<Theme> readTheme() {
+    if (_readThemeStream != null) {
+      return _readThemeStream!.stream;
+    }
+
+    _readThemeStream = StreamController<Theme>.broadcast();
+
+    final task = _scheduler.read(kThemeClientAddress, (reader) {
+      reader.reset();
+      final status = reader.readInt8();
+
+      if (status == kStatusReceivedData) {
+        _readThemeStream!.add(const ThemeIntoBuffers().read(reader));
+      }
+    });
+
+    _readThemeTasks.add(task);
+    return _readThemeStream!.stream;
+  }
+
+  Stream<Theme> readThemeEmplace(Theme model) {
+    if (_readThemeStream != null) {
+      return _readThemeStream!.stream;
+    }
+
+    _readThemeStream = StreamController<Theme>.broadcast();
+
+    final task = _scheduler.read(kThemeClientAddress, (reader) {
+      reader.reset();
+      final status = reader.readInt8();
+
+      if (status == kStatusReceivedData) {
+        const ThemeEmplaceToBuffers().read(reader, model);
+        _readThemeStream!.add(model);
+      }
+    });
+
+    _readThemeTasks.add(task);
+    return _readThemeStream!.stream;
+  }
+
 }

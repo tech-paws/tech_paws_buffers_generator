@@ -43,6 +43,7 @@ Struct {
 Fn {
   id: "say_hello",
   return_type_id: Some(Other { id: "String" }),
+  is_read: false,
   args: [
     FnArgASTNode { id: "name", type_id: Other { id: "String" } }
   ]

@@ -96,7 +96,10 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
     for node in fn_nodes.iter() {
         writer.writeln_tab(
             1,
-            &format!("final {} = <TechPawsRuntimeChannelReadTask>[];", var_read_tasks(&node)),
+            &format!(
+                "final {} = <TechPawsRuntimeChannelReadTask>[];",
+                var_read_tasks(&node)
+            ),
         );
     }
 
@@ -121,9 +124,11 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
             writer.writeln("");
         }
 
-        writer.write(&generate_rpc_write(node));
-        writer.writeln("");
-        writer.write(&generate_rpc_async(node));
+        if !node.is_read {
+            writer.write(&generate_rpc_write(node));
+            writer.writeln("");
+            writer.write(&generate_rpc_async(node));
+        }
 
         if idx != fn_nodes.len() - 1 {
             writer.writeln("");

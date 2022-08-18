@@ -3,6 +3,7 @@ pub enum Token {
     Struct,
     Enum,
     Fn,
+    Read,
     ID { name: String },
     Literal(Literal),
     Symbol(char),
@@ -158,6 +159,7 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
         "struct" => Token::Struct,
         "enum" => Token::Enum,
         "fn" => Token::Fn,
+        "read" => Token::Read,
         _ => Token::ID { name },
     }
 }

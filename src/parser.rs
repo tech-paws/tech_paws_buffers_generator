@@ -8,6 +8,7 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
         match *lexer.current_token() {
             Token::Struct => ast_nodes.push(parse_struct(lexer)),
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
+            Token::Read => ast_nodes.push(parse_fn(lexer)),
             Token::Fn => ast_nodes.push(parse_fn(lexer)),
             Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
             _ => panic!("Unexpected token: {:?}", lexer.current_token()),
@@ -430,6 +431,13 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
 }
 
 pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
+    let is_read = if *lexer.current_token() == Token::Read {
+        lexer.next_token();
+        true
+    } else {
+        false
+    };
+
     if *lexer.current_token() != Token::Fn {
         panic!("Expected 'fn' but got {:?}", lexer.current_token());
     }
@@ -440,16 +448,22 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         panic!("Expected id, but got {:?}", lexer.current_token());
     };
 
-    if *lexer.next_token() != Token::Symbol('(') {
-        panic!("Expected '(', but got {:?}", lexer.current_token());
-    }
+    let args = if !is_read {
+        if *lexer.next_token() != Token::Symbol('(') {
+            panic!("Expected '(', but got {:?}", lexer.current_token());
+        }
 
-    lexer.next_token();
-    let args = parse_fn_args(lexer);
+        lexer.next_token();
+        let args = parse_fn_args(lexer);
 
-    if *lexer.current_token() != Token::Symbol(')') {
-        panic!("Expected ')', but got {:?}", lexer.current_token());
-    }
+        if *lexer.current_token() != Token::Symbol(')') {
+            panic!("Expected ')', but got {:?}", lexer.current_token());
+        }
+
+        args
+    } else {
+        vec![]
+    };
 
     if *lexer.next_token() == Token::Symbol(';') {
         lexer.next_token();
@@ -457,6 +471,7 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         return ASTNode::Fn(FnASTNode {
             id,
             args,
+            is_read,
             return_type_id: None,
         });
     }
@@ -481,6 +496,7 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         id,
         args,
         return_type_id,
+        is_read,
     })
 }
 
@@ -711,10 +727,12 @@ mod tests {
                     id,
                     args,
                     return_type_id,
+                    is_read,
                 }) => {
                     writer.writeln_tab(tab, "Fn {");
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, &format!("return_type_id: {:?},", return_type_id));
+                    writer.writeln_tab(tab + 1, &format!("is_read: {:?},", is_read));
                     writer.writeln_tab(tab + 1, "args: [");
 
                     for arg in args {

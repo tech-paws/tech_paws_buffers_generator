@@ -182,6 +182,85 @@ fn generate_struct_default(node: &StructASTNode) -> String {
 }
 
 fn generate_rpc_method(node: &FnASTNode) -> String {
+    if node.is_read {
+        generate_r_rpc_method(node)
+    } else {
+        generate_rw_rpc_method(node)
+    }
+}
+
+fn generate_r_rpc_method(node: &FnASTNode) -> String {
+    let mut writer = Writer::default();
+
+    writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
+    writer.writeln_tab(1, "memory: &mut tech_paws_runtime::Memory,");
+    writer.writeln_tab(
+        1,
+        "state_getter: fn() -> &'static mut tech_paws_runtime::State,",
+    );
+    writer.writeln_tab(1, "cycle_address: tech_paws_runtime::CycleAddress,");
+    writer.writeln_tab(
+        1,
+        "client_buffer_address: tech_paws_runtime::BufferAddress,",
+    );
+    writer.writeln_tab(
+        1,
+        "server_buffer_address: tech_paws_runtime::BufferAddress,",
+    );
+    writer.writeln(") -> bool {");
+    writer.writeln_tab(1, "unsafe {");
+    writer.writeln_tab(2, "let state = state_getter();");
+    writer.writeln_tab(2, "let cycle = state");
+    writer.writeln_tab(3, ".cycles_states");
+    writer.writeln_tab(3, ".get_by_id(cycle_address)");
+    writer.writeln_tab(3, ".clone()");
+    writer.writeln_tab(3, ".data_ptr()");
+    writer.writeln_tab(3, ".as_mut()");
+    writer.writeln_tab(3, ".unwrap();");
+    writer.writeln("");
+
+    writer.writeln_tab(2, "cycle.async_spawner.spawn(async move {");
+    writer.writeln_tab(3, "let state = state_getter();");
+    writer.writeln_tab(3, "let cycle = state");
+    writer.writeln_tab(4, ".cycles_states");
+    writer.writeln_tab(4, ".get_by_id(cycle_address)");
+    writer.writeln_tab(4, ".clone()");
+    writer.writeln_tab(4, ".data_ptr()");
+    writer.writeln_tab(4, ".as_mut()");
+    writer.writeln_tab(4, ".unwrap();");
+    writer.writeln("");
+
+    if let Some(return_type_id) = &node.return_type_id {
+        writer.writeln_tab(
+            3,
+            &format!(
+                "let mut emitter = Emitter::<{}>::new(",
+                generate_type_id(return_type_id)
+            ),
+        );
+        writer.writeln_tab(4, "&mut cycle.memory,");
+        writer.writeln_tab(4, "client_buffer_address,");
+        writer.writeln_tab(3, ");");
+        writer.writeln("");
+
+        writer.writeln_tab(3, &format!("{}(&mut emitter).await;", node.id));
+    } else {
+        writer.writeln_tab(3, "let mut emitter = VoidEmitter::new(");
+        writer.writeln_tab(4, "&mut cycle.memory,");
+        writer.writeln_tab(4, "client_buffer_address,");
+        writer.writeln_tab(3, ");");
+        writer.writeln("");
+        writer.writeln_tab(3, &format!("{}(&mut emitter).await;", node.id));
+    }
+
+    writer.writeln_tab(2, "});");
+    writer.writeln_tab(1, "}");
+    writer.writeln("}");
+
+    writer.show().to_string()
+}
+
+fn generate_rw_rpc_method(node: &FnASTNode) -> String {
     let mut writer = Writer::default();
 
     let args_struct_id = format!("__{}_rpc_args__", node.id);
@@ -303,8 +382,14 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
 
         writer.writeln_tab(4, ").await;");
     } else {
-        writer.writeln_tab(4, &format!("{}(", node.id));
+        writer.writeln_tab(4, "let mut emitter = VoidEmitter::new(");
         writer.writeln_tab(5, "&mut cycle.memory,");
+        writer.writeln_tab(5, "client_buffer_address,");
+        writer.writeln_tab(4, ");");
+        writer.writeln("");
+
+        writer.writeln_tab(4, &format!("{}(", node.id));
+        writer.writeln_tab(5, "&mut emitter,");
 
         for arg in node.args.iter() {
             writer.writeln_tab(5, &format!("args.clone().{},", arg.id));
