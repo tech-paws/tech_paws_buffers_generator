@@ -19,7 +19,12 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     writer.writeln("// GENERATED, DO NOT EDIT");
     writer.writeln("");
 
-    if buffers {
+    if rpc && !ast::find_fn_nodes(ast).is_empty() {
+        writer.writeln("import 'package:tech_paws_buffers/tech_paws_buffers.dart';");
+        writer.writeln("import 'package:tech_paws_runtime_flutter/scheduler.dart';");
+        writer.writeln("import 'package:tech_paws_runtime_flutter/models.dart';");
+        writer.writeln("import 'package:tech_paws_runtime_flutter/address.dart';");
+    } else if buffers {
         writer.writeln("import 'package:tech_paws_buffers/tech_paws_buffers.dart';");
     }
 

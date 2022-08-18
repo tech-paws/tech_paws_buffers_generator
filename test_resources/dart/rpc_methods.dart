@@ -128,17 +128,17 @@ class __sum_rpc_args__IntoBuffers implements IntoBuffers<__sum_rpc_args__> {
 }
 
 class TestRpcClient implements RpcClient {
-  final VMChannelScheduler _scheduler;
+  final TechPawsRuntimeChannelScheduler _scheduler;
 
   StreamController<void>? _readPrintHelloWorldStream;
   StreamController<String>? _readHelloWorldStream;
   StreamController<String>? _readSayHelloStream;
   StreamController<void>? _readSumStream;
 
-  final _readPrintHelloWorldTasks = <VMChannelReadTask>[];
-  final _readHelloWorldTasks = <VMChannelReadTask>[];
-  final _readSayHelloTasks = <VMChannelReadTask>[];
-  final _readSumTasks = <VMChannelReadTask>[];
+  final _readPrintHelloWorldTasks = <TechPawsRuntimeChannelReadTask>[];
+  final _readHelloWorldTasks = <TechPawsRuntimeChannelReadTask>[];
+  final _readSayHelloTasks = <TechPawsRuntimeChannelReadTask>[];
+  final _readSumTasks = <TechPawsRuntimeChannelReadTask>[];
 
   TestRpcClient(this._scheduler);
 
@@ -185,7 +185,7 @@ class TestRpcClient implements RpcClient {
     writePrintHelloWorld();
     final completer = Completer<void>();
 
-    late VMChannelReadTask task;
+    late TechPawsRuntimeChannelReadTask task;
     task = _scheduler.read(kPrintHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
@@ -233,7 +233,7 @@ class TestRpcClient implements RpcClient {
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
-        const StringEmplaceToBuffers().read(reader, model);
+        model = const StringIntoBuffers().read(reader);
         _readHelloWorldStream!.add(model);
       }
     });
@@ -253,7 +253,7 @@ class TestRpcClient implements RpcClient {
     writeHelloWorld();
     final completer = Completer<String>();
 
-    late VMChannelReadTask task;
+    late TechPawsRuntimeChannelReadTask task;
     task = _scheduler.read(kHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
@@ -301,7 +301,7 @@ class TestRpcClient implements RpcClient {
       final status = reader.readInt8();
 
       if (status == kStatusReceivedData) {
-        const StringEmplaceToBuffers().read(reader, model);
+        model = const StringIntoBuffers().read(reader);
         _readSayHelloStream!.add(model);
       }
     });
@@ -333,7 +333,7 @@ class TestRpcClient implements RpcClient {
 
     final completer = Completer<String>();
 
-    late VMChannelReadTask task;
+    late TechPawsRuntimeChannelReadTask task;
     task = _scheduler.read(kSayHelloClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
@@ -400,7 +400,7 @@ class TestRpcClient implements RpcClient {
 
     final completer = Completer<void>();
 
-    late VMChannelReadTask task;
+    late TechPawsRuntimeChannelReadTask task;
     task = _scheduler.read(kSumClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();

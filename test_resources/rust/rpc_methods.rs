@@ -12,11 +12,13 @@ impl IntoVMBuffers for __print_hello_world_rpc_args__ {
 }
 
 pub fn print_hello_world_rpc_handler(
-    state: &mut vm::CycleState,
-    client_buffer_address: vm::BufferAddress,
-    server_buffer_address: vm::BufferAddress,
+    memory: &mut tech_paws_runtime::Memory,
+    state_getter: fn() -> &'static mut tech_paws_runtime::State,
+    cycle_address: tech_paws_runtime::CycleAddress,
+    client_buffer_address: tech_paws_runtime::BufferAddress,
+    server_buffer_address: tech_paws_runtime::BufferAddress,
 ) -> bool {
-    let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+    let args = tech_paws_runtime::buffer_read(memory, server_buffer_address, |bytes_reader| {
         bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
@@ -28,13 +30,37 @@ pub fn print_hello_world_rpc_handler(
     });
 
     if let Some(args) = &args {
-        vm::buffer_write(state, server_buffer_address, |bytes_writer| {
+        tech_paws_runtime::buffer_write(memory, server_buffer_address, |bytes_writer| {
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        print_hello_world(
-            state,
-        );
+
+        unsafe {
+            let args = args.clone();
+            let state = state_getter();
+            let cycle = state
+                .cycles_states
+                .get_by_id(cycle_address)
+                .clone()
+                .data_ptr()
+                .as_mut()
+                .unwrap();
+
+            cycle.async_spawner.spawn(async move {
+                let state = state_getter();
+                let cycle = state
+                    .cycles_states
+                    .get_by_id(cycle_address)
+                    .clone()
+                    .data_ptr()
+                    .as_mut()
+                    .unwrap();
+
+                print_hello_world(
+                    &mut cycle.memory,
+                ).await;
+            });
+        }
     }
 
     args.is_some()
@@ -54,11 +80,13 @@ impl IntoVMBuffers for __hello_world_rpc_args__ {
 }
 
 pub fn hello_world_rpc_handler(
-    state: &mut vm::CycleState,
-    client_buffer_address: vm::BufferAddress,
-    server_buffer_address: vm::BufferAddress,
+    memory: &mut tech_paws_runtime::Memory,
+    state_getter: fn() -> &'static mut tech_paws_runtime::State,
+    cycle_address: tech_paws_runtime::CycleAddress,
+    client_buffer_address: tech_paws_runtime::BufferAddress,
+    server_buffer_address: tech_paws_runtime::BufferAddress,
 ) -> bool {
-    let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+    let args = tech_paws_runtime::buffer_read(memory, server_buffer_address, |bytes_reader| {
         bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
@@ -70,23 +98,41 @@ pub fn hello_world_rpc_handler(
     });
 
     if let Some(args) = &args {
-        vm::buffer_write(state, server_buffer_address, |bytes_writer| {
+        tech_paws_runtime::buffer_write(memory, server_buffer_address, |bytes_writer| {
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        let ret = hello_world(
-            state,
-        );
 
-        match ret {
-            RpcResult::Data(ret) => {
-                vm::buffer_write(state, client_buffer_address, |bytes_writer| {
-                    bytes_writer.clear();
-                    bytes_writer.write_byte(0xFF);
-                    ret.write_to_buffers(bytes_writer);
-                });
-            }
-            RpcResult::Skip => (),
+        unsafe {
+            let args = args.clone();
+            let state = state_getter();
+            let cycle = state
+                .cycles_states
+                .get_by_id(cycle_address)
+                .clone()
+                .data_ptr()
+                .as_mut()
+                .unwrap();
+
+            cycle.async_spawner.spawn(async move {
+                let state = state_getter();
+                let cycle = state
+                    .cycles_states
+                    .get_by_id(cycle_address)
+                    .clone()
+                    .data_ptr()
+                    .as_mut()
+                    .unwrap();
+
+                let mut emitter = Emitter::<String>::new(
+                    &mut cycle.memory,
+                    client_buffer_address,
+                );
+
+                hello_world(
+                    &mut emitter,
+                ).await;
+            });
         }
     }
 
@@ -117,11 +163,13 @@ impl IntoVMBuffers for __say_hello_rpc_args__ {
 }
 
 pub fn say_hello_rpc_handler(
-    state: &mut vm::CycleState,
-    client_buffer_address: vm::BufferAddress,
-    server_buffer_address: vm::BufferAddress,
+    memory: &mut tech_paws_runtime::Memory,
+    state_getter: fn() -> &'static mut tech_paws_runtime::State,
+    cycle_address: tech_paws_runtime::CycleAddress,
+    client_buffer_address: tech_paws_runtime::BufferAddress,
+    server_buffer_address: tech_paws_runtime::BufferAddress,
 ) -> bool {
-    let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+    let args = tech_paws_runtime::buffer_read(memory, server_buffer_address, |bytes_reader| {
         bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
@@ -133,24 +181,42 @@ pub fn say_hello_rpc_handler(
     });
 
     if let Some(args) = &args {
-        vm::buffer_write(state, server_buffer_address, |bytes_writer| {
+        tech_paws_runtime::buffer_write(memory, server_buffer_address, |bytes_writer| {
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        let ret = say_hello(
-            state,
-            args.clone().name,
-        );
 
-        match ret {
-            RpcResult::Data(ret) => {
-                vm::buffer_write(state, client_buffer_address, |bytes_writer| {
-                    bytes_writer.clear();
-                    bytes_writer.write_byte(0xFF);
-                    ret.write_to_buffers(bytes_writer);
-                });
-            }
-            RpcResult::Skip => (),
+        unsafe {
+            let args = args.clone();
+            let state = state_getter();
+            let cycle = state
+                .cycles_states
+                .get_by_id(cycle_address)
+                .clone()
+                .data_ptr()
+                .as_mut()
+                .unwrap();
+
+            cycle.async_spawner.spawn(async move {
+                let state = state_getter();
+                let cycle = state
+                    .cycles_states
+                    .get_by_id(cycle_address)
+                    .clone()
+                    .data_ptr()
+                    .as_mut()
+                    .unwrap();
+
+                let mut emitter = Emitter::<String>::new(
+                    &mut cycle.memory,
+                    client_buffer_address,
+                );
+
+                say_hello(
+                    &mut emitter,
+                    args.clone().name,
+                ).await;
+            });
         }
     }
 
@@ -189,11 +255,13 @@ impl IntoVMBuffers for __sum_rpc_args__ {
 }
 
 pub fn sum_rpc_handler(
-    state: &mut vm::CycleState,
-    client_buffer_address: vm::BufferAddress,
-    server_buffer_address: vm::BufferAddress,
+    memory: &mut tech_paws_runtime::Memory,
+    state_getter: fn() -> &'static mut tech_paws_runtime::State,
+    cycle_address: tech_paws_runtime::CycleAddress,
+    client_buffer_address: tech_paws_runtime::BufferAddress,
+    server_buffer_address: tech_paws_runtime::BufferAddress,
 ) -> bool {
-    let args = vm::buffer_read(state, server_buffer_address, |bytes_reader| {
+    let args = tech_paws_runtime::buffer_read(memory, server_buffer_address, |bytes_reader| {
         bytes_reader.reset();
         let status = bytes_reader.read_byte();
 
@@ -205,16 +273,40 @@ pub fn sum_rpc_handler(
     });
 
     if let Some(args) = &args {
-        vm::buffer_write(state, server_buffer_address, |bytes_writer| {
+        tech_paws_runtime::buffer_write(memory, server_buffer_address, |bytes_writer| {
             bytes_writer.clear();
             bytes_writer.write_byte(0x00);
         });
-        sum(
-            state,
-            args.clone().a,
-            args.clone().b,
-            args.clone().c,
-        );
+
+        unsafe {
+            let args = args.clone();
+            let state = state_getter();
+            let cycle = state
+                .cycles_states
+                .get_by_id(cycle_address)
+                .clone()
+                .data_ptr()
+                .as_mut()
+                .unwrap();
+
+            cycle.async_spawner.spawn(async move {
+                let state = state_getter();
+                let cycle = state
+                    .cycles_states
+                    .get_by_id(cycle_address)
+                    .clone()
+                    .data_ptr()
+                    .as_mut()
+                    .unwrap();
+
+                sum(
+                    &mut cycle.memory,
+                    args.clone().a,
+                    args.clone().b,
+                    args.clone().c,
+                ).await;
+            });
+        }
     }
 
     args.is_some()

@@ -15,9 +15,9 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     writer.writeln("");
 
     if rpc && !ast::find_fn_nodes(ast).is_empty() {
-        writer.writeln(
-            "use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers, RpcResult};",
-        );
+        writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
+        writer.writeln("use tech_paws_runtime::{BufferAddress, async_runtime::Emitter};");
+        writer.writeln("use tables::Table;");
     } else if buffers {
         writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
     }
@@ -282,31 +282,26 @@ fn generate_rpc_method(node: &FnASTNode) -> String {
     writer.writeln("");
 
     if let Some(return_type_id) = &node.return_type_id {
-        writer.writeln_tab(4, &format!("let ret = {}(", node.id));
+        writer.writeln_tab(
+            4,
+            &format!(
+                "let mut emitter = Emitter::<{}>::new(",
+                generate_type_id(return_type_id)
+            ),
+        );
         writer.writeln_tab(5, "&mut cycle.memory,");
+        writer.writeln_tab(5, "client_buffer_address,");
+        writer.writeln_tab(4, ");");
+        writer.writeln("");
+
+        writer.writeln_tab(4, &format!("{}(", node.id));
+        writer.writeln_tab(5, "&mut emitter,");
 
         for arg in node.args.iter() {
             writer.writeln_tab(5, &format!("args.clone().{},", arg.id));
         }
 
         writer.writeln_tab(4, ").await;");
-        writer.writeln("");
-        writer.writeln_tab(4, "match ret {");
-        writer.writeln_tab(5, "RpcResult::Data(ret) => {");
-        writer.writeln_tab(
-            6,
-            "tech_paws_runtime::buffer_write(&mut cycle.memory, client_buffer_address, |bytes_writer| {",
-        );
-        writer.writeln_tab(7, "bytes_writer.clear();");
-        writer.writeln_tab(
-            7,
-            &format!("bytes_writer.write_byte({});", RPC_NEW_DATA_STATUS),
-        );
-        writer.writeln_tab(7, &generate_write(return_type_id, "ret", false));
-        writer.writeln_tab(6, "});");
-        writer.writeln_tab(5, "}");
-        writer.writeln_tab(5, "RpcResult::Skip => (),");
-        writer.writeln_tab(4, "}");
     } else {
         writer.writeln_tab(4, &format!("{}(", node.id));
         writer.writeln_tab(5, "&mut cycle.memory,");

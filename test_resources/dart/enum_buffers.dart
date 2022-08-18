@@ -47,19 +47,19 @@ class MyEnumUpdateEmplaceToBuffers implements EmplaceToBuffers<MyEnumUpdate> {
   void read(BytesReader reader, MyEnumUpdate model) {
     model.v0 = reader.readDouble();
     model.v1 = reader.readDouble();
-    const StringEmplaceToBuffers().read(reader, model.v2);
+    model.v2 = const StringIntoBuffers().read(reader);
   }
 
   @override
   void write(BytesWriter writer, MyEnumUpdate model) {
     writer.writeDouble(model.v0);
     writer.writeDouble(model.v1);
-    const StringEmplaceToBuffers().write(writer, model.v2);
+    const StringIntoBuffers().write(writer, model.v2);
   }
 
   @override
   void skip(BytesReader reader, int count) {
-    const StringEmplaceToBuffers().skip(reader, 1);
+    const StringIntoBuffers().skip(reader, 1);
 
     for (int i = 0; i < count; i += 1) {
       reader.readDouble();
@@ -243,17 +243,17 @@ class MyEnumWithoutPositionsOption2EmplaceToBuffers implements EmplaceToBuffers<
 
   @override
   void read(BytesReader reader, MyEnumWithoutPositionsOption2 model) {
-    const StringEmplaceToBuffers().read(reader, model.name);
+    model.name = const StringIntoBuffers().read(reader);
   }
 
   @override
   void write(BytesWriter writer, MyEnumWithoutPositionsOption2 model) {
-    const StringEmplaceToBuffers().write(writer, model.name);
+    const StringIntoBuffers().write(writer, model.name);
   }
 
   @override
   void skip(BytesReader reader, int count) {
-    const StringEmplaceToBuffers().skip(reader, 1);
+    const StringIntoBuffers().skip(reader, 1);
 
     for (int i = 0; i < count; i += 1) {
     }
