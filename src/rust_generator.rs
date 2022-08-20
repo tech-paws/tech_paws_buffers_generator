@@ -16,7 +16,7 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
 
     if rpc && !ast::find_fn_nodes(ast).is_empty() {
         writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
-        writer.writeln("use tech_paws_runtime::{BufferAddress, async_runtime::Emitter};");
+        writer.writeln("use tech_paws_runtime::{BufferAddress, async_runtime::Emitter, async_runtime::VoidEmitter};");
         writer.writeln("use tables::Table;");
     } else if buffers {
         writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
@@ -208,18 +208,35 @@ fn generate_r_rpc_method(node: &FnASTNode) -> String {
         "server_buffer_address: tech_paws_runtime::BufferAddress,",
     );
     writer.writeln(") -> bool {");
-    writer.writeln_tab(1, "unsafe {");
-    writer.writeln_tab(2, "let state = state_getter();");
-    writer.writeln_tab(2, "let cycle = state");
-    writer.writeln_tab(3, ".cycles_states");
-    writer.writeln_tab(3, ".get_by_id(cycle_address)");
-    writer.writeln_tab(3, ".clone()");
-    writer.writeln_tab(3, ".data_ptr()");
-    writer.writeln_tab(3, ".as_mut()");
-    writer.writeln_tab(3, ".unwrap();");
+
+    writer.writeln_tab(1, "let need_to_process = tech_paws_runtime::buffer_read(");
+    writer.writeln_tab(2, "memory,");
+    writer.writeln_tab(2, "server_buffer_address,");
+    writer.writeln_tab(2, "|bytes_reader| {");
+    writer.writeln_tab(3, "bytes_reader.reset();");
+    writer.writeln_tab(3, "let status = bytes_reader.read_byte();");
+    writer.writeln("");
+    writer.writeln_tab(3, &format!("if status == {} {{", RPC_NEW_DATA_STATUS));
+    writer.writeln_tab(4, "true");
+    writer.writeln_tab(3, "} else {");
+    writer.writeln_tab(4, "false");
+    writer.writeln_tab(3, "}");
+    writer.writeln_tab(2, "},");
+    writer.writeln_tab(1, ");");
     writer.writeln("");
 
-    writer.writeln_tab(2, "cycle.async_spawner.spawn(async move {");
+    writer.writeln_tab(1, "if need_to_process {");
+    writer.writeln_tab(2, "tech_paws_runtime::buffer_write(");
+    writer.writeln_tab(3, "memory,");
+    writer.writeln_tab(3, "server_buffer_address,");
+    writer.writeln_tab(3, "|bytes_writer| {");
+    writer.writeln_tab(4, "bytes_writer.clear();");
+    writer.writeln_tab(4, "bytes_writer.write_byte(0x00);");
+    writer.writeln_tab(3, "},");
+    writer.writeln_tab(2, ");");
+
+    writer.writeln("");
+    writer.writeln_tab(2, "unsafe {");
     writer.writeln_tab(3, "let state = state_getter();");
     writer.writeln_tab(3, "let cycle = state");
     writer.writeln_tab(4, ".cycles_states");
@@ -230,31 +247,58 @@ fn generate_r_rpc_method(node: &FnASTNode) -> String {
     writer.writeln_tab(4, ".unwrap();");
     writer.writeln("");
 
+    writer.writeln_tab(3, "cycle.async_spawner.spawn(async move {");
+    writer.writeln_tab(4, "let state = state_getter();");
+    writer.writeln_tab(4, "let cycle = state");
+    writer.writeln_tab(5, ".cycles_states");
+    writer.writeln_tab(5, ".get_by_id(cycle_address)");
+    writer.writeln_tab(5, ".clone()");
+    writer.writeln_tab(5, ".data_ptr()");
+    writer.writeln_tab(5, ".as_mut()");
+    writer.writeln_tab(5, ".unwrap();");
+    writer.writeln("");
+
     if let Some(return_type_id) = &node.return_type_id {
         writer.writeln_tab(
-            3,
+            4,
             &format!(
                 "let mut emitter = Emitter::<{}>::new(",
                 generate_type_id(return_type_id)
             ),
         );
-        writer.writeln_tab(4, "&mut cycle.memory,");
-        writer.writeln_tab(4, "client_buffer_address,");
-        writer.writeln_tab(3, ");");
+        writer.writeln_tab(5, "&mut cycle.memory,");
+        writer.writeln_tab(5, "client_buffer_address,");
+        writer.writeln_tab(4, ");");
         writer.writeln("");
 
-        writer.writeln_tab(3, &format!("{}(&mut emitter).await;", node.id));
+        writer.writeln_tab(4, &format!("{}(&mut emitter).await;", node.id));
     } else {
-        writer.writeln_tab(3, "let mut emitter = VoidEmitter::new(");
-        writer.writeln_tab(4, "&mut cycle.memory,");
-        writer.writeln_tab(4, "client_buffer_address,");
-        writer.writeln_tab(3, ");");
+        writer.writeln_tab(4, "let mut emitter = VoidEmitter::new(");
+        writer.writeln_tab(5, "&mut cycle.memory,");
+        writer.writeln_tab(5, "client_buffer_address,");
+        writer.writeln_tab(4, ");");
         writer.writeln("");
-        writer.writeln_tab(3, &format!("{}(&mut emitter).await;", node.id));
+        writer.writeln_tab(4, &format!("{}(&mut emitter).await;", node.id));
     }
 
-    writer.writeln_tab(2, "});");
+    writer.writeln("");
+    writer.writeln_tab(4, "tech_paws_runtime::buffer_write(");
+    writer.writeln_tab(5, "&mut cycle.memory,");
+    writer.writeln_tab(5, "server_buffer_address,");
+    writer.writeln_tab(5, "|bytes_writer| {");
+    writer.writeln_tab(6, "bytes_writer.clear();");
+    writer.writeln_tab(
+        6,
+        &format!("bytes_writer.write_byte({});", RPC_NEW_DATA_STATUS),
+    );
+    writer.writeln_tab(5, "},");
+    writer.writeln_tab(4, ");");
+
+    writer.writeln_tab(3, "});");
+    writer.writeln_tab(2, "}");
     writer.writeln_tab(1, "}");
+    writer.writeln("");
+    writer.writeln_tab(1, "need_to_process");
     writer.writeln("}");
 
     writer.show().to_string()

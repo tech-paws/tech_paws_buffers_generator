@@ -329,17 +329,32 @@ pub fn trigger_rpc_handler(
     client_buffer_address: tech_paws_runtime::BufferAddress,
     server_buffer_address: tech_paws_runtime::BufferAddress,
 ) -> bool {
-    unsafe {
-        let state = state_getter();
-        let cycle = state
-            .cycles_states
-            .get_by_id(cycle_address)
-            .clone()
-            .data_ptr()
-            .as_mut()
-            .unwrap();
+    let need_to_process = tech_paws_runtime::buffer_read(
+        memory,
+        server_buffer_address,
+        |bytes_reader| {
+            bytes_reader.reset();
+            let status = bytes_reader.read_byte();
 
-        cycle.async_spawner.spawn(async move {
+            if status == 0xFF {
+                true
+            } else {
+                false
+            }
+        },
+    );
+
+    if need_to_process {
+        tech_paws_runtime::buffer_write(
+            memory,
+            server_buffer_address,
+            |bytes_writer| {
+                bytes_writer.clear();
+                bytes_writer.write_byte(0x00);
+            },
+        );
+
+        unsafe {
             let state = state_getter();
             let cycle = state
                 .cycles_states
@@ -349,14 +364,36 @@ pub fn trigger_rpc_handler(
                 .as_mut()
                 .unwrap();
 
-            let mut emitter = VoidEmitter::new(
-                &mut cycle.memory,
-                client_buffer_address,
-            );
+            cycle.async_spawner.spawn(async move {
+                let state = state_getter();
+                let cycle = state
+                    .cycles_states
+                    .get_by_id(cycle_address)
+                    .clone()
+                    .data_ptr()
+                    .as_mut()
+                    .unwrap();
 
-            trigger(&mut emitter).await;
-        });
+                let mut emitter = VoidEmitter::new(
+                    &mut cycle.memory,
+                    client_buffer_address,
+                );
+
+                trigger(&mut emitter).await;
+
+                tech_paws_runtime::buffer_write(
+                    &mut cycle.memory,
+                    server_buffer_address,
+                    |bytes_writer| {
+                        bytes_writer.clear();
+                        bytes_writer.write_byte(0xFF);
+                    },
+                );
+            });
+        }
     }
+
+    need_to_process
 }
 
 pub fn theme_rpc_handler(
@@ -366,17 +403,32 @@ pub fn theme_rpc_handler(
     client_buffer_address: tech_paws_runtime::BufferAddress,
     server_buffer_address: tech_paws_runtime::BufferAddress,
 ) -> bool {
-    unsafe {
-        let state = state_getter();
-        let cycle = state
-            .cycles_states
-            .get_by_id(cycle_address)
-            .clone()
-            .data_ptr()
-            .as_mut()
-            .unwrap();
+    let need_to_process = tech_paws_runtime::buffer_read(
+        memory,
+        server_buffer_address,
+        |bytes_reader| {
+            bytes_reader.reset();
+            let status = bytes_reader.read_byte();
 
-        cycle.async_spawner.spawn(async move {
+            if status == 0xFF {
+                true
+            } else {
+                false
+            }
+        },
+    );
+
+    if need_to_process {
+        tech_paws_runtime::buffer_write(
+            memory,
+            server_buffer_address,
+            |bytes_writer| {
+                bytes_writer.clear();
+                bytes_writer.write_byte(0x00);
+            },
+        );
+
+        unsafe {
             let state = state_getter();
             let cycle = state
                 .cycles_states
@@ -386,12 +438,34 @@ pub fn theme_rpc_handler(
                 .as_mut()
                 .unwrap();
 
-            let mut emitter = Emitter::<Theme>::new(
-                &mut cycle.memory,
-                client_buffer_address,
-            );
+            cycle.async_spawner.spawn(async move {
+                let state = state_getter();
+                let cycle = state
+                    .cycles_states
+                    .get_by_id(cycle_address)
+                    .clone()
+                    .data_ptr()
+                    .as_mut()
+                    .unwrap();
 
-            theme(&mut emitter).await;
-        });
+                let mut emitter = Emitter::<Theme>::new(
+                    &mut cycle.memory,
+                    client_buffer_address,
+                );
+
+                theme(&mut emitter).await;
+
+                tech_paws_runtime::buffer_write(
+                    &mut cycle.memory,
+                    server_buffer_address,
+                    |bytes_writer| {
+                        bytes_writer.clear();
+                        bytes_writer.write_byte(0xFF);
+                    },
+                );
+            });
+        }
     }
+
+    need_to_process
 }
