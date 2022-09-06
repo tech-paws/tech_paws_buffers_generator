@@ -20,10 +20,10 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     writer.writeln("");
 
     if rpc && !ast::find_fn_nodes(ast).is_empty() {
+        writer.writeln("import 'dart:async';");
+        writer.writeln("");
         writer.writeln("import 'package:tech_paws_buffers/tech_paws_buffers.dart';");
         writer.writeln("import 'package:tech_paws_runtime_flutter/scheduler.dart';");
-        writer.writeln("import 'package:tech_paws_runtime_flutter/models.dart';");
-        writer.writeln("import 'package:tech_paws_runtime_flutter/address.dart';");
     } else if buffers {
         writer.writeln("import 'package:tech_paws_buffers/tech_paws_buffers.dart';");
     }
@@ -602,10 +602,7 @@ pub fn generate_read(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Bool { id: _ } => String::from("reader.readBool()"),
         TypeIDASTNode::Char { id: _ } => String::from("reader.readInt8()"),
         TypeIDASTNode::Other { id } => {
-            format!(
-                "const {}IntoBuffers().read(reader)",
-                id.to_case(Case::Pascal)
-            )
+            format!("const {}IntoBuffers().read(reader)", id,)
         }
         TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
             let generic = generics.first().unwrap();
@@ -640,10 +637,7 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Bool { id: _ } => String::from("false"),
         TypeIDASTNode::Char { id: _ } => String::from("0"),
         TypeIDASTNode::Other { id } => {
-            format!(
-                "const {}BuffersFactory().createDefault()",
-                id.to_case(Case::Pascal)
-            )
+            format!("const {}BuffersFactory().createDefault()", id)
         }
         TypeIDASTNode::Generic { id, generics } => {
             let id = match id.as_str() {
@@ -667,17 +661,9 @@ pub fn generate_read_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String 
     match type_id {
         TypeIDASTNode::Other { id } => {
             if id == "String" {
-                format!(
-                    "{} = const {}IntoBuffers().read(reader);",
-                    accessor,
-                    id.to_case(Case::Pascal),
-                )
+                format!("{} = const {}IntoBuffers().read(reader);", accessor, id,)
             } else {
-                format!(
-                    "const {}EmplaceToBuffers().read(reader, {});",
-                    id.to_case(Case::Pascal),
-                    accessor,
-                )
+                format!("const {}EmplaceToBuffers().read(reader, {});", id, accessor,)
             }
         }
         TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
@@ -708,10 +694,7 @@ pub fn generate_read_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String 
 pub fn generate_read_skip(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Other { id } => {
-            format!(
-                "const {}IntoBuffers().skip(reader, 1);",
-                id.to_case(Case::Pascal),
-            )
+            format!("const {}IntoBuffers().skip(reader, 1);", id,)
         }
         TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
             let generic = generics.first().unwrap();
@@ -740,15 +723,9 @@ pub fn generate_read_skip_emplace(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Other { id } => {
             if id == "String" {
-                format!(
-                    "const {}IntoBuffers().skip(reader, 1);",
-                    id.to_case(Case::Pascal),
-                )
+                format!("const {}IntoBuffers().skip(reader, 1);", id)
             } else {
-                format!(
-                    "const {}EmplaceToBuffers().skip(reader, 1);",
-                    id.to_case(Case::Pascal),
-                )
+                format!("const {}EmplaceToBuffers().skip(reader, 1);", id)
             }
         }
         TypeIDASTNode::Generic { ref id, generics } if id == "Vec" && generics.len() == 1 => {
@@ -828,16 +805,11 @@ pub fn generate_write_emplace(type_id: &TypeIDASTNode, accessor: &str) -> String
     match type_id {
         TypeIDASTNode::Other { id } => {
             if id == "String" {
-                format!(
-                    "const {}IntoBuffers().write(writer, {});",
-                    id.to_case(Case::Pascal),
-                    accessor
-                )
+                format!("const {}IntoBuffers().write(writer, {});", id, accessor)
             } else {
                 format!(
                     "const {}EmplaceToBuffers().write(writer, {});",
-                    id.to_case(Case::Pascal),
-                    accessor
+                    id, accessor
                 )
             }
         }
@@ -947,6 +919,20 @@ mod tests {
     fn generate_rpc_methods() {
         let src = fs::read_to_string("test_resources/rpc_methods.tpb").unwrap();
         let target = fs::read_to_string("test_resources/dart/rpc_methods.dart").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn regression_electrical_circuit_editor() {
+        let src =
+            fs::read_to_string("test_resources/regression/electrical_circuit_editor.tpb").unwrap();
+        let target =
+            fs::read_to_string("test_resources/dart/regression/electrical_circuit_editor.dart")
+                .unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);

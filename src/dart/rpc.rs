@@ -21,6 +21,14 @@ fn var_read_stream(node: &FnASTNode) -> String {
     format!("_read{}Stream", node.id.to_case(Case::Pascal))
 }
 
+fn var_client_address(node: &FnASTNode) -> String {
+    format!("{}ClientAddress", node.id.to_case(Case::Camel))
+}
+
+fn var_server_address(node: &FnASTNode) -> String {
+    format!("{}ServerAddress", node.id.to_case(Case::Camel))
+}
+
 pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
     let mut writer = Writer::new(2);
 
@@ -72,6 +80,19 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
         "class {}RpcClient implements RpcClient {{",
         namespace.to_case(Case::Pascal)
     ));
+    writer.writeln_tab(1, &format!("{}RpcClient(", namespace.to_case(Case::Pascal)));
+    writer.writeln_tab(2, "this._scheduler, {");
+
+    for node in fn_nodes.iter() {
+        writer.writeln_tab(2, &format!("required this.{},", var_client_address(node)));
+
+        if !node.is_read {
+            writer.writeln_tab(2, &format!("required this.{},", var_server_address(node)));
+        }
+    }
+
+    writer.writeln_tab(1, "});");
+    writer.writeln("");
     writer.writeln_tab(1, "final TechPawsRuntimeChannelScheduler _scheduler;");
 
     if fn_nodes.len() > 1 {
@@ -98,19 +119,23 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
             1,
             &format!(
                 "final {} = <TechPawsRuntimeChannelReadTask>[];",
-                var_read_tasks(&node)
+                var_read_tasks(node)
             ),
         );
     }
 
-    writer.writeln("");
-    writer.writeln_tab(
-        1,
-        &format!(
-            "{}RpcClient(this._scheduler);",
-            namespace.to_case(Case::Pascal)
-        ),
-    );
+    if fn_nodes.len() > 1 {
+        writer.writeln("");
+    }
+
+    for node in fn_nodes.iter() {
+        writer.writeln_tab(1, &format!("final int {};", var_client_address(node)));
+
+        if !node.is_read {
+            writer.writeln_tab(1, &format!("final int {};", var_server_address(node)));
+        }
+    }
+
     writer.writeln("");
     writer.write(&generate_disconnect(&fn_nodes));
     writer.writeln("");
@@ -197,8 +222,8 @@ fn generate_rpc_read(node: &ast::FnASTNode) -> String {
     writer.writeln_tab(
         2,
         &format!(
-            "final task = _scheduler.read(k{}ClientAddress, (reader) {{",
-            node.id.to_case(Case::Pascal)
+            "final task = _scheduler.read({}, (reader) {{",
+            var_client_address(node),
         ),
     );
     writer.writeln_tab(3, "reader.reset();");
@@ -266,8 +291,8 @@ fn generate_rpc_read_emplace(node: &ast::FnASTNode) -> String {
     writer.writeln_tab(
         2,
         &format!(
-            "final task = _scheduler.read(k{}ClientAddress, (reader) {{",
-            node.id.to_case(Case::Pascal)
+            "final task = _scheduler.read({}, (reader) {{",
+            var_client_address(node),
         ),
     );
     writer.writeln_tab(3, "reader.reset();");
@@ -336,10 +361,7 @@ fn generate_rpc_write(node: &ast::FnASTNode) -> String {
 
     writer.writeln_tab(
         2,
-        &format!(
-            "_scheduler.write(k{}ServerAddress, (writer) {{",
-            node.id.to_case(Case::Pascal)
-        ),
+        &format!("_scheduler.write({}, (writer) {{", var_server_address(node)),
     );
 
     writer.writeln_tab(3, "writer.clear();");
@@ -424,8 +446,8 @@ fn generate_rpc_async(node: &ast::FnASTNode) -> String {
     writer.writeln_tab(
         2,
         &format!(
-            "task = _scheduler.read(k{}ClientAddress, (reader) {{",
-            node.id.to_case(Case::Pascal)
+            "task = _scheduler.read({}, (reader) {{",
+            var_client_address(node),
         ),
     );
     writer.writeln_tab(3, "reader.reset();");

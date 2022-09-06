@@ -178,6 +178,20 @@ class __theme_rpc_args__IntoBuffers implements IntoBuffers<__theme_rpc_args__> {
 }
 
 class TestRpcClient implements RpcClient {
+  TestRpcClient(
+    this._scheduler, {
+    required this.printHelloWorldClientAddress,
+    required this.printHelloWorldServerAddress,
+    required this.helloWorldClientAddress,
+    required this.helloWorldServerAddress,
+    required this.sayHelloClientAddress,
+    required this.sayHelloServerAddress,
+    required this.sumClientAddress,
+    required this.sumServerAddress,
+    required this.triggerClientAddress,
+    required this.themeClientAddress,
+  });
+
   final TechPawsRuntimeChannelScheduler _scheduler;
 
   StreamController<void>? _readPrintHelloWorldStream;
@@ -194,7 +208,16 @@ class TestRpcClient implements RpcClient {
   final _readTriggerTasks = <TechPawsRuntimeChannelReadTask>[];
   final _readThemeTasks = <TechPawsRuntimeChannelReadTask>[];
 
-  TestRpcClient(this._scheduler);
+  final int printHelloWorldClientAddress;
+  final int printHelloWorldServerAddress;
+  final int helloWorldClientAddress;
+  final int helloWorldServerAddress;
+  final int sayHelloClientAddress;
+  final int sayHelloServerAddress;
+  final int sumClientAddress;
+  final int sumServerAddress;
+  final int triggerClientAddress;
+  final int themeClientAddress;
 
   void disconnect() {
     for (final task in _readPrintHelloWorldTasks) _scheduler.disconnect(task);
@@ -219,7 +242,7 @@ class TestRpcClient implements RpcClient {
 
     _readPrintHelloWorldStream = StreamController<void>.broadcast();
 
-    final task = _scheduler.read(kPrintHelloWorldClientAddress, (reader) {
+    final task = _scheduler.read(printHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -233,7 +256,7 @@ class TestRpcClient implements RpcClient {
   }
 
   void writePrintHelloWorld() {
-    _scheduler.write(kPrintHelloWorldServerAddress, (writer) {
+    _scheduler.write(printHelloWorldServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
     });
@@ -244,7 +267,7 @@ class TestRpcClient implements RpcClient {
     final completer = Completer<void>();
 
     late TechPawsRuntimeChannelReadTask task;
-    task = _scheduler.read(kPrintHelloWorldClientAddress, (reader) {
+    task = _scheduler.read(printHelloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -266,7 +289,7 @@ class TestRpcClient implements RpcClient {
 
     _readHelloWorldStream = StreamController<String>.broadcast();
 
-    final task = _scheduler.read(kHelloWorldClientAddress, (reader) {
+    final task = _scheduler.read(helloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -286,7 +309,7 @@ class TestRpcClient implements RpcClient {
 
     _readHelloWorldStream = StreamController<String>.broadcast();
 
-    final task = _scheduler.read(kHelloWorldClientAddress, (reader) {
+    final task = _scheduler.read(helloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -301,7 +324,7 @@ class TestRpcClient implements RpcClient {
   }
 
   void writeHelloWorld() {
-    _scheduler.write(kHelloWorldServerAddress, (writer) {
+    _scheduler.write(helloWorldServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
     });
@@ -312,7 +335,7 @@ class TestRpcClient implements RpcClient {
     final completer = Completer<String>();
 
     late TechPawsRuntimeChannelReadTask task;
-    task = _scheduler.read(kHelloWorldClientAddress, (reader) {
+    task = _scheduler.read(helloWorldClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -334,7 +357,7 @@ class TestRpcClient implements RpcClient {
 
     _readSayHelloStream = StreamController<String>.broadcast();
 
-    final task = _scheduler.read(kSayHelloClientAddress, (reader) {
+    final task = _scheduler.read(sayHelloClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -354,7 +377,7 @@ class TestRpcClient implements RpcClient {
 
     _readSayHelloStream = StreamController<String>.broadcast();
 
-    final task = _scheduler.read(kSayHelloClientAddress, (reader) {
+    final task = _scheduler.read(sayHelloClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -375,7 +398,7 @@ class TestRpcClient implements RpcClient {
       name: name,
     );
 
-    _scheduler.write(kSayHelloServerAddress, (writer) {
+    _scheduler.write(sayHelloServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
       const __say_hello_rpc_args__IntoBuffers().write(writer, args);
@@ -392,7 +415,7 @@ class TestRpcClient implements RpcClient {
     final completer = Completer<String>();
 
     late TechPawsRuntimeChannelReadTask task;
-    task = _scheduler.read(kSayHelloClientAddress, (reader) {
+    task = _scheduler.read(sayHelloClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -414,7 +437,7 @@ class TestRpcClient implements RpcClient {
 
     _readSumStream = StreamController<void>.broadcast();
 
-    final task = _scheduler.read(kSumClientAddress, (reader) {
+    final task = _scheduler.read(sumClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -438,7 +461,7 @@ class TestRpcClient implements RpcClient {
       c: c,
     );
 
-    _scheduler.write(kSumServerAddress, (writer) {
+    _scheduler.write(sumServerAddress, (writer) {
       writer.clear();
       writer.writeInt8(kStatusReceivedData);
       const __sum_rpc_args__IntoBuffers().write(writer, args);
@@ -459,7 +482,7 @@ class TestRpcClient implements RpcClient {
     final completer = Completer<void>();
 
     late TechPawsRuntimeChannelReadTask task;
-    task = _scheduler.read(kSumClientAddress, (reader) {
+    task = _scheduler.read(sumClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -481,7 +504,7 @@ class TestRpcClient implements RpcClient {
 
     _readTriggerStream = StreamController<void>.broadcast();
 
-    final task = _scheduler.read(kTriggerClientAddress, (reader) {
+    final task = _scheduler.read(triggerClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -502,7 +525,7 @@ class TestRpcClient implements RpcClient {
 
     _readThemeStream = StreamController<Theme>.broadcast();
 
-    final task = _scheduler.read(kThemeClientAddress, (reader) {
+    final task = _scheduler.read(themeClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
@@ -522,7 +545,7 @@ class TestRpcClient implements RpcClient {
 
     _readThemeStream = StreamController<Theme>.broadcast();
 
-    final task = _scheduler.read(kThemeClientAddress, (reader) {
+    final task = _scheduler.read(themeClientAddress, (reader) {
       reader.reset();
       final status = reader.readInt8();
 
