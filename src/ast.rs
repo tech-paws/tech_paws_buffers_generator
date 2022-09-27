@@ -40,6 +40,7 @@ pub struct FnASTNode {
     pub args: Vec<FnArgASTNode>,
     pub return_type_id: Option<TypeIDASTNode>,
     pub is_read: bool,
+    pub is_async: bool,
 }
 
 #[derive(Debug)]

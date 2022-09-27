@@ -6,6 +6,7 @@ Fn {
   id: "print_hello_world",
   return_type_id: None,
   is_read: false,
+  is_async: false,
   args: [
   ]
 }
@@ -13,6 +14,7 @@ Fn {
   id: "hello_world",
   return_type_id: Some(Other { id: "String" }),
   is_read: false,
+  is_async: false,
   args: [
   ]
 }
@@ -20,6 +22,7 @@ Fn {
   id: "say_hello",
   return_type_id: Some(Other { id: "String" }),
   is_read: false,
+  is_async: false,
   args: [
     FnArgASTNode { id: "name", type_id: Other { id: "String" } }
   ]
@@ -28,6 +31,43 @@ Fn {
   id: "sum",
   return_type_id: None,
   is_read: false,
+  is_async: false,
+  args: [
+    FnArgASTNode { id: "a", type_id: Integer { id: "i32", size: 4, signed: true } }
+    FnArgASTNode { id: "b", type_id: Number { id: "f32", size: 4 } }
+    FnArgASTNode { id: "c", type_id: Number { id: "f64", size: 8 } }
+  ]
+}
+Fn {
+  id: "print_hello_world_async",
+  return_type_id: None,
+  is_read: false,
+  is_async: true,
+  args: [
+  ]
+}
+Fn {
+  id: "hello_world_async",
+  return_type_id: Some(Other { id: "String" }),
+  is_read: false,
+  is_async: true,
+  args: [
+  ]
+}
+Fn {
+  id: "say_hello_async",
+  return_type_id: Some(Other { id: "String" }),
+  is_read: false,
+  is_async: true,
+  args: [
+    FnArgASTNode { id: "name", type_id: Other { id: "String" } }
+  ]
+}
+Fn {
+  id: "sum_async",
+  return_type_id: None,
+  is_read: false,
+  is_async: true,
   args: [
     FnArgASTNode { id: "a", type_id: Integer { id: "i32", size: 4, signed: true } }
     FnArgASTNode { id: "b", type_id: Number { id: "f32", size: 4 } }
@@ -38,6 +78,7 @@ Fn {
   id: "trigger",
   return_type_id: None,
   is_read: true,
+  is_async: false,
   args: [
   ]
 }
@@ -45,6 +86,7 @@ Fn {
   id: "theme",
   return_type_id: Some(Other { id: "Theme" }),
   is_read: true,
+  is_async: false,
   args: [
   ]
 }

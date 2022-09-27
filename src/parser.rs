@@ -9,6 +9,7 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
             Token::Struct => ast_nodes.push(parse_struct(lexer)),
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
             Token::Read => ast_nodes.push(parse_fn(lexer)),
+            Token::Async => ast_nodes.push(parse_fn(lexer)),
             Token::Fn => ast_nodes.push(parse_fn(lexer)),
             Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
             _ => panic!("Unexpected token: {:?}", lexer.current_token()),
@@ -431,11 +432,14 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
 }
 
 pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
-    let is_read = if *lexer.current_token() == Token::Read {
+    let (is_read, is_async) = if *lexer.current_token() == Token::Read {
         lexer.next_token();
-        true
+        (true, false)
+    } else if *lexer.current_token() == Token::Async {
+        lexer.next_token();
+        (false, true)
     } else {
-        false
+        (false, false)
     };
 
     if *lexer.current_token() != Token::Fn {
@@ -472,6 +476,7 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
             id,
             args,
             is_read,
+            is_async,
             return_type_id: None,
         });
     }
@@ -497,6 +502,7 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         args,
         return_type_id,
         is_read,
+        is_async,
     })
 }
 
@@ -728,11 +734,13 @@ mod tests {
                     args,
                     return_type_id,
                     is_read,
+                    is_async,
                 }) => {
                     writer.writeln_tab(tab, "Fn {");
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, &format!("return_type_id: {:?},", return_type_id));
                     writer.writeln_tab(tab + 1, &format!("is_read: {:?},", is_read));
+                    writer.writeln_tab(tab + 1, &format!("is_async: {:?},", is_async));
                     writer.writeln_tab(tab + 1, "args: [");
 
                     for arg in args {

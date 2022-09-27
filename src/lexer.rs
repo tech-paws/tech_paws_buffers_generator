@@ -4,6 +4,7 @@ pub enum Token {
     Enum,
     Fn,
     Read,
+    Async,
     ID { name: String },
     Literal(Literal),
     Symbol(char),
@@ -160,6 +161,7 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
         "enum" => Token::Enum,
         "fn" => Token::Fn,
         "read" => Token::Read,
+        "async" => Token::Async,
         _ => Token::ID { name },
     }
 }
