@@ -90,3 +90,19 @@ Fn {
   args: [
   ]
 }
+Fn {
+  id: "trigger_async",
+  return_type_id: None,
+  is_read: true,
+  is_async: true,
+  args: [
+  ]
+}
+Fn {
+  id: "theme_async",
+  return_type_id: Some(Other { id: "Theme" }),
+  is_read: true,
+  is_async: true,
+  args: [
+  ]
+}

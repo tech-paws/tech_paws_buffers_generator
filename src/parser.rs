@@ -434,7 +434,13 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
 pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
     let (is_read, is_async) = if *lexer.current_token() == Token::Read {
         lexer.next_token();
-        (true, false)
+
+        if *lexer.current_token() == Token::Async {
+            lexer.next_token();
+            (true, true)
+        } else {
+            (true, false)
+        }
     } else if *lexer.current_token() == Token::Async {
         lexer.next_token();
         (false, true)

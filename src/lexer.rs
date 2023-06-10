@@ -367,13 +367,17 @@ mod tests {
 
     #[test]
     fn lex_keywords() {
-        let mut lexer = Lexer::tokenize("struct enum fn");
+        let mut lexer = Lexer::tokenize("struct enum fn async read");
         let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Struct);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Enum);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Fn);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Async);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Read);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }
