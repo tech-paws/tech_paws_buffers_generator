@@ -8,9 +8,9 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
         match *lexer.current_token() {
             Token::Struct => ast_nodes.push(parse_struct(lexer)),
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
-            Token::Read => ast_nodes.push(parse_fn(lexer)),
-            Token::Async => ast_nodes.push(parse_fn(lexer)),
-            Token::Fn => ast_nodes.push(parse_fn(lexer)),
+            Token::Async => ast_nodes.push(parse_async(lexer)),
+            Token::Fn => ast_nodes.push(parse_fn(lexer, false)),
+            Token::Read => ast_nodes.push(parse_read(lexer, false)),
             Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
             _ => panic!("Unexpected token: {:?}", lexer.current_token()),
         }
@@ -211,24 +211,18 @@ pub fn parse_const_value(lexer: &mut Lexer) -> ConstValueASTNode {
     };
 
     let type_id = match literal {
-        Literal::StringLiteral(_) => {
-            TypeIDASTNode::Other {
-                id: String::from("String"),
-            }
-        }
-        Literal::IntLiteral(_) => {
-            TypeIDASTNode::Integer {
-                id: String::from("i32"),
-                size: 4,
-                signed: true,
-            }
-        }
-        Literal::NumberLiteral(_) => {
-            TypeIDASTNode::Number {
-                id: String::from("f32"),
-                size: 4,
-            }
-        }
+        Literal::StringLiteral(_) => TypeIDASTNode::Other {
+            id: String::from("String"),
+        },
+        Literal::IntLiteral(_) => TypeIDASTNode::Integer {
+            id: String::from("i32"),
+            size: 4,
+            signed: true,
+        },
+        Literal::NumberLiteral(_) => TypeIDASTNode::Number {
+            id: String::from("f32"),
+            size: 4,
+        },
     };
 
     ConstValueASTNode::Literal { literal, type_id }
@@ -381,48 +375,36 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
     }
 
     match name.as_str() {
-        "i8" => {
-            TypeIDASTNode::Integer {
-                id: name,
-                size: 1,
-                signed: true,
-            }
-        }
-        "i32" => {
-            TypeIDASTNode::Integer {
-                id: name,
-                size: 4,
-                signed: true,
-            }
-        }
-        "i64" => {
-            TypeIDASTNode::Integer {
-                id: name,
-                size: 8,
-                signed: true,
-            }
-        }
-        "u8" => {
-            TypeIDASTNode::Integer {
-                id: name,
-                size: 1,
-                signed: false,
-            }
-        }
-        "u32" => {
-            TypeIDASTNode::Integer {
-                id: name,
-                size: 4,
-                signed: false,
-            }
-        }
-        "u64" => {
-            TypeIDASTNode::Integer {
-                id: name,
-                size: 8,
-                signed: false,
-            }
-        }
+        "i8" => TypeIDASTNode::Integer {
+            id: name,
+            size: 1,
+            signed: true,
+        },
+        "i32" => TypeIDASTNode::Integer {
+            id: name,
+            size: 4,
+            signed: true,
+        },
+        "i64" => TypeIDASTNode::Integer {
+            id: name,
+            size: 8,
+            signed: true,
+        },
+        "u8" => TypeIDASTNode::Integer {
+            id: name,
+            size: 1,
+            signed: false,
+        },
+        "u32" => TypeIDASTNode::Integer {
+            id: name,
+            size: 4,
+            signed: false,
+        },
+        "u64" => TypeIDASTNode::Integer {
+            id: name,
+            size: 8,
+            signed: false,
+        },
         "f32" => TypeIDASTNode::Number { id: name, size: 4 },
         "f64" => TypeIDASTNode::Number { id: name, size: 8 },
         "char" => TypeIDASTNode::Char { id: name },
@@ -431,23 +413,17 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
     }
 }
 
-pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
-    let (is_read, is_async) = if *lexer.current_token() == Token::Read {
-        lexer.next_token();
+pub fn parse_async(lexer: &mut Lexer) -> ASTNode {
+    lexer.next_token();
 
-        if *lexer.current_token() == Token::Async {
-            lexer.next_token();
-            (true, true)
-        } else {
-            (true, false)
-        }
-    } else if *lexer.current_token() == Token::Async {
-        lexer.next_token();
-        (false, true)
-    } else {
-        (false, false)
-    };
+    match lexer.current_token() {
+        Token::Fn => parse_fn(lexer, true),
+        Token::Read => parse_read(lexer, true),
+        _ => panic!("Expected 'fn' or read' but got {:?}", lexer.current_token()),
+    }
+}
 
+pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
     if *lexer.current_token() != Token::Fn {
         panic!("Expected 'fn' but got {:?}", lexer.current_token());
     }
@@ -458,22 +434,16 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         panic!("Expected id, but got {:?}", lexer.current_token());
     };
 
-    let args = if !is_read {
-        if *lexer.next_token() != Token::Symbol('(') {
-            panic!("Expected '(', but got {:?}", lexer.current_token());
-        }
+    if *lexer.next_token() != Token::Symbol('(') {
+        panic!("Expected '(', but got {:?}", lexer.current_token());
+    }
 
-        lexer.next_token();
-        let args = parse_fn_args(lexer);
+    lexer.next_token();
+    let args = parse_fn_args(lexer);
 
-        if *lexer.current_token() != Token::Symbol(')') {
-            panic!("Expected ')', but got {:?}", lexer.current_token());
-        }
-
-        args
-    } else {
-        vec![]
-    };
+    if *lexer.current_token() != Token::Symbol(')') {
+        panic!("Expected ')', but got {:?}", lexer.current_token());
+    }
 
     if *lexer.next_token() == Token::Symbol(';') {
         lexer.next_token();
@@ -481,7 +451,7 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         return ASTNode::Fn(FnASTNode {
             id,
             args,
-            is_read,
+            is_read: false,
             is_async,
             return_type_id: None,
         });
@@ -507,7 +477,55 @@ pub fn parse_fn(lexer: &mut Lexer) -> ASTNode {
         id,
         args,
         return_type_id,
-        is_read,
+        is_read: false,
+        is_async,
+    })
+}
+
+pub fn parse_read(lexer: &mut Lexer, is_async: bool) -> ASTNode {
+    if *lexer.current_token() != Token::Read {
+        panic!("Expected 'read' but got {:?}", lexer.current_token());
+    };
+
+    let id = if let Token::ID { name } = lexer.next_token() {
+        name.clone()
+    } else {
+        panic!("Expected id, but got {:?}", lexer.current_token());
+    };
+
+    if *lexer.next_token() == Token::Symbol(';') {
+        lexer.next_token();
+
+        return ASTNode::Fn(FnASTNode {
+            id,
+            args: vec![],
+            is_read: true,
+            is_async,
+            return_type_id: None,
+        });
+    }
+
+    if *lexer.current_token() != Token::Symbol('-') {
+        panic!("Expected '->', but got {:?}", lexer.current_token());
+    }
+
+    if *lexer.next_token() != Token::Symbol('>') {
+        panic!("Expected '->', but got {:?}", lexer.current_token());
+    }
+
+    lexer.next_token();
+    let return_type_id = Some(parse_type_id(lexer));
+
+    if *lexer.current_token() != Token::Symbol(';') {
+        panic!("Expected ';', but got {:?}", lexer.current_token());
+    }
+    lexer.next_token();
+
+    ASTNode::Fn(FnASTNode {
+        id,
+        args: vec![],
+        return_type_id,
+        is_read: true,
         is_async,
     })
 }
