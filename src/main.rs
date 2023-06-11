@@ -3,6 +3,7 @@ pub mod dart;
 pub mod dart_generator;
 pub mod lexer;
 pub mod parser;
+pub mod rust;
 pub mod rust_generator;
 pub mod writer;
 
