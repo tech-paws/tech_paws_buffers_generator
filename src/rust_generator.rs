@@ -1,7 +1,7 @@
 use crate::ast::{self, *};
 use crate::rust::enum_buffers::generate_enum_buffers;
 use crate::rust::enum_models::generate_enum_model;
-use crate::rust::rpc::generate_rpc_method;
+use crate::rust::rpc::{generate_rpc_method, generate_register_fn};
 use crate::rust::struct_buffers::generate_struct_buffers;
 use crate::rust::struct_models::generate_struct_model;
 use crate::{lexer::Literal, writer::Writer};
@@ -107,13 +107,24 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
 
 pub fn generate_rpc(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
+    let mut has_rpc_methods = false;
 
     for node in ast {
-        match node {
-            ASTNode::Struct(_) => (),
-            ASTNode::Enum(_) => (),
-            ASTNode::Fn(node) => writer.writeln(&generate_rpc_method(node)),
-            ASTNode::Directive(_) => (),
+        if let ASTNode::Fn(_) = node {
+            has_rpc_methods = true;
+            break;
+        }
+    }
+
+    if !has_rpc_methods {
+        return String::new();
+    }
+
+    writer.writeln(&generate_register_fn(ast));
+
+    for node in ast {
+        if let ASTNode::Fn(node) = node {
+            writer.writeln(&generate_rpc_method(node))
         }
     }
 
@@ -301,9 +312,20 @@ mod tests {
     }
 
     #[test]
-    fn generate_rpc_methods() {
+    fn generate_rpc_sync_methods() {
         let src = fs::read_to_string("test_resources/rpc_sync_methods.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/rpc_sync_methods.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_rpc_async_methods() {
+        let src = fs::read_to_string("test_resources/rpc_async_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/rpc_async_methods.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);

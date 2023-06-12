@@ -1,10 +1,36 @@
-// GENERATED, DO NOT EDIT
-
-#![allow(warnings)]
-#![allow(clippy)]
-#![allow(unknown_lints)]
-
-use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};
+pub fn register_rpc(
+    runtime: &mut TechPawsRuntime,
+    sync_group_address: GroupAddress,
+    async_group_address: GroupAddress,
+    read_group_address: GroupAddress,
+) {
+    let scope_id = TechPawsScopeId(uuid!("4de616f8-12c5-4d2c-8d48-9c5fb038991f"));
+    runtime.memory.add_scope(scope_id);
+    runtime.register_sync_rpc_method(
+        sync_group_address,
+        scope_id,
+        RpcMethodAddress(0),
+        print_hello_world_rpc_handler,
+    );
+    runtime.register_sync_rpc_method(
+        sync_group_address,
+        scope_id,
+        RpcMethodAddress(1),
+        hello_world_rpc_handler,
+    );
+    runtime.register_sync_rpc_method(
+        sync_group_address,
+        scope_id,
+        RpcMethodAddress(2),
+        say_hello_rpc_handler,
+    );
+    runtime.register_sync_rpc_method(
+        sync_group_address,
+        scope_id,
+        RpcMethodAddress(3),
+        sum_rpc_handler,
+    );
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct __print_hello_world_rpc_args__;
@@ -168,7 +194,9 @@ pub fn say_hello_rpc_handler(
             },
         );
 
-        let result = say_hello(args.clone().name);
+        let result = say_hello(
+            args.clone().name,
+        );
 
         memory.get_scope_mut(scope_id).rpc_buffer_write(
             rpc_method_address,
@@ -242,7 +270,11 @@ pub fn sum_rpc_handler(
             },
         );
 
-        let result = sum(&mut emitter, args.clone().a, args.clone().b, args.clone().c);
+        let result = sum(
+            args.clone().a,
+            args.clone().b,
+            args.clone().c,
+        );
 
         memory.get_scope_mut(scope_id).rpc_buffer_write(
             rpc_method_address,
@@ -253,4 +285,6 @@ pub fn sum_rpc_handler(
             },
         );
     }
+
+    args.is_some()
 }
