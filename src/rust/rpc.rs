@@ -10,6 +10,8 @@ use super::{struct_buffers::generate_struct_buffers, struct_models::generate_str
 
 const RPC_NEW_DATA_STATUS: &str = "0xFF";
 const RPC_NO_DATA_STATUS: &str = "0x00";
+const RPC_READ_BUSY_STATUS: &str = "0xFF";
+const RPC_READ_FREE_STATUS: &str = "0x00";
 
 pub fn generate_rpc_method(node: &FnASTNode) -> String {
     if node.is_read {
@@ -330,11 +332,116 @@ fn generate_async_rpc_method(node: &FnASTNode) -> String {
 fn generate_sync_read_rpc_method(node: &FnASTNode) -> String {
     let mut writer = Writer::default();
 
+    writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
+    writer.writeln_tab(1, "scope_id: TechPawsScopeId,");
+    writer.writeln_tab(1, "_: unsafe fn() -> &'static mut TechPawsRuntime,");
+    writer.writeln_tab(1, "memory: &mut TechPawsRuntimeMemory,");
+    writer.writeln_tab(1, "_: &mut TechPawsRuntimeAsyncContext,");
+    writer.writeln_tab(1, "rpc_method_address: RpcMethodAddress,");
+    writer.writeln(") -> bool {");
+
+    writer.writeln_tab(1, &format!("let result = {}();", node.id));
+    writer.writeln("");
+    writer.writeln_tab(1, "if let Some(result) = &result {");
+    writer.writeln_tab(2, "memory.get_scope_mut(scope_id).rpc_buffer_write(");
+    writer.writeln_tab(3, "rpc_method_address,");
+    writer.writeln_tab(3, "TechPawsRuntimeRpcMethodBuffer::Client,");
+    writer.writeln_tab(3, "|bytes_writer| {");
+    writer.writeln_tab(
+        4,
+        &format!("bytes_writer.write_u8({});", RPC_NEW_DATA_STATUS),
+    );
+
+    if let Some(return_type_id) = &node.return_type_id {
+        writer.writeln_tab(4, &generate_write(return_type_id, "result", false));
+    }
+
+    writer.writeln_tab(3, "},");
+    writer.writeln_tab(2, ");");
+    writer.writeln_tab(1, "}");
+    writer.writeln("");
+
+    writer.writeln_tab(1, "result.is_some()");
+    writer.writeln("}");
+
     writer.show().to_string()
 }
 
 fn generate_async_read_rpc_method(node: &FnASTNode) -> String {
     let mut writer = Writer::default();
+
+    writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
+    writer.writeln_tab(1, "scope_id: TechPawsScopeId,");
+    writer.writeln_tab(
+        1,
+        "runtime_as_mut: unsafe fn() -> &'static mut TechPawsRuntime,",
+    );
+    writer.writeln_tab(1, "memory: &mut TechPawsRuntimeMemory,");
+    writer.writeln_tab(1, "async_context: &mut TechPawsRuntimeAsyncContext,");
+    writer.writeln_tab(1, "rpc_method_address: RpcMethodAddress,");
+    writer.writeln(") -> bool {");
+
+    writer.writeln_tab(
+        1,
+        "let is_busy = memory.get_scope_mut(scope_id).rpc_buffer_read(",
+    );
+    writer.writeln_tab(2, "rpc_method_address,");
+    writer.writeln_tab(2, "TechPawsRuntimeRpcMethodBuffer::Server,");
+    writer.writeln_tab(2, "|bytes_reader| {");
+    writer.writeln_tab(3, "let status = bytes_reader.read_u8();");
+    writer.writeln_tab(3, &format!("status == {}", RPC_READ_BUSY_STATUS));
+    writer.writeln_tab(2, "},");
+    writer.writeln_tab(1, ");");
+    writer.writeln("");
+
+    writer.writeln_tab(1, "if !is_busy {");
+    writer.writeln_tab(2, "memory.get_scope_mut(scope_id).rpc_buffer_write(");
+    writer.writeln_tab(3, "rpc_method_address,");
+    writer.writeln_tab(3, "TechPawsRuntimeRpcMethodBuffer::Server,");
+    writer.writeln_tab(3, "|bytes_writer| {");
+    writer.writeln_tab(
+        4,
+        &format!("bytes_writer.write_u8({});", RPC_READ_BUSY_STATUS),
+    );
+    writer.writeln_tab(3, "},");
+    writer.writeln_tab(2, ");");
+    writer.writeln("");
+    writer.writeln_tab(2, "async_context.async_spawner.spawn(async move {");
+    writer.writeln_tab(3, &format!("let result = {}().await;", node.id));
+    writer.writeln("");
+    writer.writeln_tab(3, "if let Some(result) = &result {");
+    writer.writeln_tab(4, "let memory = unsafe { &mut runtime_as_mut().memory };");
+    writer.writeln_tab(4, "memory.get_scope_mut(scope_id).rpc_buffer_write(");
+    writer.writeln_tab(5, "rpc_method_address,");
+    writer.writeln_tab(5, "TechPawsRuntimeRpcMethodBuffer::Client,");
+    writer.writeln_tab(5, "|bytes_writer| {");
+    writer.writeln_tab(
+        6,
+        &format!("bytes_writer.write_u8({});", RPC_NEW_DATA_STATUS),
+    );
+
+    if let Some(return_type_id) = &node.return_type_id {
+        writer.writeln_tab(6, &generate_write(return_type_id, "result", false));
+    }
+
+    writer.writeln_tab(5, "},");
+    writer.writeln_tab(4, ");");
+    writer.writeln_tab(4, "memory.get_scope_mut(scope_id).rpc_buffer_write(");
+    writer.writeln_tab(5, "rpc_method_address,");
+    writer.writeln_tab(5, "TechPawsRuntimeRpcMethodBuffer::Server,");
+    writer.writeln_tab(5, "|bytes_writer| {");
+    writer.writeln_tab(
+        6,
+        &format!("bytes_writer.write_u8({});", RPC_READ_FREE_STATUS),
+    );
+    writer.writeln_tab(5, "},");
+    writer.writeln_tab(4, ");");
+    writer.writeln_tab(3, "}");
+    writer.writeln_tab(2, "});");
+    writer.writeln_tab(1, "}");
+    writer.writeln("");
+    writer.writeln_tab(1, "!is_busy");
+    writer.writeln("}");
 
     writer.show().to_string()
 }

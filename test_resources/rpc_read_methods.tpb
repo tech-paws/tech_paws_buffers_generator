@@ -1,10 +1,10 @@
 #[id = "723ca727-6a66-43a7-bfcc-b8ad94eac9be"]
 #[namespace = "test"]
 
-read trigger;
+read counter;
 
-read theme -> Theme;
+read theme -> String;
 
-async read trigger_async;
+async read async_trigger;
 
-async read theme_async -> Theme;
+async read async_hello_read -> String;
