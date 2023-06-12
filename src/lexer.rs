@@ -21,6 +21,8 @@ pub enum Literal {
 pub struct Lexer {
     cursor: usize,
     tokens: Vec<Token>,
+    registered_fn_positions: Vec<u32>,
+    last_fn_position: u32,
 }
 
 struct StringReader<'a> {
@@ -82,7 +84,27 @@ impl Lexer {
         }
 
         tokens.push(Token::EOF);
-        Lexer { tokens, cursor: 0 }
+        Lexer {
+            tokens,
+            cursor: 0,
+            registered_fn_positions: vec![],
+            last_fn_position: 0,
+        }
+    }
+
+    pub fn next_fn_poisition(&mut self) -> u32 {
+        let position = self.last_fn_position;
+
+        self.last_fn_position += 1;
+
+        while self
+            .registered_fn_positions
+            .contains(&self.last_fn_position)
+        {
+            self.last_fn_position += 1;
+        }
+
+        position
     }
 
     pub fn next_token(&mut self) -> &Token {

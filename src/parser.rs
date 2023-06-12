@@ -451,6 +451,7 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         return ASTNode::Fn(FnASTNode {
             id,
             args,
+            position: lexer.next_fn_poisition(),
             is_read: false,
             is_async,
             return_type_id: None,
@@ -477,6 +478,7 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         id,
         args,
         return_type_id,
+        position: lexer.next_fn_poisition(),
         is_read: false,
         is_async,
     })
@@ -500,6 +502,7 @@ pub fn parse_read(lexer: &mut Lexer, is_async: bool) -> ASTNode {
             id,
             args: vec![],
             is_read: true,
+            position: lexer.next_fn_poisition(),
             is_async,
             return_type_id: None,
         });
@@ -525,6 +528,7 @@ pub fn parse_read(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         id,
         args: vec![],
         return_type_id,
+        position: lexer.next_fn_poisition(),
         is_read: true,
         is_async,
     })
@@ -755,6 +759,7 @@ mod tests {
                 }
                 ASTNode::Fn(FnASTNode {
                     id,
+                    position,
                     args,
                     return_type_id,
                     is_read,
@@ -762,6 +767,7 @@ mod tests {
                 }) => {
                     writer.writeln_tab(tab, "Fn {");
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
+                    writer.writeln_tab(tab + 1, &format!("position: {:?},", position));
                     writer.writeln_tab(tab + 1, &format!("return_type_id: {:?},", return_type_id));
                     writer.writeln_tab(tab + 1, &format!("is_read: {:?},", is_read));
                     writer.writeln_tab(tab + 1, &format!("is_async: {:?},", is_async));

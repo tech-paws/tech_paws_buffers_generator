@@ -57,7 +57,6 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
     writer.writeln_tab(1, "runtime.memory.add_scope(scope_id);");
 
     let fn_nodes = ast::find_fn_nodes(ast);
-    let mut fn_id = 0;
 
     for node in fn_nodes.iter() {
         let (group_address, register_method) = if node.is_read {
@@ -73,11 +72,9 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
         writer.writeln_tab(1, &format!("runtime.{}(", register_method));
         writer.writeln_tab(2, &format!("{},", group_address));
         writer.writeln_tab(2, "scope_id,");
-        writer.writeln_tab(2, &format!("RpcMethodAddress({}),", fn_id));
+        writer.writeln_tab(2, &format!("RpcMethodAddress({}),", node.position));
         writer.writeln_tab(2, &format!("{}_rpc_handler,", node.id));
         writer.writeln_tab(1, ");");
-
-        fn_id += 1;
     }
 
     writer.writeln("}");

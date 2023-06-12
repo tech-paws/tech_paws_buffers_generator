@@ -37,6 +37,7 @@ pub struct StructASTNode {
 #[derive(Debug)]
 pub struct FnASTNode {
     pub id: String,
+    pub position: u32,
     pub args: Vec<FnArgASTNode>,
     pub return_type_id: Option<TypeIDASTNode>,
     pub is_read: bool,
