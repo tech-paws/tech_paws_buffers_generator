@@ -212,6 +212,9 @@ pub fn parse_const_value(lexer: &mut Lexer) -> ConstValueASTNode {
     };
 
     let type_id = match literal {
+        Literal::BoolLiteral(_) => TypeIDASTNode::Bool {
+            id: String::from("bool"),
+        },
         Literal::StringLiteral(_) => TypeIDASTNode::Other {
             id: String::from("String"),
         },

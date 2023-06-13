@@ -22,6 +22,7 @@ const addr {
     }
 
     DELTA_TIME: i64 = 16.6;
+    FLAG: bool = true;
 
     const commands_buffers {
         WIN1_MAIN_RENDER: CommandsBufferAddress = 0;

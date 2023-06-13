@@ -173,6 +173,7 @@ pub fn generate_const_value(node: &ConstValueASTNode) -> String {
             Literal::StringLiteral(value) => format!("\"{}\"", value),
             Literal::IntLiteral(value) => format!("{}", value),
             Literal::NumberLiteral(value) => format!("{}", value),
+            Literal::BoolLiteral(value) => format!("{}", value),
         },
     }
 }

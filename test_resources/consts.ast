@@ -91,6 +91,11 @@ Const {
       type_id: Integer { id: "i64", size: 8, signed: true }
       value: Literal { literal: NumberLiteral(16.6), type_id: Number { id: "f32", size: 4 } }
     }
+    Value {
+      id: FLAG
+      type_id: Bool { id: "bool" }
+      value: Literal { literal: BoolLiteral(true), type_id: Bool { id: "bool" } }
+    }
     Const {
       id: "commands_buffers",
       items: [

@@ -17,6 +17,7 @@ pub enum Literal {
     StringLiteral(String),
     IntLiteral(i64),
     NumberLiteral(f64),
+    BoolLiteral(bool),
 }
 
 pub struct Lexer {
@@ -191,6 +192,8 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
         "read" => Token::Read,
         "async" => Token::Async,
         "const" => Token::Const,
+        "true" => Token::Literal(Literal::BoolLiteral(true)),
+        "false" => Token::Literal(Literal::BoolLiteral(false)),
         _ => Token::ID { name },
     }
 }
@@ -396,6 +399,17 @@ mod tests {
         );
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Literal(Literal::NumberLiteral(3.001)));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::EOF);
+    }
+
+    fn lex_bool_literal() {
+        let mut lexer = Lexer::tokenize("true false");
+        let token = lexer.current_token();
+        assert_eq!(token.clone(), Token::Literal(Literal::BoolLiteral(true)));
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Literal(Literal::BoolLiteral(false)));
+
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }
