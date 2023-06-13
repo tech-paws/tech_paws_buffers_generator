@@ -5,6 +5,7 @@ pub enum Token {
     Fn,
     Read,
     Async,
+    Const,
     ID { name: String },
     Literal(Literal),
     Symbol(char),
@@ -126,6 +127,11 @@ fn is_char_number(ch: char) -> bool {
     numbers.contains(ch)
 }
 
+fn is_char_hex_number(ch: char) -> bool {
+    let numbers = "0123456789ABCDEF";
+    numbers.contains(ch)
+}
+
 fn is_char_id(ch: char, first_char: bool) -> bool {
     let letters = "abcdefjhigklmnopqrstuvwxyzABCDEFJHIGKLMNOPQRSTUVWXYZ_";
     let numbers = "0123456789";
@@ -184,6 +190,7 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
         "fn" => Token::Fn,
         "read" => Token::Read,
         "async" => Token::Async,
+        "const" => Token::Const,
         _ => Token::ID { name },
     }
 }
@@ -216,38 +223,9 @@ fn lex_string(string_reader: &mut StringReader) -> Token {
     Token::Literal(Literal::StringLiteral(value))
 }
 
-// Possible state machine
-// for the future implementation
-// Right now only support int
-//
-//                                                +------------------+
-//                                 +---- other -> | Error            |
-//                                 |              +------------------+     +------------------+
-//                                 |                   +---- other ------->| Int literal (16) |
-// +---+          +---+          +---+               +---+                 +------------------+
-// | I | - '0' -> | 1 | - 'x' -> | 2 | - '0'..'9' -> | 3 | - '0'..'9' -+
-// +---+          +---+          +---+               +---+             |
-//   |              |                                  ^               |
-//   |              |                                  +---------------+
-//   |              |                                                 +------------------+
-//   +--------------+                   +---- other ------------------| Int literal (10) |
-//                  |                   |                             +------------------+
-//                  |                   |                             +----------------+
-//                  |                   |              +---- other -> | Number literal |
-//                  |                   |              |              +----------------+
-//                  |                   |            +---+
-//                  |                   +---- '.' -> | 5 | - '0'..'9' -+
-//                  |                   |            +---+             |
-//                  |                   |              ^               |
-//                  |                   |              +---------------+
-//                  |                 +---+
-//                  +---- '0'..'9' -> | 4 | - '0'..'9' -+
-//                                    +---+             |
-//                                      ^               |
-//                                      +---------------+
-//
 fn lex_number(string_reader: &mut StringReader) -> Token {
     let mut value = String::new();
+    let mut is_hex = false;
 
     loop {
         value += &String::from(string_reader.current().unwrap());
@@ -255,7 +233,17 @@ fn lex_number(string_reader: &mut StringReader) -> Token {
 
         match next {
             Some(ch) => {
-                if !is_char_number(ch) {
+                if ch == '_' {
+                    string_reader.next();
+                    continue;
+                }
+
+                if ch == 'x' && !is_hex {
+                    is_hex = true;
+                    continue;
+                }
+
+                if (!is_hex && !is_char_number(ch)) || (is_hex && !is_char_hex_number(ch)) {
                     break;
                 }
             }
@@ -263,7 +251,13 @@ fn lex_number(string_reader: &mut StringReader) -> Token {
         }
     }
 
-    Token::Literal(Literal::IntLiteral(value.parse::<i64>().unwrap()))
+    if is_hex {
+        Token::Literal(Literal::IntLiteral(
+            i64::from_str_radix(&value.trim_start_matches("0x"), 16).unwrap(),
+        ))
+    } else {
+        Token::Literal(Literal::IntLiteral(value.parse::<i64>().unwrap()))
+    }
 }
 
 #[cfg(test)]
@@ -363,9 +357,21 @@ mod tests {
 
     #[test]
     fn lex_int_literal() {
-        let mut lexer = Lexer::tokenize("123");
+        let mut lexer = Lexer::tokenize("123 1_000_000 0xFF 0x0002_0006");
         let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Literal(Literal::IntLiteral(123)));
+        let token = lexer.next_token();
+        assert_eq!(
+            token.clone(),
+            Token::Literal(Literal::IntLiteral(1_000_000))
+        );
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Literal(Literal::IntLiteral(0xFF)));
+        let token = lexer.next_token();
+        assert_eq!(
+            token.clone(),
+            Token::Literal(Literal::IntLiteral(0x0002_0006))
+        );
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }
@@ -389,7 +395,7 @@ mod tests {
 
     #[test]
     fn lex_keywords() {
-        let mut lexer = Lexer::tokenize("struct enum fn async read");
+        let mut lexer = Lexer::tokenize("struct enum fn async read const");
         let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Struct);
         let token = lexer.next_token();
@@ -400,6 +406,8 @@ mod tests {
         assert_eq!(token.clone(), Token::Async);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Read);
+        let token = lexer.next_token();
+        assert_eq!(token.clone(), Token::Const);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
     }
