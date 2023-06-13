@@ -20,6 +20,7 @@ class ExamplesSyncRpcClient {
     _scheduler.loopSyncGroup();
 
   }
+
   String helloWorld() {
     _scheduler.syncWrite(
       _scopeId,
@@ -49,6 +50,7 @@ class ExamplesSyncRpcClient {
 
     return result;
   }
+
   String sayHello({
     required String name,
   }) {
@@ -81,6 +83,7 @@ class ExamplesSyncRpcClient {
 
     return result;
   }
+
   double sum({
     required int a,
     required double b,

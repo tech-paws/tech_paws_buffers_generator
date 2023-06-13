@@ -1,5 +1,5 @@
 #[id = "106c2228-ff3b-45c5-8a55-db9c0537f275"]
-#[namespace = "test"]
+#[namespace = "examples_async"]
 
 async fn print_hello_world();
 

@@ -13,6 +13,14 @@ use crate::{
     writer::Writer,
 };
 
+fn var_last_method_id(node: &FnASTNode) -> String {
+    format!("_last{}MethodId", node.id.to_case(Case::Pascal))
+}
+
+fn var_method_completers(node: &FnASTNode) -> String {
+    format!("_{}Completers", node.id.to_case(Case::Camel))
+}
+
 fn var_read_task(node: &FnASTNode) -> String {
     format!("_read{}Task", node.id.to_case(Case::Pascal))
 }
@@ -80,16 +88,54 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
         "class {}RpcClient {{",
         namespace.to_case(Case::Pascal)
     ));
-    writer.writeln_tab(
-        1,
-        &format!(
-            "{}RpcClient(this._scheduler);",
-            namespace.to_case(Case::Pascal)
-        ),
-    );
+
+    let constructor = generate_constructor(&fn_nodes);
+
+    if constructor.is_empty() {
+        writer.writeln_tab(
+            1,
+            &format!(
+                "{}RpcClient(this._scheduler);",
+                namespace.to_case(Case::Pascal)
+            ),
+        );
+    } else {
+        writer.writeln_tab(
+            1,
+            &format!(
+                "{}RpcClient(this._scheduler) {{",
+                namespace.to_case(Case::Pascal)
+            ),
+        );
+        writer.write(&constructor);
+        writer.writeln_tab(1, "}");
+    }
+
     writer.writeln("");
     writer.writeln_tab(1, "final TechPawsRuntimeRpcScheduler _scheduler;");
     writer.writeln_tab(1, &format!("static const _scopeId = '{}';", id));
+
+    let mut has_fn_nodes_space = false;
+
+    for node in fn_nodes.iter().filter(|node| node.is_async) {
+        writer.writeln("");
+        writer.writeln_tab(1, &format!("int {} = 0;", var_last_method_id(node)));
+        writer.writeln_tab(
+            1,
+            &format!(
+                "final {} = <int, Completer<{}>>{{}};",
+                var_method_completers(node),
+                generate_option_type_id(&node.return_type_id)
+            ),
+        );
+        writer.writeln_tab(
+            1,
+            &format!(
+                "late final TechPawsRuntimeRpcReadTask {};",
+                var_read_task(node)
+            ),
+        );
+    }
 
     writer.writeln("");
     writer.write(&generate_disconnect(&fn_nodes));
@@ -114,55 +160,25 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
         };
 
         writer.write(&method);
+
+        if node.position != fn_nodes.last().unwrap().position {
+            writer.writeln("");
+        }
     }
 
-    // if fn_nodes.len() > 1 {
-    //     writer.writeln("");
-    // }
-
-    // for node in fn_nodes.iter() {
-    //     writer.writeln_tab(
-    //         1,
-    //         &format!(
-    //             "final {} = <TechPawsRuntimeChannelReadTask>[];",
-    //             var_read_tasks(node)
-    //         ),
-    //     );
-    // }
-
-    // if fn_nodes.len() > 1 {
-    //     writer.writeln("");
-    // }
-
-    // for node in fn_nodes.iter() {
-    //     writer.writeln_tab(1, &format!("final int {};", var_client_address(node)));
-
-    //     if !node.is_read {
-    //         writer.writeln_tab(1, &format!("final int {};", var_server_address(node)));
-    //     }
-    // }
-
-    // for (idx, node) in fn_nodes.iter().enumerate() {
-    //     writer.write(&generate_rpc_read(node));
-    //     writer.writeln("");
-
-    //     if node.return_type_id.is_some() {
-    //         writer.write(&generate_rpc_read_emplace(node));
-    //         writer.writeln("");
-    //     }
-
-    //     if !node.is_read {
-    //         writer.write(&generate_rpc_write(node));
-    //         writer.writeln("");
-    //         writer.write(&generate_rpc_async(node));
-    //     }
-
-    //     if idx != fn_nodes.len() - 1 {
-    //         writer.writeln("");
-    //     }
-    // }
-
     writer.writeln("}");
+    writer.show().to_string()
+}
+
+fn generate_constructor(nodes: &[&ast::FnASTNode]) -> String {
+    let mut writer = Writer::new(2);
+
+    for node in nodes {
+        if node.is_async {
+            writer.writeln_tab(2, &format!("_connect{}();", node.id.to_case(Case::Pascal)));
+        }
+    }
+
     writer.show().to_string()
 }
 
@@ -171,23 +187,14 @@ fn generate_disconnect(nodes: &[&ast::FnASTNode]) -> String {
 
     writer.writeln_tab(1, "void disconnect() {");
 
-    // for node in nodes {
-    //     writer.writeln_tab(
-    //         2,
-    //         &format!(
-    //             "for (final task in {}) _scheduler.disconnect(task);",
-    //             var_read_tasks(node),
-    //         ),
-    //     );
-    // }
-
-    // if !nodes.is_empty() {
-    //     writer.writeln("");
-    // }
-
-    // for node in nodes {
-    //     writer.writeln_tab(2, &format!("{}?.close();", var_read_stream(node)));
-    // }
+    for node in nodes {
+        if node.is_async {
+            writer.writeln_tab(
+                2,
+                &format!("_scheduler.disconnect({});", var_read_task(node)),
+            );
+        }
+    }
 
     writer.writeln_tab(1, "}");
 
@@ -305,6 +312,126 @@ fn generate_args_var(node: &ast::FnASTNode) -> String {
 
 fn generate_async_rpc_method(node: &ast::FnASTNode) -> String {
     let mut writer = Writer::new(2);
+    let return_type = generate_option_type_id(&node.return_type_id);
+
+    writer.writeln(&generate_async_rpc_connect_method(node));
+    writer.writeln("");
+
+    if node.args.is_empty() {
+        writer.writeln_tab(
+            1,
+            &format!(
+                "Future<{}> {}() {{",
+                return_type,
+                node.id.to_case(Case::Camel)
+            ),
+        )
+    } else {
+        writer.writeln_tab(
+            1,
+            &format!(
+                "Future<{}> {}({{",
+                return_type,
+                node.id.to_case(Case::Camel)
+            ),
+        );
+        writer.write(&generate_fn_args(node));
+        writer.writeln_tab(1, "}) {");
+    }
+
+    let methodIdVar = var_last_method_id(node);
+
+    writer.writeln_tab(2, &format!("final methodId = {};", methodIdVar));
+    writer.writeln_tab(
+        2,
+        &format!("{} = rotateMethodId({});", methodIdVar, methodIdVar),
+    );
+
+    writer.writeln("");
+    writer.writeln_tab(2, "_scheduler.write(");
+    writer.writeln_tab(3, "_scopeId,");
+    writer.writeln_tab(3, &format!("{},", node.position));
+    writer.writeln_tab(3, "TechPawsRuntimeRpcMethodBuffer.server,");
+    writer.writeln_tab(3, "(writer) {");
+    writer.writeln_tab(
+        4,
+        &format!("writer.writeInt8(TechPawsRpcBufferStatus.hasData.value);"),
+    );
+    writer.writeln_tab(4, "writer.writeInt64(methodId);");
+
+    for arg in &node.args {
+        writer.writeln_tab(
+            4,
+            &generate_write(&arg.type_id, &arg.id.to_case(Case::Camel)),
+        );
+    }
+
+    writer.writeln_tab(3, "},");
+    writer.writeln_tab(2, ");");
+    writer.writeln("");
+    writer.writeln_tab(
+        2,
+        &format!(
+            "final completer = Completer<{}>();",
+            generate_option_type_id(&node.return_type_id)
+        ),
+    );
+    writer.writeln_tab(
+        2,
+        &format!("{}[methodId] = completer;", var_method_completers(node)),
+    );
+    writer.writeln("");
+    writer.writeln_tab(2, "return completer.future;");
+
+    writer.writeln_tab(1, "}");
+
+    writer.show().to_string()
+}
+
+fn generate_async_rpc_connect_method(node: &FnASTNode) -> String {
+    let mut writer = Writer::new(2);
+
+    writer.writeln_tab(
+        1,
+        &format!("void _connect{}() {{", node.id.to_case(Case::Pascal)),
+    );
+
+    writer.writeln_tab(2, &format!("{} = _scheduler.read(", var_read_task(node)));
+    writer.writeln_tab(3, "_scopeId,");
+    writer.writeln_tab(3, &format!("{},", node.position));
+    writer.writeln_tab(3, "TechPawsRuntimeRpcMethodBuffer.client,");
+    writer.writeln_tab(3, "(reader) {");
+    writer.writeln_tab(4, "final status = reader.readInt8();");
+    writer.writeln("");
+    writer.writeln_tab(4, "if (status != TechPawsRpcBufferStatus.hasData.value) {");
+    writer.writeln_tab(5, "return;");
+    writer.writeln_tab(4, "}");
+    writer.writeln("");
+    writer.writeln_tab(4, "final methodId = reader.readInt64();");
+
+    if let Some(return_type_id) = &node.return_type_id {
+        writer.writeln_tab(4, &format!("final result = {};", generate_read(return_type_id)));
+        writer.writeln("");
+        writer.writeln_tab(
+            4,
+            &format!("{}[methodId]?.complete(result);", var_method_completers(node)),
+        );
+    } else {
+        writer.writeln("");
+        writer.writeln_tab(
+            4,
+            &format!("{}[methodId]?.complete();", var_method_completers(node)),
+        );
+    }
+
+    writer.writeln_tab(
+        4,
+        &format!("{}.remove(methodId);", var_method_completers(node)),
+    );
+    writer.writeln_tab(3, "},");
+    writer.writeln_tab(2, ");");
+
+    writer.write_tab(1, "}");
 
     writer.show().to_string()
 }
@@ -320,291 +447,3 @@ fn generate_async_read_rpc_method(node: &ast::FnASTNode) -> String {
 
     writer.show().to_string()
 }
-
-// fn generate_rpc_read(node: &ast::FnASTNode) -> String {
-//     let mut writer = Writer::new(2);
-
-//     writer.writeln_tab(
-//         1,
-//         &format!(
-//             "Stream<{}> read{}() {{",
-//             generate_option_type_id(&node.return_type_id),
-//             node.id.to_case(Case::Pascal)
-//         ),
-//     );
-
-//     writer.writeln_tab(2, &format!("if ({} != null) {{", var_read_stream(node),));
-//     writer.writeln_tab(3, &format!("return {}!.stream;", var_read_stream(node)));
-//     writer.writeln_tab(2, "}");
-//     writer.writeln("");
-
-//     writer.writeln_tab(
-//         2,
-//         &format!(
-//             "{} = StreamController<{}>.broadcast();",
-//             var_read_stream(node),
-//             generate_option_type_id(&node.return_type_id)
-//         ),
-//     );
-//     writer.writeln("");
-
-//     writer.writeln_tab(
-//         2,
-//         &format!(
-//             "final task = _scheduler.read({}, (reader) {{",
-//             var_client_address(node),
-//         ),
-//     );
-//     writer.writeln_tab(3, "reader.reset();");
-//     writer.writeln_tab(3, "final status = reader.readInt8();");
-//     writer.writeln("");
-//     writer.writeln_tab(3, "if (status == kStatusReceivedData) {");
-
-//     match &node.return_type_id {
-//         Some(type_id) => writer.writeln_tab(
-//             4,
-//             &format!(
-//                 "{}!.add({});",
-//                 var_read_stream(node),
-//                 generate_read(type_id)
-//             ),
-//         ),
-//         None => writer.writeln_tab(4, &format!("{}!.add(null);", var_read_stream(node))),
-//     }
-
-//     writer.writeln_tab(3, "}");
-//     writer.writeln_tab(2, "});");
-//     writer.writeln("");
-//     writer.writeln_tab(
-//         2,
-//         &format!("_read{}Tasks.add(task);", node.id.to_case(Case::Pascal)),
-//     );
-
-//     writer.writeln_tab(2, &format!("return {}!.stream;", var_read_stream(node)));
-//     writer.writeln_tab(1, "}");
-
-//     writer.show().to_string()
-// }
-
-// fn generate_rpc_read_emplace(node: &ast::FnASTNode) -> String {
-//     let mut writer = Writer::new(2);
-//     let return_type_id = node.return_type_id.as_ref().unwrap();
-
-//     writer.writeln_tab(
-//         1,
-//         &format!(
-//             "Stream<{}> read{}Emplace({} model) {{",
-//             generate_type_id(return_type_id),
-//             node.id.to_case(Case::Pascal),
-//             generate_type_id(return_type_id),
-//         ),
-//     );
-
-//     writer.writeln_tab(2, &format!("if ({} != null) {{", var_read_stream(node)));
-//     writer.writeln_tab(3, &format!("return {}!.stream;", var_read_stream(node)));
-//     writer.writeln_tab(2, "}");
-//     writer.writeln("");
-
-//     writer.writeln_tab(
-//         2,
-//         &format!(
-//             "{} = StreamController<{}>.broadcast();",
-//             var_read_stream(node),
-//             generate_option_type_id(&node.return_type_id)
-//         ),
-//     );
-//     writer.writeln("");
-
-//     writer.writeln_tab(
-//         2,
-//         &format!(
-//             "final task = _scheduler.read({}, (reader) {{",
-//             var_client_address(node),
-//         ),
-//     );
-//     writer.writeln_tab(3, "reader.reset();");
-//     writer.writeln_tab(3, "final status = reader.readInt8();");
-//     writer.writeln("");
-//     writer.writeln_tab(3, "if (status == kStatusReceivedData) {");
-
-//     writer.writeln_tab(4, &generate_read_emplace(return_type_id, "model"));
-//     writer.writeln_tab(4, &format!("{}!.add(model);", var_read_stream(node)));
-
-//     writer.writeln_tab(3, "}");
-//     writer.writeln_tab(2, "});");
-//     writer.writeln("");
-//     writer.writeln_tab(
-//         2,
-//         &format!("_read{}Tasks.add(task);", node.id.to_case(Case::Pascal)),
-//     );
-//     writer.writeln_tab(2, &format!("return {}!.stream;", var_read_stream(node)));
-//     writer.writeln_tab(1, "}");
-
-//     writer.show().to_string()
-// }
-
-// fn generate_rpc_write(node: &ast::FnASTNode) -> String {
-//     let mut writer = Writer::new(2);
-
-//     if node.args.is_empty() {
-//         writer.writeln_tab(
-//             1,
-//             &format!("void write{}() {{", node.id.to_case(Case::Pascal)),
-//         )
-//     } else {
-//         writer.writeln_tab(
-//             1,
-//             &format!("void write{}({{", node.id.to_case(Case::Pascal)),
-//         );
-
-//         for arg in node.args.iter() {
-//             writer.writeln_tab(
-//                 2,
-//                 &format!(
-//                     "required {} {},",
-//                     generate_type_id(&arg.type_id),
-//                     arg.id.to_case(Case::Camel)
-//                 ),
-//             )
-//         }
-
-//         writer.writeln_tab(1, "}) {");
-//         writer.writeln_tab(2, &format!("final args = __{}_rpc_args__(", node.id));
-
-//         for arg in node.args.iter() {
-//             writer.writeln_tab(
-//                 3,
-//                 &format!(
-//                     "{}: {},",
-//                     arg.id.to_case(Case::Camel),
-//                     arg.id.to_case(Case::Camel)
-//                 ),
-//             )
-//         }
-
-//         writer.writeln_tab(2, ");");
-//         writer.writeln("");
-//     }
-
-//     writer.writeln_tab(
-//         2,
-//         &format!("_scheduler.write({}, (writer) {{", var_server_address(node)),
-//     );
-
-//     writer.writeln_tab(3, "writer.clear();");
-//     writer.writeln_tab(3, "writer.writeInt8(kStatusReceivedData);");
-
-//     if !node.args.is_empty() {
-//         let type_id = ast::TypeIDASTNode::Other {
-//             id: format!("__{}_rpc_args__", node.id),
-//         };
-//         writer.writeln_tab(3, &generate_write(&type_id, "args"));
-//     }
-
-//     writer.writeln_tab(2, "});");
-
-//     writer.writeln_tab(1, "}");
-
-//     writer.show().to_string()
-// }
-
-// fn generate_rpc_async(node: &ast::FnASTNode) -> String {
-//     let mut writer = Writer::new(2);
-
-//     if node.args.is_empty() {
-//         writer.writeln_tab(
-//             1,
-//             &format!(
-//                 "Future<{}> {}() {{",
-//                 generate_option_type_id(&node.return_type_id),
-//                 node.id.to_case(Case::Camel)
-//             ),
-//         );
-//         writer.writeln_tab(2, &format!("write{}();", node.id.to_case(Case::Pascal)));
-//     } else {
-//         writer.writeln_tab(
-//             1,
-//             &format!(
-//                 "Future<{}> {}({{",
-//                 generate_option_type_id(&node.return_type_id),
-//                 node.id.to_case(Case::Camel)
-//             ),
-//         );
-
-//         for arg in node.args.iter() {
-//             writer.writeln_tab(
-//                 2,
-//                 &format!(
-//                     "required {} {},",
-//                     generate_type_id(&arg.type_id),
-//                     arg.id.to_case(Case::Camel)
-//                 ),
-//             )
-//         }
-
-//         writer.writeln_tab(1, "}) {");
-//         writer.writeln_tab(2, &format!("write{}(", node.id.to_case(Case::Pascal)));
-
-//         for arg in node.args.iter() {
-//             writer.writeln_tab(
-//                 3,
-//                 &format!(
-//                     "{}: {},",
-//                     arg.id.to_case(Case::Camel),
-//                     arg.id.to_case(Case::Camel)
-//                 ),
-//             )
-//         }
-
-//         writer.writeln_tab(2, ");");
-//         writer.writeln("");
-//     }
-
-//     writer.writeln_tab(
-//         2,
-//         &format!(
-//             "final completer = Completer<{}>();",
-//             generate_option_type_id(&node.return_type_id)
-//         ),
-//     );
-//     writer.writeln("");
-
-//     writer.writeln_tab(2, "late TechPawsRuntimeChannelReadTask task;");
-//     writer.writeln_tab(
-//         2,
-//         &format!(
-//             "task = _scheduler.read({}, (reader) {{",
-//             var_client_address(node),
-//         ),
-//     );
-//     writer.writeln_tab(3, "reader.reset();");
-//     writer.writeln_tab(3, "final status = reader.readInt8();");
-//     writer.writeln("");
-//     writer.writeln_tab(3, "if (status == kStatusReceivedData) {");
-
-//     match &node.return_type_id {
-//         Some(type_id) => writer.writeln_tab(
-//             4,
-//             &format!("completer.complete({});", generate_read(type_id)),
-//         ),
-//         None => writer.writeln_tab(4, "completer.complete();"),
-//     }
-
-//     writer.writeln_tab(4, "_scheduler.disconnect(task);");
-//     writer.writeln_tab(
-//         4,
-//         &format!("_read{}Tasks.remove(task);", node.id.to_case(Case::Pascal)),
-//     );
-
-//     writer.writeln_tab(3, "}");
-//     writer.writeln_tab(2, "});");
-//     writer.writeln("");
-//     writer.writeln_tab(
-//         2,
-//         &format!("_read{}Tasks.add(task);", node.id.to_case(Case::Pascal)),
-//     );
-//     writer.writeln_tab(2, "return completer.future;");
-//     writer.writeln_tab(1, "}");
-
-//     writer.show().to_string()
-// }
