@@ -933,8 +933,7 @@ mod tests {
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
         println!("{}", actual);
-        panic!("Oh no!");
-        // assert_eq!(actual, target);
+        assert_eq!(actual, target);
     }
 
     // #[test]
