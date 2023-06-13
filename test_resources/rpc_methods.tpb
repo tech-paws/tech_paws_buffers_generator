@@ -15,7 +15,7 @@ async fn hello_world_async() -> String;
 
 async fn say_hello_async(name: String) -> String;
 
-async fn sum_async(a: i32, b: f32, c: f64);
+async fn sum_async(a: i32, b: f32, c: f64) -> f64;
 
 read trigger;
 

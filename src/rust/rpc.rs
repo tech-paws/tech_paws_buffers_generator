@@ -2,7 +2,6 @@ use crate::{
     ast::{self, ASTNode, FnASTNode, StructASTNode, StructFieldASTNode, TypeIDASTNode},
     lexer::Literal,
     rust_generator::generate_write,
-    rust_generator::{generate_read, generate_type_id},
     writer::Writer,
 };
 
@@ -20,12 +19,10 @@ pub fn generate_rpc_method(node: &FnASTNode) -> String {
         } else {
             generate_sync_read_rpc_method(node)
         }
+    } else if node.is_async {
+        generate_async_rpc_method(node)
     } else {
-        if node.is_async {
-            generate_async_rpc_method(node)
-        } else {
-            generate_sync_rpc_method(node)
-        }
+        generate_sync_rpc_method(node)
     }
 }
 
@@ -61,12 +58,10 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
     for node in fn_nodes.iter() {
         let (group_address, register_method) = if node.is_read {
             ("read_group_address", "register_async_rpc_method")
+        } else if node.is_async {
+            ("async_group_address", "register_async_rpc_method")
         } else {
-            if node.is_async {
-                ("async_group_address", "register_async_rpc_method")
-            } else {
-                ("sync_group_address", "register_sync_rpc_method")
-            }
+            ("sync_group_address", "register_sync_rpc_method")
         };
 
         writer.writeln_tab(1, &format!("runtime.{}(", register_method));

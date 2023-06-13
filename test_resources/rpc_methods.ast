@@ -8,6 +8,7 @@ DirectiveASTNode::Value {
 }
 Fn {
   id: "print_hello_world",
+  position: 0,
   return_type_id: None,
   is_read: false,
   is_async: false,
@@ -16,6 +17,7 @@ Fn {
 }
 Fn {
   id: "hello_world",
+  position: 1,
   return_type_id: Some(Other { id: "String" }),
   is_read: false,
   is_async: false,
@@ -24,6 +26,7 @@ Fn {
 }
 Fn {
   id: "say_hello",
+  position: 2,
   return_type_id: Some(Other { id: "String" }),
   is_read: false,
   is_async: false,
@@ -33,6 +36,7 @@ Fn {
 }
 Fn {
   id: "sum",
+  position: 3,
   return_type_id: None,
   is_read: false,
   is_async: false,
@@ -44,6 +48,7 @@ Fn {
 }
 Fn {
   id: "print_hello_world_async",
+  position: 4,
   return_type_id: None,
   is_read: false,
   is_async: true,
@@ -52,6 +57,7 @@ Fn {
 }
 Fn {
   id: "hello_world_async",
+  position: 5,
   return_type_id: Some(Other { id: "String" }),
   is_read: false,
   is_async: true,
@@ -60,6 +66,7 @@ Fn {
 }
 Fn {
   id: "say_hello_async",
+  position: 6,
   return_type_id: Some(Other { id: "String" }),
   is_read: false,
   is_async: true,
@@ -69,7 +76,8 @@ Fn {
 }
 Fn {
   id: "sum_async",
-  return_type_id: None,
+  position: 7,
+  return_type_id: Some(Number { id: "f64", size: 8 }),
   is_read: false,
   is_async: true,
   args: [
@@ -80,6 +88,7 @@ Fn {
 }
 Fn {
   id: "trigger",
+  position: 8,
   return_type_id: None,
   is_read: true,
   is_async: false,
@@ -88,6 +97,7 @@ Fn {
 }
 Fn {
   id: "theme",
+  position: 9,
   return_type_id: Some(Other { id: "Theme" }),
   is_read: true,
   is_async: false,
@@ -96,6 +106,7 @@ Fn {
 }
 Fn {
   id: "trigger_async",
+  position: 10,
   return_type_id: None,
   is_read: true,
   is_async: true,
@@ -104,6 +115,7 @@ Fn {
 }
 Fn {
   id: "theme_async",
+  position: 11,
   return_type_id: Some(Other { id: "Theme" }),
   is_read: true,
   is_async: true,

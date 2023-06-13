@@ -1,17 +1,11 @@
 use crate::{
     ast::{self, FnASTNode},
-    dart_generator::{
-        generate_option_type_id, generate_read, generate_read_emplace, generate_type_id,
-        generate_write,
-    },
+    dart_generator::{generate_option_type_id, generate_read, generate_type_id, generate_write},
     lexer::Literal,
 };
 use convert_case::{Case, Casing};
 
-use crate::{
-    dart_generator::{generate_struct_buffers, generate_struct_model},
-    writer::Writer,
-};
+use crate::writer::Writer;
 
 fn var_last_method_id(node: &FnASTNode) -> String {
     format!("_last{}MethodId", node.id.to_case(Case::Pascal))
@@ -25,8 +19,8 @@ fn var_read_task(node: &FnASTNode) -> String {
     format!("_read{}Task", node.id.to_case(Case::Pascal))
 }
 
-fn var_read_stream(node: &FnASTNode) -> String {
-    format!("_read{}Stream", node.id.to_case(Case::Pascal))
+fn var_read_stream_controller(node: &FnASTNode) -> String {
+    format!("_read{}StreamController", node.id.to_case(Case::Pascal))
 }
 
 pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
@@ -37,30 +31,6 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
     if fn_nodes.is_empty() {
         return String::from("");
     }
-
-    // for node in fn_nodes.iter() {
-    //     let args_struct_id = format!("__{}_rpc_args__", node.id);
-
-    //     let mut args_struct_fields = vec![];
-
-    //     for (i, arg) in node.args.iter().enumerate() {
-    //         args_struct_fields.push(ast::StructFieldASTNode {
-    //             position: i as u32,
-    //             name: arg.id.clone(),
-    //             type_id: arg.type_id.clone(),
-    //         });
-    //     }
-
-    //     let args_struct = ast::StructASTNode {
-    //         id: args_struct_id,
-    //         fields: args_struct_fields,
-    //         emplace_buffers: false,
-    //         into_buffers: true,
-    //     };
-
-    //     writer.writeln(&generate_struct_model(&args_struct, "", false));
-    //     writer.writeln(&generate_struct_buffers(&args_struct));
-    // }
 
     let namespace = ast::find_directive_value(ast, "namespace").expect("namespace is required");
     let namespace = match namespace {
@@ -115,26 +85,59 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
     writer.writeln_tab(1, "final TechPawsRuntimeRpcScheduler _scheduler;");
     writer.writeln_tab(1, &format!("static const _scopeId = '{}';", id));
 
-    let mut has_fn_nodes_space = false;
+    for node in &fn_nodes {
+        if node.is_async || node.is_read {
+            writer.writeln("");
+        }
 
-    for node in fn_nodes.iter().filter(|node| node.is_async) {
-        writer.writeln("");
-        writer.writeln_tab(1, &format!("int {} = 0;", var_last_method_id(node)));
-        writer.writeln_tab(
-            1,
-            &format!(
-                "final {} = <int, Completer<{}>>{{}};",
-                var_method_completers(node),
-                generate_option_type_id(&node.return_type_id)
-            ),
-        );
-        writer.writeln_tab(
-            1,
-            &format!(
-                "late final TechPawsRuntimeRpcReadTask {};",
-                var_read_task(node)
-            ),
-        );
+        if node.is_async && !node.is_read {
+            writer.writeln_tab(1, &format!("int {} = 0;", var_last_method_id(node)));
+            writer.writeln_tab(
+                1,
+                &format!(
+                    "final {} = <int, Completer<{}>>{{}};",
+                    var_method_completers(node),
+                    generate_option_type_id(&node.return_type_id)
+                ),
+            );
+        }
+
+        if node.is_async || node.is_read {
+            writer.writeln_tab(
+                1,
+                &format!(
+                    "late final TechPawsRuntimeRpcReadTask {};",
+                    var_read_task(node),
+                ),
+            );
+        }
+
+        if node.is_read {
+            writer.writeln_tab(
+                1,
+                &format!(
+                    "final {} = StreamController<{}>.broadcast();",
+                    var_read_stream_controller(node),
+                    generate_option_type_id(&node.return_type_id),
+                ),
+            );
+        }
+    }
+
+    for node in &fn_nodes {
+        if node.is_read {
+            writer.writeln("");
+
+            writer.writeln_tab(
+                1,
+                &format!(
+                    "Stream<{}> get {} => {}.stream;",
+                    generate_option_type_id(&node.return_type_id),
+                    node.id.to_case(Case::Camel),
+                    var_read_stream_controller(node),
+                ),
+            );
+        }
     }
 
     writer.writeln("");
@@ -146,17 +149,11 @@ pub fn generate_rpc_methods(ast: &[ast::ASTNode]) -> String {
 
     for node in fn_nodes.iter() {
         let method = if node.is_read {
-            if node.is_async {
-                generate_async_read_rpc_method(node)
-            } else {
-                generate_sync_read_rpc_method(node)
-            }
+            generate_read_rpc_method(node)
+        } else if node.is_async {
+            generate_async_rpc_method(node)
         } else {
-            if node.is_async {
-                generate_async_rpc_method(node)
-            } else {
-                generate_sync_rpc_method(node)
-            }
+            generate_sync_rpc_method(node)
         };
 
         writer.write(&method);
@@ -174,7 +171,7 @@ fn generate_constructor(nodes: &[&ast::FnASTNode]) -> String {
     let mut writer = Writer::new(2);
 
     for node in nodes {
-        if node.is_async {
+        if node.is_async || node.is_read {
             writer.writeln_tab(2, &format!("_connect{}();", node.id.to_case(Case::Pascal)));
         }
     }
@@ -188,11 +185,15 @@ fn generate_disconnect(nodes: &[&ast::FnASTNode]) -> String {
     writer.writeln_tab(1, "void disconnect() {");
 
     for node in nodes {
-        if node.is_async {
+        if node.is_async || node.is_read {
             writer.writeln_tab(
                 2,
                 &format!("_scheduler.disconnect({});", var_read_task(node)),
             );
+        }
+
+        if node.is_read {
+            writer.writeln_tab(2, &format!("{}.close();", var_read_stream_controller(node)));
         }
     }
 
@@ -289,33 +290,11 @@ fn generate_fn_args(node: &ast::FnASTNode) -> String {
     writer.show().to_string()
 }
 
-fn generate_args_var(node: &ast::FnASTNode) -> String {
-    let mut writer = Writer::new(2);
-
-    writer.writeln_tab(2, &format!("final args = __{}_rpc_args__(", node.id));
-
-    for arg in node.args.iter() {
-        writer.writeln_tab(
-            3,
-            &format!(
-                "{}: {},",
-                arg.id.to_case(Case::Camel),
-                arg.id.to_case(Case::Camel)
-            ),
-        )
-    }
-
-    writer.writeln_tab(2, ");");
-
-    writer.show().to_string()
-}
-
 fn generate_async_rpc_method(node: &ast::FnASTNode) -> String {
     let mut writer = Writer::new(2);
     let return_type = generate_option_type_id(&node.return_type_id);
 
     writer.writeln(&generate_async_rpc_connect_method(node));
-    writer.writeln("");
 
     if node.args.is_empty() {
         writer.writeln_tab(
@@ -339,12 +318,12 @@ fn generate_async_rpc_method(node: &ast::FnASTNode) -> String {
         writer.writeln_tab(1, "}) {");
     }
 
-    let methodIdVar = var_last_method_id(node);
+    let method_id_var = var_last_method_id(node);
 
-    writer.writeln_tab(2, &format!("final methodId = {};", methodIdVar));
+    writer.writeln_tab(2, &format!("final methodId = {};", method_id_var));
     writer.writeln_tab(
         2,
-        &format!("{} = rotateMethodId({});", methodIdVar, methodIdVar),
+        &format!("{} = rotateMethodId({});", method_id_var, method_id_var),
     );
 
     writer.writeln("");
@@ -355,7 +334,7 @@ fn generate_async_rpc_method(node: &ast::FnASTNode) -> String {
     writer.writeln_tab(3, "(writer) {");
     writer.writeln_tab(
         4,
-        &format!("writer.writeInt8(TechPawsRpcBufferStatus.hasData.value);"),
+        "writer.writeInt8(TechPawsRpcBufferStatus.hasData.value);",
     );
     writer.writeln_tab(4, "writer.writeInt64(methodId);");
 
@@ -410,11 +389,17 @@ fn generate_async_rpc_connect_method(node: &FnASTNode) -> String {
     writer.writeln_tab(4, "final methodId = reader.readInt64();");
 
     if let Some(return_type_id) = &node.return_type_id {
-        writer.writeln_tab(4, &format!("final result = {};", generate_read(return_type_id)));
+        writer.writeln_tab(
+            4,
+            &format!("final result = {};", generate_read(return_type_id)),
+        );
         writer.writeln("");
         writer.writeln_tab(
             4,
-            &format!("{}[methodId]?.complete(result);", var_method_completers(node)),
+            &format!(
+                "{}[methodId]?.complete(result);",
+                var_method_completers(node)
+            ),
         );
     } else {
         writer.writeln("");
@@ -431,19 +416,51 @@ fn generate_async_rpc_connect_method(node: &FnASTNode) -> String {
     writer.writeln_tab(3, "},");
     writer.writeln_tab(2, ");");
 
-    writer.write_tab(1, "}");
+    writer.writeln_tab(1, "}");
 
     writer.show().to_string()
 }
 
-fn generate_sync_read_rpc_method(node: &ast::FnASTNode) -> String {
+fn generate_read_rpc_method(node: &ast::FnASTNode) -> String {
     let mut writer = Writer::new(2);
 
-    writer.show().to_string()
-}
+    writer.writeln_tab(
+        1,
+        &format!("void _connect{}() {{", node.id.to_case(Case::Pascal)),
+    );
 
-fn generate_async_read_rpc_method(node: &ast::FnASTNode) -> String {
-    let mut writer = Writer::new(2);
+    writer.writeln_tab(2, &format!("{} = _scheduler.read(", var_read_task(node)));
+    writer.writeln_tab(3, "_scopeId,");
+    writer.writeln_tab(3, &format!("{},", node.position));
+    writer.writeln_tab(3, "TechPawsRuntimeRpcMethodBuffer.client,");
+    writer.writeln_tab(3, "(reader) {");
+    writer.writeln_tab(4, "final status = reader.readInt8();");
+    writer.writeln("");
+    writer.writeln_tab(4, "if (status != TechPawsRpcBufferStatus.hasData.value) {");
+    writer.writeln_tab(5, "return;");
+    writer.writeln_tab(4, "}");
+    writer.writeln("");
+
+    if let Some(return_type_id) = &node.return_type_id {
+        writer.writeln_tab(
+            4,
+            &format!("final result = {};", generate_read(return_type_id)),
+        );
+        writer.writeln_tab(
+            4,
+            &format!("{}.add(result);", var_read_stream_controller(node)),
+        );
+    } else {
+        writer.writeln_tab(
+            4,
+            &format!("{}.add(null);", var_read_stream_controller(node)),
+        );
+    }
+
+    writer.writeln_tab(3, "},");
+    writer.writeln_tab(2, ");");
+
+    writer.writeln_tab(1, "}");
 
     writer.show().to_string()
 }

@@ -343,4 +343,15 @@ mod tests {
         println!("{}", actual);
         assert_eq!(actual, target);
     }
+
+    #[test]
+    fn generate_rpc_methods() {
+        let src = fs::read_to_string("test_resources/rpc_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/rpc_methods.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
 }
