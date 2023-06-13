@@ -11,6 +11,7 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
             Token::Async => ast_nodes.push(parse_async(lexer)),
             Token::Fn => ast_nodes.push(parse_fn(lexer, false)),
             Token::Read => ast_nodes.push(parse_read(lexer, false)),
+            Token::Const => ast_nodes.push(ASTNode::Const(parse_const(lexer))),
             Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
             _ => panic!("Unexpected token: {:?}", lexer.current_token()),
         }
@@ -558,6 +559,67 @@ pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
     args
 }
 
+pub fn parse_const(lexer: &mut Lexer) -> ConstASTNode {
+    let id = if let Token::ID { name } = lexer.next_token() {
+        name.clone()
+    } else {
+        panic!("Expected id but got {:?}", lexer.current_token());
+    };
+
+    if *lexer.next_token() != Token::Symbol('{') {
+        panic!("Expected '{{' but got {:?}", lexer.current_token());
+    }
+
+    lexer.next_token();
+
+    let mut items: Vec<ConstItemASTNode> = vec![];
+
+    while *lexer.current_token() != Token::Symbol('}') && *lexer.current_token() != Token::EOF {
+        match lexer.current_token() {
+            Token::Const => {
+                let const_ast_node = parse_const(lexer);
+                items.push(ConstItemASTNode::ConstNode {
+                    node: const_ast_node,
+                });
+            }
+            Token::ID { name } => {
+                let id = name.clone();
+
+                if *lexer.next_token() != Token::Symbol(':') {
+                    panic!("Expected ':' but got {:?}", lexer.current_token());
+                }
+
+                lexer.next_token();
+
+                let type_id = parse_type_id(lexer);
+
+                if *lexer.current_token() != Token::Symbol('=') {
+                    panic!("Expected '=' but got {:?}", lexer.current_token());
+                }
+
+                lexer.next_token();
+                let value = parse_const_value(lexer);
+
+                if *lexer.next_token() != Token::Symbol(';') {
+                    panic!("Expected ';' but got {:?}", lexer.current_token());
+                }
+
+                lexer.next_token();
+                items.push(ConstItemASTNode::Value { id, type_id, value });
+            }
+            _ => panic!("Unexpected token: {:?}", lexer.current_token()),
+        }
+    }
+
+    if *lexer.current_token() != Token::Symbol('}') {
+        panic!("Expected '}}' but got {:?}", lexer.current_token());
+    }
+
+    lexer.next_token();
+
+    ConstASTNode { id, items }
+}
+
 /// Parse #[<number>]
 pub fn parse_position(lexer: &mut Lexer) -> u32 {
     if *lexer.current_token() != Token::Symbol('#') {
@@ -660,7 +722,9 @@ mod tests {
     use super::*;
 
     fn stringify_ast(ast: &[ASTNode]) -> String {
-        stringify_ast_impl(0, ast)
+        let result = stringify_ast_impl(0, ast);
+        println!("{}", result);
+        result
     }
 
     fn stringify_ast_impl(tab: usize, ast: &[ASTNode]) -> String {
@@ -780,10 +844,35 @@ mod tests {
                     writer.writeln_tab(tab + 1, "]");
                     writer.writeln_tab(tab, "}");
                 }
+                ASTNode::Const(ConstASTNode { id, items }) => {
+                    writer.writeln_tab(tab, "Const {");
+                    writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
+                    writer.writeln_tab(tab + 1, "items: [");
+
+                    for item in items {
+                        match &item {
+                            ConstItemASTNode::Value { id, type_id, value } => {
+                                writer.writeln_tab(tab + 2, "Value {");
+                                writer.writeln_tab(tab + 3, &format!("id: {}", id));
+                                writer.writeln_tab(tab + 3, &format!("type_id: {:?}", type_id));
+                                writer.writeln_tab(tab + 3, &format!("value: {:?}", value));
+                                writer.writeln_tab(tab + 2, "}");
+                            }
+                            ConstItemASTNode::ConstNode { node } => {
+                                writer.write(&stringify_ast_impl(
+                                    tab + 2,
+                                    &[ASTNode::Const(node.clone())],
+                                ));
+                            }
+                        }
+                    }
+
+                    writer.writeln_tab(tab + 1, "]");
+                    writer.writeln_tab(tab, "}");
+                }
             }
         }
 
-        println!("{}", writer.show());
         writer.show().to_string()
     }
 
@@ -848,6 +937,16 @@ mod tests {
     fn parse_directive_test() {
         let src = fs::read_to_string("test_resources/directive.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/directive.ast").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let actual_ast = stringify_ast(&parse(&mut lexer));
+
+        assert_eq!(actual_ast, target_ast);
+    }
+
+    #[test]
+    fn parse_consts_test() {
+        let src = fs::read_to_string("test_resources/consts.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/consts.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(&parse(&mut lexer));
 

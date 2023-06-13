@@ -6,6 +6,25 @@ pub enum ASTNode {
     Struct(StructASTNode),
     Fn(FnASTNode),
     Directive(DirectiveASTNode),
+    Const(ConstASTNode),
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstASTNode {
+    pub id: String,
+    pub items: Vec<ConstItemASTNode>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ConstItemASTNode {
+    Value {
+        id: String,
+        type_id: TypeIDASTNode,
+        value: ConstValueASTNode,
+    },
+    ConstNode {
+        node: ConstASTNode,
+    },
 }
 
 #[derive(Debug)]

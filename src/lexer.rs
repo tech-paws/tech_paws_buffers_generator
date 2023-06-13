@@ -253,7 +253,7 @@ fn lex_number(string_reader: &mut StringReader) -> Token {
 
     if is_hex {
         Token::Literal(Literal::IntLiteral(
-            i64::from_str_radix(&value.trim_start_matches("0x"), 16).unwrap(),
+            i64::from_str_radix(value.trim_start_matches("0x"), 16).unwrap(),
         ))
     } else {
         Token::Literal(Literal::IntLiteral(value.parse::<i64>().unwrap()))

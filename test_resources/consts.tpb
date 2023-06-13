@@ -11,6 +11,8 @@ const commands {
 }
 
 const addr {
+    SOME_VALUE: String = "Hello World!";
+
     const groups {
         MAIN: GroupAddress = 0;
         MAIN_RENDER: GroupAddress = 1;
@@ -18,6 +20,9 @@ const addr {
         RPC_SYNC: GroupAddress = 3;
         RPC_READ: GroupAddress = 4;
     }
+
+    DELTA_TIME: i64 = 166;
+
     const commands_buffers {
         WIN1_MAIN_RENDER: CommandsBufferAddress = 0;
     }

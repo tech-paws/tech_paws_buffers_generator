@@ -1,0 +1,105 @@
+Const {
+  id: "commands",
+  items: [
+    Value {
+      id: DRAW_LINES
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131073), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: DRAW_PATH
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131074), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: DRAW_QUADS
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131075), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: DRAW_CENTERED_QUADS
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131076), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: DRAW_TEXTS
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131077), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: SET_COLOR_PIPELINE
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131078), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: SET_TEXTURE_PIPELINE
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131079), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: DRAW_CIRCLES
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131080), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Value {
+      id: DRAW_HOLLOW_CIRCLES
+      type_id: Integer { id: "u64", size: 8, signed: false }
+      value: Literal { literal: IntLiteral(131081), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+  ]
+}
+Const {
+  id: "addr",
+  items: [
+    Value {
+      id: SOME_VALUE
+      type_id: Other { id: "String" }
+      value: Literal { literal: StringLiteral("Hello World!"), type_id: Other { id: "String" } }
+    }
+    Const {
+      id: "groups",
+      items: [
+        Value {
+          id: MAIN
+          type_id: Other { id: "GroupAddress" }
+          value: Literal { literal: IntLiteral(0), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+        Value {
+          id: MAIN_RENDER
+          type_id: Other { id: "GroupAddress" }
+          value: Literal { literal: IntLiteral(1), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+        Value {
+          id: RPC
+          type_id: Other { id: "GroupAddress" }
+          value: Literal { literal: IntLiteral(2), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+        Value {
+          id: RPC_SYNC
+          type_id: Other { id: "GroupAddress" }
+          value: Literal { literal: IntLiteral(3), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+        Value {
+          id: RPC_READ
+          type_id: Other { id: "GroupAddress" }
+          value: Literal { literal: IntLiteral(4), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+      ]
+    }
+    Value {
+      id: DELTA_TIME
+      type_id: Integer { id: "i64", size: 8, signed: true }
+      value: Literal { literal: IntLiteral(166), type_id: Integer { id: "i32", size: 4, signed: true } }
+    }
+    Const {
+      id: "commands_buffers",
+      items: [
+        Value {
+          id: WIN1_MAIN_RENDER
+          type_id: Other { id: "CommandsBufferAddress" }
+          value: Literal { literal: IntLiteral(0), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+      ]
+    }
+  ]
+}

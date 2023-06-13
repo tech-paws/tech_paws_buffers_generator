@@ -72,6 +72,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
             ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
             ASTNode::Fn(_) => (),
             ASTNode::Directive(_) => (),
+            ASTNode::Const(_) => (),
         }
     }
 
@@ -93,6 +94,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
             ASTNode::Enum(node) => writer.writeln(&generate_enum_buffers(node)),
             ASTNode::Fn(_) => (),
             ASTNode::Directive(_) => (),
+            ASTNode::Const(_) => (),
         }
     }
 
