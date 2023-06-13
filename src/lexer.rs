@@ -226,6 +226,7 @@ fn lex_string(string_reader: &mut StringReader) -> Token {
 fn lex_number(string_reader: &mut StringReader) -> Token {
     let mut value = String::new();
     let mut is_hex = false;
+    let mut is_float = false;
 
     loop {
         value += &String::from(string_reader.current().unwrap());
@@ -238,7 +239,12 @@ fn lex_number(string_reader: &mut StringReader) -> Token {
                     continue;
                 }
 
-                if ch == 'x' && !is_hex {
+                if ch == '.' && !is_hex && !is_float {
+                    is_float = true;
+                    continue;
+                }
+
+                if ch == 'x' && !is_hex && !is_float {
                     is_hex = true;
                     continue;
                 }
@@ -255,6 +261,8 @@ fn lex_number(string_reader: &mut StringReader) -> Token {
         Token::Literal(Literal::IntLiteral(
             i64::from_str_radix(value.trim_start_matches("0x"), 16).unwrap(),
         ))
+    } else if is_float {
+        Token::Literal(Literal::NumberLiteral(value.parse::<f64>().unwrap()))
     } else {
         Token::Literal(Literal::IntLiteral(value.parse::<i64>().unwrap()))
     }
@@ -377,7 +385,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn lex_number_literal() {
         let mut lexer = Lexer::tokenize("123. 342.23 03.001");
         let token = lexer.current_token();
@@ -385,7 +392,7 @@ mod tests {
         let token = lexer.next_token();
         assert_eq!(
             token.clone(),
-            Token::Literal(Literal::NumberLiteral(324.23))
+            Token::Literal(Literal::NumberLiteral(342.23))
         );
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Literal(Literal::NumberLiteral(3.001)));

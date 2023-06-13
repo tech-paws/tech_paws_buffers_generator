@@ -21,7 +21,7 @@ const addr {
         RPC_READ: GroupAddress = 4;
     }
 
-    DELTA_TIME: i64 = 166;
+    DELTA_TIME: i64 = 16.6;
 
     const commands_buffers {
         WIN1_MAIN_RENDER: CommandsBufferAddress = 0;

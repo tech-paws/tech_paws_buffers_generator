@@ -89,7 +89,7 @@ Const {
     Value {
       id: DELTA_TIME
       type_id: Integer { id: "i64", size: 8, signed: true }
-      value: Literal { literal: IntLiteral(166), type_id: Integer { id: "i32", size: 4, signed: true } }
+      value: Literal { literal: NumberLiteral(16.6), type_id: Number { id: "f32", size: 4 } }
     }
     Const {
       id: "commands_buffers",
