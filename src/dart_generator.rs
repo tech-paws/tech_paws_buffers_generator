@@ -519,6 +519,20 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     writer.show().to_string()
 }
 
+pub fn generate_const_value(node: &ConstValueASTNode) -> String {
+    match node {
+        ConstValueASTNode::Literal {
+            literal,
+            type_id: _,
+        } => match literal {
+            Literal::StringLiteral(value) => format!("\"{}\"", value),
+            Literal::IntLiteral(value) => format!("{}", value),
+            Literal::NumberLiteral(value) => format!("{}", value),
+            Literal::BoolLiteral(value) => format!("{}", value),
+        },
+    }
+}
+
 pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Integer {
@@ -844,7 +858,7 @@ pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
 mod tests {
     use std::fs;
 
-    use crate::{lexer::Lexer, parser::parse};
+    use crate::{lexer::Lexer, parser::parse, dart::consts::generate_consts};
 
     use super::*;
 
@@ -969,6 +983,17 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_consts_test() {
+        let src = fs::read_to_string("test_resources/consts.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/dart/consts.dart").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_consts(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }
