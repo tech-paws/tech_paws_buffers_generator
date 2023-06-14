@@ -21,7 +21,7 @@ const addr {
         RPC_READ: GroupAddress = 4;
     }
 
-    DELTA_TIME: i64 = 16.6;
+    DELTA_TIME: f64 = 16.6;
     FLAG: bool = true;
 
     const commands_buffers {

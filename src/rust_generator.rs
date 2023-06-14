@@ -1,7 +1,8 @@
 use crate::ast::{self, *};
+use crate::rust::consts::generate_const_block;
 use crate::rust::enum_buffers::generate_enum_buffers;
 use crate::rust::enum_models::generate_enum_model;
-use crate::rust::rpc::{generate_rpc_method, generate_register_fn};
+use crate::rust::rpc::{generate_register_fn, generate_rpc_method};
 use crate::rust::struct_buffers::generate_struct_buffers;
 use crate::rust::struct_models::generate_struct_model;
 use crate::{lexer::Literal, writer::Writer};
@@ -127,6 +128,24 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
     for node in ast {
         if let ASTNode::Fn(node) = node {
             writer.writeln(&generate_rpc_method(node))
+        }
+    }
+
+    let mut res = writer.show().to_string();
+
+    if res.ends_with("\n\n") {
+        res.pop();
+    }
+
+    res
+}
+
+pub fn generate_consts(ast: &[ASTNode]) -> String {
+    let mut writer = Writer::default();
+
+    for node in ast {
+        if let ASTNode::Const(node) = node {
+            writer.writeln(&generate_const_block(0, node))
         }
     }
 
@@ -354,6 +373,17 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_consts_test() {
+        let src = fs::read_to_string("test_resources/consts.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/consts.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_consts(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }
