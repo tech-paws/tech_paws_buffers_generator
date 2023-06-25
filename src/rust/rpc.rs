@@ -29,12 +29,8 @@ pub fn generate_rpc_method(node: &FnASTNode) -> String {
 pub fn generate_register_fn(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln("pub fn register_rpc(");
-    writer.writeln_tab(1, "runtime: &mut TechPawsRuntime,");
-    writer.writeln_tab(1, "sync_group_address: GroupAddress,");
-    writer.writeln_tab(1, "async_group_address: GroupAddress,");
-    writer.writeln_tab(1, "read_group_address: GroupAddress,");
-    writer.writeln(") {");
+    writer
+        .writeln("pub fn register_rpc(runtime: &mut TechPawsRuntime, addr: &TechPawsRpcAddress) {");
 
     let id = ast::find_directive_value(ast, "id").expect("id is required");
     let id = match id {
@@ -57,11 +53,11 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
 
     for node in fn_nodes.iter() {
         let (group_address, register_method) = if node.is_read {
-            ("read_group_address", "register_async_rpc_method")
+            ("addr.read_group_address", "register_async_rpc_method")
         } else if node.is_async {
-            ("async_group_address", "register_async_rpc_method")
+            ("addr.async_group_address", "register_async_rpc_method")
         } else {
-            ("sync_group_address", "register_sync_rpc_method")
+            ("addr.sync_group_address", "register_sync_rpc_method")
         };
 
         writer.writeln_tab(1, &format!("runtime.{}(", register_method));

@@ -403,6 +403,7 @@ mod tests {
         assert_eq!(token.clone(), Token::EOF);
     }
 
+    #[test]
     fn lex_bool_literal() {
         let mut lexer = Lexer::tokenize("true false");
         let token = lexer.current_token();

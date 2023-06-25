@@ -1,31 +1,26 @@
-pub fn register_rpc(
-    runtime: &mut TechPawsRuntime,
-    sync_group_address: GroupAddress,
-    async_group_address: GroupAddress,
-    read_group_address: GroupAddress,
-) {
+pub fn register_rpc(runtime: &mut TechPawsRuntime, addr: &TechPawsRpcAddress) {
     let scope_id = TechPawsScopeId(uuid!("106c2228-ff3b-45c5-8a55-db9c0537f275"));
     runtime.memory.add_scope(scope_id);
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(0),
         print_hello_world_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(1),
         hello_world_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(2),
         say_hello_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(3),
         sum_rpc_handler,

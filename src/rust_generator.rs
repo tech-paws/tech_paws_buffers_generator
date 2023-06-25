@@ -19,8 +19,17 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
 
     if rpc && !ast::find_fn_nodes(ast).is_empty() {
         writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
-        writer.writeln("use tech_paws_runtime::{BufferAddress, async_runtime::Emitter, async_runtime::VoidEmitter};");
-        writer.writeln("use tables::Table;");
+        writer.writeln("use tech_paws_runtime::{");
+        writer.writeln_tab(
+            1,
+            "memory::TechPawsRuntimeMemory, RpcMethodAddress, TechPawsRpcAddress, TechPawsRuntime,",
+        );
+        writer.writeln_tab(
+            1,
+            "TechPawsRuntimeAsyncContext, TechPawsRuntimeRpcMethodBuffer, TechPawsScopeId,",
+        );
+        writer.writeln("};");
+        writer.writeln("use uuid::uuid;");
     } else if buffers {
         writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
     }

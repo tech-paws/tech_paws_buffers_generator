@@ -1,79 +1,74 @@
-pub fn register_rpc(
-    runtime: &mut TechPawsRuntime,
-    sync_group_address: GroupAddress,
-    async_group_address: GroupAddress,
-    read_group_address: GroupAddress,
-) {
+pub fn register_rpc(runtime: &mut TechPawsRuntime, addr: &TechPawsRpcAddress) {
     let scope_id = TechPawsScopeId(uuid!("4de616f8-12c5-4d2c-8d48-9c5fb038991f"));
     runtime.memory.add_scope(scope_id);
     runtime.register_sync_rpc_method(
-        sync_group_address,
+        addr.sync_group_address,
         scope_id,
         RpcMethodAddress(0),
         print_hello_world_rpc_handler,
     );
     runtime.register_sync_rpc_method(
-        sync_group_address,
+        addr.sync_group_address,
         scope_id,
         RpcMethodAddress(1),
         hello_world_rpc_handler,
     );
     runtime.register_sync_rpc_method(
-        sync_group_address,
+        addr.sync_group_address,
         scope_id,
         RpcMethodAddress(2),
         say_hello_rpc_handler,
     );
     runtime.register_sync_rpc_method(
-        sync_group_address,
+        addr.sync_group_address,
         scope_id,
         RpcMethodAddress(3),
         sum_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(4),
         print_hello_world_async_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(5),
         hello_world_async_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(6),
         say_hello_async_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        async_group_address,
+        addr.async_group_address,
         scope_id,
         RpcMethodAddress(7),
         sum_async_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        read_group_address,
+        addr.read_group_address,
         scope_id,
         RpcMethodAddress(8),
         trigger_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        read_group_address,
+        addr.read_group_address,
         scope_id,
         RpcMethodAddress(9),
         theme_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        read_group_address,
+        addr.read_group_address,
         scope_id,
         RpcMethodAddress(10),
         trigger_async_rpc_handler,
     );
     runtime.register_async_rpc_method(
-        read_group_address,
+        addr.read_group_address,
         scope_id,
         RpcMethodAddress(11),
         theme_async_rpc_handler,

@@ -21,11 +21,15 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
 
     if rpc && !ast::find_fn_nodes(ast).is_empty() {
         writer.writeln("import 'dart:async';");
+        writer.writeln("import 'dart:convert';");
         writer.writeln("");
         writer.writeln("import 'package:tech_paws_buffers/tech_paws_buffers.dart';");
-        writer.writeln("import 'package:tech_paws_runtime_flutter/scheduler.dart';");
+        writer.writeln("import 'package:tech_paws_buffers/primitives.dart';");
+        writer.writeln("import 'package:tech_paws_runtime/scheduler.dart';");
+        writer.writeln("import 'package:tech_paws_runtime/tech_paws_runtime.dart';");
     } else if buffers {
         writer.writeln("import 'package:tech_paws_buffers/tech_paws_buffers.dart';");
+        writer.writeln("import 'package:tech_paws_buffers/primitives.dart';");
     }
 
     let imports = ast::find_directive_group_values(ast, "dart", "import");
@@ -858,7 +862,7 @@ pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
 mod tests {
     use std::fs;
 
-    use crate::{lexer::Lexer, parser::parse, dart::consts::generate_consts};
+    use crate::{dart::consts::generate_consts, lexer::Lexer, parser::parse};
 
     use super::*;
 
