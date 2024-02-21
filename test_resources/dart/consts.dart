@@ -1,7 +1,5 @@
 const commands = _Commands();
 const addr = _Addr();
-const groups = _Groups();
-const commandsBuffers = _CommandsBuffers();
 
 class _Commands {
   const _Commands();
@@ -21,14 +19,14 @@ class _Addr {
   const _Addr();
 
   final String someValue = "Hello World!";
-  final groups = const _Groups();
+  final groups = const _AddrGroups();
   final double deltaTime = 16.6;
   final bool flag = true;
-  final commandsBuffers = const _CommandsBuffers();
+  final commandsBuffers = const _AddrCommandsBuffers();
 }
 
-class _Groups {
-  const _Groups();
+class _AddrGroups {
+  const _AddrGroups();
 
   final int main = 0;
   final int mainRender = 1;
@@ -37,8 +35,8 @@ class _Groups {
   final int rpcRead = 4;
 }
 
-class _CommandsBuffers {
-  const _CommandsBuffers();
+class _AddrCommandsBuffers {
+  const _AddrCommandsBuffers();
 
   final int win1MainRender = 0;
 }

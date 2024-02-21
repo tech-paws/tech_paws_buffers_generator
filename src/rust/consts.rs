@@ -8,7 +8,7 @@ use crate::{
 pub fn generate_const_block(tab: usize, const_node: &ConstASTNode) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln_tab(tab, &format!("mod {} {{", const_node.id));
+    writer.writeln_tab(tab, &format!("pub mod {} {{", const_node.id));
 
     let mut is_first = true;
     let mut is_value = false;

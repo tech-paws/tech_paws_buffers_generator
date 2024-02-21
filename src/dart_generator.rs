@@ -1,4 +1,5 @@
 use crate::ast::{self, *};
+use crate::dart::consts::generate_consts;
 use crate::lexer::Literal;
 use crate::{
     dart::{
@@ -17,6 +18,7 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     let mut writer = Writer::new(2);
 
     writer.writeln("// GENERATED, DO NOT EDIT");
+    writer.writeln("// ignore_for_file: unused_import");
     writer.writeln("");
 
     if rpc && !ast::find_fn_nodes(ast).is_empty() {
@@ -45,6 +47,11 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
             },
         };
         writer.writeln(&format!("import '{}';", import));
+    }
+
+    if ast::contains_consts_nodes(ast) {
+        writer.writeln("");
+        writer.write(&generate_consts(ast));
     }
 
     if models {

@@ -184,6 +184,16 @@ pub struct FnArgASTNode {
     pub type_id: TypeIDASTNode,
 }
 
+pub fn contains_consts_nodes(ast: &[ASTNode]) -> bool {
+    for node in ast {
+        if let ASTNode::Const(_) = node {
+            return true;
+        }
+    }
+
+    false
+}
+
 pub fn find_fn_nodes(ast: &[ASTNode]) -> Vec<&FnASTNode> {
     let mut res = vec![];
 

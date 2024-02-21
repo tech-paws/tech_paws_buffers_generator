@@ -19,7 +19,7 @@ pub fn generate_consts(ast: &[ASTNode]) -> String {
     for node in ast {
         if let ASTNode::Const(node) = node {
             writer.writeln("");
-            writer.write(&generate_const_class_impl(node));
+            writer.write(&generate_const_class_impl("", node));
         }
     }
 
@@ -44,20 +44,27 @@ pub fn generate_const_class_decls(node: &ConstASTNode) -> String {
         ),
     );
 
-    for item in &node.items {
-        if let ConstItemASTNode::ConstNode { node } = item {
-            writer.write(&generate_const_class_decls(node))
-        }
-    }
+    // for item in &node.items {
+    //     if let ConstItemASTNode::ConstNode { node } = item {
+    //         writer.write(&generate_const_class_decls(node))
+    //     }
+    // }
 
     writer.show().to_string()
 }
 
-pub fn generate_const_class_impl(node: &ConstASTNode) -> String {
+pub fn generate_const_class_impl(prefix: &str, node: &ConstASTNode) -> String {
     let mut writer = Writer::new(2);
 
-    writer.writeln(&format!("class _{} {{", node.id.to_case(Case::Pascal)));
-    writer.writeln_tab(1, &format!("const _{}();", node.id.to_case(Case::Pascal)));
+    writer.writeln(&format!(
+        "class _{}{} {{",
+        prefix,
+        node.id.to_case(Case::Pascal)
+    ));
+    writer.writeln_tab(
+        1,
+        &format!("const _{}{}();", prefix, node.id.to_case(Case::Pascal)),
+    );
 
     let mut added_space = false;
 
@@ -88,12 +95,14 @@ pub fn generate_const_class_impl(node: &ConstASTNode) -> String {
                     ),
                 );
             }
-            ConstItemASTNode::ConstNode { node } => writer.writeln_tab(
+            ConstItemASTNode::ConstNode { node: child_node } => writer.writeln_tab(
                 1,
                 &format!(
-                    "final {} = const _{}();",
-                    node.id.to_case(Case::Camel),
+                    "final {} = const _{}{}{}();",
+                    child_node.id.to_case(Case::Camel),
+                    prefix,
                     node.id.to_case(Case::Pascal),
+                    child_node.id.to_case(Case::Pascal),
                 ),
             ),
         }
@@ -101,10 +110,12 @@ pub fn generate_const_class_impl(node: &ConstASTNode) -> String {
 
     writer.writeln("}");
 
+    let children_prefix = prefix.to_owned() + &node.id.to_case(Case::Pascal);
+
     for item in &node.items {
         if let ConstItemASTNode::ConstNode { node } = item {
             writer.writeln("");
-            writer.write(&generate_const_class_impl(node))
+            writer.write(&generate_const_class_impl(&children_prefix, node))
         }
     }
 

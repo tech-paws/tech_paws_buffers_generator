@@ -49,6 +49,11 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
         writer.writeln(&format!("use {};", import));
     }
 
+    if ast::contains_consts_nodes(ast) {
+        writer.writeln("");
+        writer.write(&generate_consts(ast));
+    }
+
     if models {
         writer.writeln("");
         writer.write(&generate_models(ast));
