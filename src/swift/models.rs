@@ -58,16 +58,6 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
     };
 
     let mut method_body = vec![];
-    // let mut new_instance_body = vec![];
-
-    // for field in &node.fields {
-    //     new_instance_body.push(SwiftGeneratorToken::StructAssignArgumentInConstructor {
-    //         id: field.name.clone(),
-    //         type_id: field.type_id.clone(),
-    //         value: None,
-    //     });
-    // }
-
     let first_case = node.items.first().unwrap();
 
     method_body.push(SwiftGeneratorToken::ReturnStatement {
@@ -77,39 +67,35 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
                 field: first_case.id().to_string(),
             },
             EnumItemASTNode::Tuple { values, .. } => {
-                let mut body = vec![];
+                let mut arguments = vec![];
 
                 for value in values {
-                    body.push(SwiftGeneratorToken::EnumAssignArgumentInConstructor {
+                    arguments.push(SwiftGeneratorToken::AssignArgument {
                         id: None,
                         value: None,
                         type_id: value.type_id.clone(),
                     });
                 }
 
-                SwiftGeneratorToken::NewInstance {
-                    type_id: TypeIDASTNode::Other {
-                        id: format!(".{}", first_case.id().to_case(Case::Camel)),
-                    },
-                    body,
+                SwiftGeneratorToken::Call {
+                    id: format!(".{}", first_case.id().to_case(Case::Camel)),
+                    arguments,
                 }
             }
             EnumItemASTNode::Struct { fields, .. } => {
-                let mut body = vec![];
+                let mut arguments = vec![];
 
                 for field in fields {
-                    body.push(SwiftGeneratorToken::EnumAssignArgumentInConstructor {
+                    arguments.push(SwiftGeneratorToken::AssignArgument {
                         id: Some(field.name.clone()),
                         value: None,
                         type_id: field.type_id.clone(),
                     });
                 }
 
-                SwiftGeneratorToken::NewInstance {
-                    type_id: TypeIDASTNode::Other {
-                        id: format!(".{}", first_case.id().to_case(Case::Camel)),
-                    },
-                    body,
+                SwiftGeneratorToken::Call {
+                    id: format!(".{}", first_case.id().to_case(Case::Camel)),
+                    arguments,
                 }
             }
         }),
@@ -148,7 +134,7 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Sw
         let mut new_instance_body = vec![];
 
         for field in &node.fields {
-            new_instance_body.push(SwiftGeneratorToken::StructAssignArgumentInConstructor {
+            new_instance_body.push(SwiftGeneratorToken::AssignStructNamedArgument {
                 id: field.name.clone(),
                 type_id: field.type_id.clone(),
                 value: None,

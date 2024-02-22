@@ -57,12 +57,12 @@ pub enum SwiftGeneratorToken {
         type_id: TypeIDASTNode,
         body: Vec<SwiftGeneratorToken>,
     },
-    StructAssignArgumentInConstructor {
+    AssignStructNamedArgument {
         id: String,
         type_id: TypeIDASTNode,
         value: Option<Box<SwiftGeneratorToken>>,
     },
-    EnumAssignArgumentInConstructor {
+    AssignArgument {
         id: Option<String>,
         type_id: TypeIDASTNode,
         value: Option<Box<SwiftGeneratorToken>>,
@@ -200,7 +200,7 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 writer.write(")");
             }
         }
-        SwiftGeneratorToken::StructAssignArgumentInConstructor { id, type_id, value } => {
+        SwiftGeneratorToken::AssignStructNamedArgument { id, type_id, value } => {
             if let Some(value) = value {
                 writer.write(&format!("{}: ", id.to_case(Case::Camel),));
                 write_token(writer, value);
@@ -212,7 +212,7 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 ));
             }
         }
-        SwiftGeneratorToken::EnumAssignArgumentInConstructor { id, type_id, value } => {
+        SwiftGeneratorToken::AssignArgument { id, type_id, value } => {
             if let Some(id) = id {
                 writer.write(&format!("/* {} */ ", id.to_case(Case::Camel),));
 
@@ -230,7 +230,21 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
             }
         }
         SwiftGeneratorToken::StaticCall { type_id, method } => {}
-        SwiftGeneratorToken::Call { id, arguments } => {}
+        SwiftGeneratorToken::Call { id, arguments } => {
+            writer.write(id);
+
+            if arguments.is_empty() {
+                writer.write("()");
+            } else {
+                writer.write("(");
+                writer.new_line();
+                writer.push_tab();
+                write_tokens_comma_separated(writer, arguments);
+                writer.pop_tab();
+                writer.write_tabs();
+                writer.write(")");
+            }
+        }
         SwiftGeneratorToken::Enum { id, body } => {
             writer.writeln(&format!("enum {} {{", id.to_case(Case::Pascal)));
             writer.push_tab();
