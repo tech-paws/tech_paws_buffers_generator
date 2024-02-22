@@ -1,6 +1,6 @@
 use crate::ast::{ASTNode, ConstASTNode, ConstItemASTNode};
 
-use super::generator_tokens::SwiftGeneratorToken;
+use super::generator::SwiftGeneratorToken;
 
 pub fn generate_consts(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
     let mut tokens = vec![];
@@ -41,7 +41,7 @@ pub fn generate_const_block(const_node: &ConstASTNode) -> SwiftGeneratorToken {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{lexer::Lexer, parser::parse, swift::generator_tokens::stringify_tokens};
+    use crate::{lexer::Lexer, parser::parse, swift::generator::stringify_tokens};
     use std::fs;
 
     #[test]

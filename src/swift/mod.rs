@@ -1,4 +1,3 @@
 pub mod consts;
-pub mod generator_tokens;
+pub mod generator;
 pub mod models;
-pub mod types;

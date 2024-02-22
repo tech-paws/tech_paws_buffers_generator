@@ -1,6 +1,8 @@
-use super::generator_tokens::SwiftGeneratorToken;
+use convert_case::{Case, Casing};
 
-use crate::ast::{ASTNode, StructASTNode, TypeIDASTNode};
+use super::generator::SwiftGeneratorToken;
+
+use crate::ast::{ASTNode, EnumASTNode, EnumItemASTNode, StructASTNode, TypeIDASTNode};
 
 pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
     let mut tokens = vec![];
@@ -8,7 +10,7 @@ pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
     for node in ast {
         match node {
             ASTNode::Struct(node) => tokens.push(generate_struct_model(node, true)),
-            ASTNode::Enum(_) => (),
+            ASTNode::Enum(node) => tokens.push(generate_enum_model(node)),
             ASTNode::Fn(_) => (),
             ASTNode::Directive(_) => (),
             ASTNode::Const(_) => (),
@@ -16,6 +18,115 @@ pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
     }
 
     tokens
+}
+
+fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
+    let mut body = vec![];
+
+    for case in &node.items {
+        let mut parameters = vec![];
+
+        match case {
+            EnumItemASTNode::Tuple { values, .. } => {
+                for value in values {
+                    parameters.push(SwiftGeneratorToken::EnumCaseType {
+                        id: None,
+                        type_id: value.type_id.clone(),
+                    });
+                }
+            }
+            EnumItemASTNode::Struct { fields, .. } => {
+                for field in fields {
+                    parameters.push(SwiftGeneratorToken::EnumCaseType {
+                        id: Some(field.name.clone()),
+                        type_id: field.type_id.clone(),
+                    });
+                }
+            }
+            _ => (),
+        }
+
+        body.push(SwiftGeneratorToken::EnumCase {
+            id: case.id().to_string(),
+            parameters,
+        });
+    }
+
+    // createDefault method
+    let enum_type_id = TypeIDASTNode::Other {
+        id: node.id.clone(),
+    };
+
+    let mut method_body = vec![];
+    // let mut new_instance_body = vec![];
+
+    // for field in &node.fields {
+    //     new_instance_body.push(SwiftGeneratorToken::StructAssignArgumentInConstructor {
+    //         id: field.name.clone(),
+    //         type_id: field.type_id.clone(),
+    //         value: None,
+    //     });
+    // }
+
+    let first_case = node.items.first().unwrap();
+
+    method_body.push(SwiftGeneratorToken::ReturnStatement {
+        body: Box::new(match first_case {
+            EnumItemASTNode::Empty { .. } => SwiftGeneratorToken::FieldAccess {
+                instance: None,
+                field: first_case.id().to_string(),
+            },
+            EnumItemASTNode::Tuple { values, .. } => {
+                let mut body = vec![];
+
+                for value in values {
+                    body.push(SwiftGeneratorToken::EnumAssignArgumentInConstructor {
+                        id: None,
+                        value: None,
+                        type_id: value.type_id.clone(),
+                    });
+                }
+
+                SwiftGeneratorToken::NewInstance {
+                    type_id: TypeIDASTNode::Other {
+                        id: format!(".{}", first_case.id().to_case(Case::Camel)),
+                    },
+                    body,
+                }
+            }
+            EnumItemASTNode::Struct { fields, .. } => {
+                let mut body = vec![];
+
+                for field in fields {
+                    body.push(SwiftGeneratorToken::EnumAssignArgumentInConstructor {
+                        id: Some(field.name.clone()),
+                        value: None,
+                        type_id: field.type_id.clone(),
+                    });
+                }
+
+                SwiftGeneratorToken::NewInstance {
+                    type_id: TypeIDASTNode::Other {
+                        id: format!(".{}", first_case.id().to_case(Case::Camel)),
+                    },
+                    body,
+                }
+            }
+        }),
+    });
+
+    body.push(SwiftGeneratorToken::StructMethod {
+        id: String::from("createDefault"),
+        is_static: true,
+        return_type_id: enum_type_id,
+        body: method_body,
+        arguments: vec![],
+    });
+
+    SwiftGeneratorToken::Enum {
+        id: node.id.clone(),
+        body,
+    }
 }
 
 pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> SwiftGeneratorToken {
@@ -69,7 +180,7 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Sw
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{lexer::Lexer, parser::parse, swift::generator_tokens::stringify_tokens};
+    use crate::{lexer::Lexer, parser::parse, swift::generator::stringify_tokens};
     use std::fs;
 
     #[test]
@@ -129,14 +240,31 @@ mod tests {
         assert_eq!(stringify_tokens(&actual), target);
     }
 
-    // #[test]
-    // fn generate_enum_models() {
-    //     let src = fs::read_to_string("test_resources/enum.tpb").unwrap();
-    //     let target = fs::read_to_string("test_resources/rust/enum_models.rs").unwrap();
-    //     let mut lexer = Lexer::tokenize(&src);
-    //     let ast = parse(&mut lexer);
-    //     let actual = generate_models(&ast);
-    //     println!("{}", actual);
-    //     assert_eq!(actual, target);
-    // }
+    #[test]
+    fn generate_struct_model_test_gaps() {
+        let src = fs::read_to_string("test_resources/struct.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/swift/struct_models.swift").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+
+        println!("{:?}", actual);
+        println!("{}", stringify_tokens(&actual));
+
+        assert_eq!(stringify_tokens(&actual), target);
+    }
+
+    #[test]
+    fn generate_enum_model_test() {
+        let src = fs::read_to_string("test_resources/enum_extended.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/swift/enum_models.swift").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+
+        println!("{:?}", actual);
+        println!("{}", stringify_tokens(&actual));
+
+        assert_eq!(stringify_tokens(&actual), target);
+    }
 }
