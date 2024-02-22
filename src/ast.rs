@@ -81,7 +81,7 @@ pub enum EnumItemASTNode {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ConstValueASTNode {
     Literal {
         literal: Literal,
@@ -95,7 +95,7 @@ pub struct IdValuePair {
     pub value: ConstValueASTNode,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeIDASTNode {
     Integer {
         id: String,

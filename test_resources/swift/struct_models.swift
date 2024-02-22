@@ -37,8 +37,8 @@ struct Test {
 
     static func createDefault() -> ViewData {
         return Test(
-            touchX: Float,
-            touchY: Float,
+            touchX: 0,
+            touchY: 0,
             touchStatus: TouchStatus.createDefault()
         )
     }

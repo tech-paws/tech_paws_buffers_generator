@@ -18,7 +18,11 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
         },
         TypeIDASTNode::Bool { .. } => String::from("Bool"),
         TypeIDASTNode::Char { id } => id.clone(),
-        TypeIDASTNode::Other { id } => id.clone(),
+        TypeIDASTNode::Other { id } => match id.as_str() {
+            "GroupAddress" => String::from("UInt64"),
+            "CommandsBufferAddress" => String::from("UInt64"),
+            _ => id.clone(),
+        },
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
             "Vec" => format!(
                 "[{}]",
