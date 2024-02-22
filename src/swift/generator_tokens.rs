@@ -39,12 +39,13 @@ pub enum SwiftGeneratorToken {
         body: Box<SwiftGeneratorToken>,
     },
     NewInstance {
-        id: String,
+        type_id: TypeIDASTNode,
         body: Vec<SwiftGeneratorToken>,
     },
     StructAssignArgumentInConstructor {
         id: String,
-        value: Box<SwiftGeneratorToken>,
+        type_id: TypeIDASTNode,
+        value: Option<Box<SwiftGeneratorToken>>,
     },
     StaticCall {
         type_id: TypeIDASTNode,
@@ -78,8 +79,33 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[SwiftGeneratorToken]) {
                 }
             }
 
+            if let SwiftGeneratorToken::StructMethod { .. } = token {
+                if let SwiftGeneratorToken::StructMethod { .. } = last_token {
+                    writer.new_line();
+                }
+
+                if let SwiftGeneratorToken::StructConstField { .. } = last_token {
+                    writer.new_line();
+                }
+
+                if let SwiftGeneratorToken::StructField { .. } = last_token {
+                    writer.new_line();
+                }
+            }
+
+            //
             if let SwiftGeneratorToken::Struct { .. } = last_token {
                 if let SwiftGeneratorToken::StructConstField { .. } = token {
+                    writer.new_line();
+                }
+            }
+
+            if let SwiftGeneratorToken::StructMethod { .. } = last_token {
+                if let SwiftGeneratorToken::StructConstField { .. } = token {
+                    writer.new_line();
+                }
+
+                if let SwiftGeneratorToken::StructField { .. } = token {
                     writer.new_line();
                 }
             }
@@ -107,18 +133,83 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 generate_const_value(value, type_id)
             ));
         }
-        SwiftGeneratorToken::StructField { id, type_id } => {}
+        SwiftGeneratorToken::StructField { id, type_id } => writer.writeln(&format!(
+            "var {}: {}",
+            id.to_case(Case::Camel),
+            generate_type_id(type_id),
+        )),
         SwiftGeneratorToken::StructMethod {
             id,
             is_static,
             return_type_id,
             arguments,
             body,
-        } => {}
+        } => {
+            if *is_static {
+                writer.writeln(&format!(
+                    "static func {}() -> {} {{",
+                    id.to_case(Case::Camel),
+                    generate_type_id(return_type_id),
+                ));
+            } else {
+                writer.writeln(&format!(
+                    "func {}() -> {} {{",
+                    id.to_case(Case::Camel),
+                    generate_type_id(return_type_id),
+                ));
+            }
+
+            writer.push_tab();
+            write_tokens(writer, body);
+            writer.pop_tab();
+            writer.writeln("}");
+        }
         SwiftGeneratorToken::FunctionArgument { id, named, type_id } => {}
-        SwiftGeneratorToken::ReturnStatement { body } => {}
-        SwiftGeneratorToken::NewInstance { id, body } => {}
-        SwiftGeneratorToken::StructAssignArgumentInConstructor { id, value } => {}
+        SwiftGeneratorToken::ReturnStatement { body } => {
+            writer.write_tabs();
+            writer.write("return ");
+            write_token(writer, body);
+            writer.new_line();
+        }
+        SwiftGeneratorToken::NewInstance { type_id, body } => {
+            writer.write(&generate_type_id(type_id));
+
+            if body.is_empty() {
+                writer.write("()");
+            } else {
+                writer.write("(");
+                writer.new_line();
+                writer.push_tab();
+
+                let mut it = body.iter().peekable();
+
+                while let Some(token) = it.next() {
+                    writer.write_tabs();
+                    write_token(writer, token);
+
+                    if it.peek().is_some() {
+                        writer.write(",");
+                    }
+                    writer.new_line();
+                }
+
+                writer.pop_tab();
+                writer.write_tabs();
+                writer.write(")");
+            }
+        }
+        SwiftGeneratorToken::StructAssignArgumentInConstructor { id, type_id, value } => {
+            if let Some(value) = value {
+                writer.write(&format!("{}: ", id.to_case(Case::Camel),));
+                write_token(writer, value);
+            } else {
+                writer.write(&format!(
+                    "{}: {}",
+                    id.to_case(Case::Camel),
+                    generate_default_const_value(type_id)
+                ));
+            }
+        }
         SwiftGeneratorToken::StaticCall { type_id, method } => {}
         SwiftGeneratorToken::Call { id, arguments } => {}
     }

@@ -1,171 +1,142 @@
-// use convert_case::{Case, Casing};
+use super::generator_tokens::SwiftGeneratorToken;
 
-// use crate::{
-//     ast::{ASTNode, StructASTNode, StructFieldASTNode},
-//     writer::Writer,
-// };
+use crate::ast::{ASTNode, StructASTNode, TypeIDASTNode};
 
-// use super::{types::generate_type_id, consts::generate_default_const_value};
+pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
+    let mut tokens = vec![];
 
-// pub fn generate_models(ast: &[ASTNode]) -> String {
-//     let mut writer = Writer::default();
+    for node in ast {
+        match node {
+            ASTNode::Struct(node) => tokens.push(generate_struct_model(node, true)),
+            ASTNode::Enum(_) => (),
+            ASTNode::Fn(_) => (),
+            ASTNode::Directive(_) => (),
+            ASTNode::Const(_) => (),
+        }
+    }
 
-//     for node in ast {
-//         match node {
-//             ASTNode::Struct(node) => writer.write(&generate_struct_model(node, true)),
-//             // ASTNode::Enum(node) => writer.writeln(&generate_enum_model(node)),
-//             ASTNode::Enum(_) => (),
-//             ASTNode::Fn(_) => (),
-//             ASTNode::Directive(_) => (),
-//             ASTNode::Const(_) => (),
-//         }
-//     }
+    tokens
+}
 
-//     let mut res = writer.show().to_string();
+pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> SwiftGeneratorToken {
+    let mut body = vec![];
 
-//     if res.ends_with("\n\n") {
-//         res.pop();
-//     }
+    for field in &node.fields {
+        body.push(SwiftGeneratorToken::StructField {
+            id: field.name.clone(),
+            type_id: field.type_id.clone(),
+        });
+    }
 
-//     res
-// }
+    if generate_default {
+        let struct_type_id = TypeIDASTNode::Other {
+            id: node.id.clone(),
+        };
 
-// pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> String {
-//     let mut writer = Writer::default();
+        let mut method_body = vec![];
+        let mut new_instance_body = vec![];
 
-//     if node.fields.is_empty() {
-//         writer.writeln(&format!("struct {} {{", node.id));
+        for field in &node.fields {
+            new_instance_body.push(SwiftGeneratorToken::StructAssignArgumentInConstructor {
+                id: field.name.clone(),
+                type_id: field.type_id.clone(),
+                value: None,
+            });
+        }
 
-//         if generate_default {
-//             writer.writeln_tab(1, &format!("static func createDefault() -> {} {{", node.id));
-//             writer.writeln_tab(2, &format!("return {}()", node.id));
-//             writer.writeln_tab(1, "}");
-//         }
+        method_body.push(SwiftGeneratorToken::ReturnStatement {
+            body: Box::new(SwiftGeneratorToken::NewInstance {
+                type_id: struct_type_id.clone(),
+                body: new_instance_body,
+            }),
+        });
 
-//         writer.writeln("}");
-//     } else {
-//         writer.writeln(&format!("struct {} {{", node.id));
-//         writer.write(&generate_struct_parameters(1, &node.fields));
+        body.push(SwiftGeneratorToken::StructMethod {
+            id: String::from("createDefault"),
+            is_static: true,
+            return_type_id: struct_type_id,
+            body: method_body,
+            arguments: vec![],
+        });
+    }
 
-//         if generate_default {
-//             writer.writeln("");
-//             writer.write(&generate_struct_default(node));
-//         }
+    SwiftGeneratorToken::Struct {
+        id: node.id.clone(),
+        body,
+    }
+}
 
-//         writer.writeln("}");
-//     }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{lexer::Lexer, parser::parse, swift::generator_tokens::stringify_tokens};
+    use std::fs;
 
-//     writer.show().to_string()
-// }
+    #[test]
+    fn generate_struct_model_test_empty() {
+        let src = fs::read_to_string("test_resources/struct_empty.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/swift/struct_empty.swift").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
 
-// pub fn generate_struct_parameters(tab: usize, params: &[StructFieldASTNode]) -> String {
-//     let mut writer = Writer::default();
+        println!("{:?}", actual);
+        println!("{}", stringify_tokens(&actual));
 
-//     for param in params {
-//         let type_id = generate_type_id(&param.type_id);
-//         writer.writeln_tab(
-//             tab,
-//             &format!("var {}: {}", param.name.to_case(Case::Camel), type_id),
-//         );
-//     }
+        assert_eq!(stringify_tokens(&actual), target);
+    }
 
-//     writer.show().to_string()
-// }
+    #[test]
+    fn generate_struct_model_test_basic() {
+        let src = fs::read_to_string("test_resources/struct_basic.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/swift/struct_basic.swift").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
 
-// fn generate_struct_default(node: &StructASTNode) -> String {
-//     let mut writer = Writer::default();
+        println!("{:?}", actual);
+        println!("{}", stringify_tokens(&actual));
 
-//     writer.writeln_tab(1, &format!("static func createDefault() -> {} {{", node.id));
-//     writer.writeln_tab(2, &format!("return {}(", node.id));
+        assert_eq!(stringify_tokens(&actual), target);
+    }
 
-//     let mut it = node.fields.iter().peekable();
+    #[test]
+    fn generate_struct_model_test_with_positions() {
+        let src = fs::read_to_string("test_resources/struct_with_positions.tpb").unwrap();
+        let target =
+            fs::read_to_string("test_resources/swift/struct_with_positions.swift").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
 
-//     while let Some(field) = it.next() {
-//         if it.peek().is_none() {
-//             writer.writeln_tab(
-//                 3,
-//                 &format!(
-//                     "{}: {}",
-//                     field.name.to_case(Case::Camel),
-//                     generate_default_const_value(&field.type_id)
-//                 ),
-//             );
-//         } else {
-//             writer.writeln_tab(
-//                 3,
-//                 &format!(
-//                     "{}: {},",
-//                     field.name.to_case(Case::Camel),
-//                     generate_default_const_value(&field.type_id)
-//                 ),
-//             );
-//         }
-//     }
+        println!("{:?}", actual);
+        println!("{}", stringify_tokens(&actual));
 
-//     writer.writeln_tab(2, ")");
-//     writer.writeln_tab(1, "}");
+        assert_eq!(stringify_tokens(&actual), target);
+    }
 
-//     writer.show().to_string()
-// }
+    #[test]
+    fn generate_struct_model_test_generics() {
+        let src = fs::read_to_string("test_resources/struct_generics.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/swift/struct_generics.swift").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{lexer::Lexer, parser::parse};
-//     use std::fs;
+        println!("{:?}", actual);
+        println!("{}", stringify_tokens(&actual));
 
-//     #[test]
-//     fn generate_struct_model_test_empty() {
-//         let src = fs::read_to_string("test_resources/struct_empty.tpb").unwrap();
-//         let target = fs::read_to_string("test_resources/swift/struct_empty.swift").unwrap();
-//         let mut lexer = Lexer::tokenize(&src);
-//         let ast = parse(&mut lexer);
-//         let actual = generate_models(&ast);
-//         println!("{}", actual);
-//         assert_eq!(actual, target);
-//     }
+        assert_eq!(stringify_tokens(&actual), target);
+    }
 
-//     #[test]
-//     fn generate_struct_model_test_basic() {
-//         let src = fs::read_to_string("test_resources/struct_basic.tpb").unwrap();
-//         let target = fs::read_to_string("test_resources/swift/struct_basic.swift").unwrap();
-//         let mut lexer = Lexer::tokenize(&src);
-//         let ast = parse(&mut lexer);
-//         let actual = generate_models(&ast);
-//         println!("{}", actual);
-//         assert_eq!(actual, target);
-//     }
-
-//     #[test]
-//     fn generate_struct_model_test_with_positions() {
-//         let src = fs::read_to_string("test_resources/struct_with_positions.tpb").unwrap();
-//         let target = fs::read_to_string("test_resources/swift/struct_with_positions.swift").unwrap();
-//         let mut lexer = Lexer::tokenize(&src);
-//         let ast = parse(&mut lexer);
-//         let actual = generate_models(&ast);
-//         println!("{}", actual);
-//         assert_eq!(actual, target);
-//     }
-
-//     #[test]
-//     fn generate_struct_model_test_generics() {
-//         let src = fs::read_to_string("test_resources/struct_generics.tpb").unwrap();
-//         let target = fs::read_to_string("test_resources/swift/struct_generics.swift").unwrap();
-//         let mut lexer = Lexer::tokenize(&src);
-//         let ast = parse(&mut lexer);
-//         let actual = generate_models(&ast);
-//         println!("{}", actual);
-//         assert_eq!(actual, target);
-//     }
-
-//     // #[test]
-//     // fn generate_enum_models() {
-//     //     let src = fs::read_to_string("test_resources/enum.tpb").unwrap();
-//     //     let target = fs::read_to_string("test_resources/rust/enum_models.rs").unwrap();
-//     //     let mut lexer = Lexer::tokenize(&src);
-//     //     let ast = parse(&mut lexer);
-//     //     let actual = generate_models(&ast);
-//     //     println!("{}", actual);
-//     //     assert_eq!(actual, target);
-//     // }
-// }
+    // #[test]
+    // fn generate_enum_models() {
+    //     let src = fs::read_to_string("test_resources/enum.tpb").unwrap();
+    //     let target = fs::read_to_string("test_resources/rust/enum_models.rs").unwrap();
+    //     let mut lexer = Lexer::tokenize(&src);
+    //     let ast = parse(&mut lexer);
+    //     let actual = generate_models(&ast);
+    //     println!("{}", actual);
+    //     assert_eq!(actual, target);
+    // }
+}
