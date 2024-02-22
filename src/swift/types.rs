@@ -19,8 +19,16 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Bool { .. } => String::from("Bool"),
         TypeIDASTNode::Char { id } => id.clone(),
         TypeIDASTNode::Other { id } => id.clone(),
-        TypeIDASTNode::Generic { id, generics } => {
-            format!(
+        TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Vec" => format!(
+                "[{}]",
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            _ => format!(
                 "{}<{}>",
                 id,
                 generics
@@ -28,8 +36,8 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
                     .map(generate_type_id)
                     .collect::<Vec<String>>()
                     .join(", ")
-            )
-        }
+            ),
+        },
     }
 }
 

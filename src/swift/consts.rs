@@ -45,6 +45,32 @@ pub fn generate_const_value(node: &ConstValueASTNode, type_id: &TypeIDASTNode) -
     }
 }
 
+pub fn generate_default_const_value(type_id: &TypeIDASTNode) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id: _,
+            size: _,
+            signed: _,
+        } => String::from("0"),
+        TypeIDASTNode::Number { id: _, size: _ } => String::from("0"),
+        TypeIDASTNode::Bool { id: _ } => String::from("false"),
+        TypeIDASTNode::Char { id: _ } => String::from("0"),
+        TypeIDASTNode::Other { id } => format!("{}.createDefault()", id),
+        TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Vec" => String::from("[]"),
+            _ => format!(
+                "{}<{}>.createDefault()",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+        },
+    }
+}
+
 pub fn generate_consts(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
 
@@ -100,7 +126,7 @@ pub fn generate_const_block(tab: usize, const_node: &ConstASTNode) -> String {
                 writer.writeln_tab(
                     tab + 1,
                     &format!(
-                        "static let {}: {} = {};",
+                        "static let {}: {} = {}",
                         id.to_case(Case::Camel),
                         type_id,
                         value
