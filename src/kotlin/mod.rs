@@ -1,2 +1,2 @@
-pub mod consts;
-pub mod types;
+pub mod generator;
+pub mod ir;
