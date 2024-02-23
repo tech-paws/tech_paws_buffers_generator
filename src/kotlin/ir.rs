@@ -96,7 +96,7 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
             _ => panic!("Unsupported number size, {}", size),
         },
         TypeIDASTNode::Bool { .. } => String::from("Boolean"),
-        TypeIDASTNode::Char { id } => String::from("Char"),
+        TypeIDASTNode::Char { .. } => String::from("Char"),
         TypeIDASTNode::Other { id } => match id.as_str() {
             "GroupAddress" => String::from("ULong"),
             "CommandsBufferAddress" => String::from("ULong"),
