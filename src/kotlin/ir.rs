@@ -12,7 +12,21 @@ pub enum KotlinIR {
     Object {
         id: String,
         body: Vec<KotlinIR>,
+        extends: Vec<KotlinIR>,
     },
+    Class {
+        id: String,
+        is_data_class: bool,
+        extends: Vec<KotlinIR>,
+        fields: Vec<KotlinIR>,
+        body: Vec<KotlinIR>,
+    },
+    Interface {
+        id: String,
+        is_sealed: bool,
+        body: Vec<KotlinIR>,
+    },
+    Id(String),
     ValDeclaration {
         id: String,
         is_const: bool,
@@ -29,12 +43,6 @@ pub enum KotlinIR {
         value: ConstValueASTNode,
     },
     DefaulConstValueExpr(TypeIDASTNode),
-    Class {
-        id: String,
-        is_data_class: bool,
-        fields: Vec<KotlinIR>,
-        body: Vec<KotlinIR>,
-    },
     CompanionObject {
         body: Vec<KotlinIR>,
     },
@@ -67,6 +75,18 @@ pub fn stringify_tokens(tokens: &[KotlinIR]) -> String {
     writer.show().to_string()
 }
 
+pub fn write_tokens_separated(writer: &mut Writer, tokens: &[KotlinIR], separator: &'static str) {
+    let mut it = tokens.iter().peekable();
+
+    while let Some(token) = it.next() {
+        write_token(writer, token);
+
+        if it.peek().is_some() {
+            writer.write(separator);
+        }
+    }
+}
+
 pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinIR]) {
     let mut last_token: Option<&KotlinIR> = None;
 
@@ -77,6 +97,8 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinIR]) {
             ("Object", "Class"),
             ("Class", "Declaration"),
             ("Class", "Class"),
+            ("Class", "Interface"),
+            ("Object", "Interface"),
         ];
 
         if let Some(last_token) = last_token {
@@ -99,12 +121,32 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinIR]) {
 fn write_token(writer: &mut Writer, token: &KotlinIR) {
     match token {
         KotlinIR::Gap => writer.new_line(),
-        KotlinIR::Object { id, body } => {
-            writer.writeln(&format!("object {} {{", id.to_case(Case::Pascal)));
-            writer.push_tab();
-            write_tokens(writer, body);
-            writer.pop_tab();
-            writer.writeln("}");
+        KotlinIR::Id(id) => writer.write(id),
+        KotlinIR::Object { id, extends, body } => {
+            writer.write_tabs();
+            writer.write(&format!("object {}", id.to_case(Case::Pascal)));
+
+            if !extends.is_empty() {
+                writer.write(" : ");
+                write_tokens_separated(writer, extends, ", ");
+            }
+
+            if !body.is_empty() {
+                writer.write(" {");
+                writer.new_line();
+                writer.push_tab();
+                write_tokens(writer, body);
+                writer.pop_tab();
+                writer.writeln("}");
+            } else {
+                writer.new_line();
+            }
+            // writer.write(" {")
+
+            // writer.push_tab();
+            // write_tokens(writer, body);
+            // writer.pop_tab();
+            // writer.writeln("}");
         }
         KotlinIR::Declaration { body, separator } => {
             writer.write_tabs();
@@ -145,6 +187,7 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
         KotlinIR::Class {
             id,
             is_data_class,
+            extends,
             fields,
             body,
         } => {
@@ -154,18 +197,46 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
                 writer.write("data ");
             }
 
-            writer.write(&format!("class {}(", id));
+            writer.write(&format!("class {}(", id.to_case(Case::Pascal)));
 
             if fields.is_empty() {
-                writer.write(") {");
-                writer.new_line();
+                writer.write(")");
             } else {
                 writer.new_line();
                 writer.push_tab();
                 write_tokens(writer, fields);
                 writer.pop_tab();
-                writer.writeln(") {");
+                writer.write(")");
             }
+
+            if !extends.is_empty() {
+                writer.write(" : ");
+                write_tokens_separated(writer, extends, ", ");
+            }
+
+            if !body.is_empty() {
+                writer.write(" {");
+                writer.new_line();
+                writer.push_tab();
+                write_tokens(writer, body);
+                writer.pop_tab();
+                writer.writeln("}");
+            } else {
+                writer.new_line();
+            }
+        }
+        KotlinIR::Interface {
+            id,
+            is_sealed,
+            body,
+        } => {
+            writer.write_tabs();
+
+            if *is_sealed {
+                writer.write("sealed ");
+            }
+
+            writer.writeln(&format!("interface {} {{", id));
 
             writer.push_tab();
             write_tokens(writer, body);
