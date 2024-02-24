@@ -1,13 +1,13 @@
 use convert_case::{Case, Casing};
 
-use super::ir::SwiftGeneratorToken;
+use super::ir::SwiftIR;
 
 use crate::ast::{
     ASTNode, ConstASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode, StructASTNode,
     TypeIDASTNode,
 };
 
-pub fn generate_consts(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
+pub fn generate_consts(ast: &[ASTNode]) -> Vec<SwiftIR> {
     let mut tokens = vec![];
 
     for node in ast {
@@ -19,13 +19,13 @@ pub fn generate_consts(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
     tokens
 }
 
-pub fn generate_const_block(const_node: &ConstASTNode) -> SwiftGeneratorToken {
+pub fn generate_const_block(const_node: &ConstASTNode) -> SwiftIR {
     let mut body = vec![];
 
     for item in &const_node.items {
         match &item {
             ConstItemASTNode::Value { id, type_id, value } => {
-                body.push(SwiftGeneratorToken::StructConstField {
+                body.push(SwiftIR::StructConstField {
                     id: id.clone(),
                     type_id: type_id.clone(),
                     value: value.clone(),
@@ -37,29 +37,27 @@ pub fn generate_const_block(const_node: &ConstASTNode) -> SwiftGeneratorToken {
         }
     }
 
-    SwiftGeneratorToken::Struct {
+    SwiftIR::Struct {
         id: const_node.id.clone(),
         body,
     }
 }
 
-pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftGeneratorToken> {
+pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftIR> {
     let mut tokens = vec![];
 
     for node in ast {
         match node {
             ASTNode::Struct(node) => tokens.push(generate_struct_model(node, true)),
             ASTNode::Enum(node) => tokens.push(generate_enum_model(node)),
-            ASTNode::Fn(_) => (),
-            ASTNode::Directive(_) => (),
-            ASTNode::Const(_) => (),
+            _ => (),
         }
     }
 
     tokens
 }
 
-fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
+fn generate_enum_model(node: &EnumASTNode) -> SwiftIR {
     let mut body = vec![];
 
     for case in &node.items {
@@ -68,7 +66,7 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
         match case {
             EnumItemASTNode::Tuple { values, .. } => {
                 for value in values {
-                    parameters.push(SwiftGeneratorToken::EnumCaseType {
+                    parameters.push(SwiftIR::EnumCaseType {
                         id: None,
                         type_id: value.type_id.clone(),
                     });
@@ -76,7 +74,7 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
             }
             EnumItemASTNode::Struct { fields, .. } => {
                 for field in fields {
-                    parameters.push(SwiftGeneratorToken::EnumCaseType {
+                    parameters.push(SwiftIR::EnumCaseType {
                         id: Some(field.name.clone()),
                         type_id: field.type_id.clone(),
                     });
@@ -85,7 +83,7 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
             _ => (),
         }
 
-        body.push(SwiftGeneratorToken::EnumCase {
+        body.push(SwiftIR::EnumCase {
             id: case.id().to_string(),
             parameters,
         });
@@ -99,9 +97,9 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
     let mut method_body = vec![];
     let first_case = node.items.first().unwrap();
 
-    method_body.push(SwiftGeneratorToken::ReturnStatement {
+    method_body.push(SwiftIR::ReturnStatement {
         body: Box::new(match first_case {
-            EnumItemASTNode::Empty { .. } => SwiftGeneratorToken::FieldAccess {
+            EnumItemASTNode::Empty { .. } => SwiftIR::FieldAccess {
                 instance: None,
                 field: first_case.id().to_string(),
             },
@@ -109,14 +107,14 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
                 let mut arguments = vec![];
 
                 for value in values {
-                    arguments.push(SwiftGeneratorToken::AssignArgument {
+                    arguments.push(SwiftIR::AssignArgument {
                         id: None,
                         value: None,
                         type_id: value.type_id.clone(),
                     });
                 }
 
-                SwiftGeneratorToken::Call {
+                SwiftIR::Call {
                     id: format!(".{}", first_case.id().to_case(Case::Camel)),
                     arguments,
                 }
@@ -125,14 +123,14 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
                 let mut arguments = vec![];
 
                 for field in fields {
-                    arguments.push(SwiftGeneratorToken::AssignArgument {
+                    arguments.push(SwiftIR::AssignArgument {
                         id: Some(field.name.clone()),
                         value: None,
                         type_id: field.type_id.clone(),
                     });
                 }
 
-                SwiftGeneratorToken::Call {
+                SwiftIR::Call {
                     id: format!(".{}", first_case.id().to_case(Case::Camel)),
                     arguments,
                 }
@@ -140,7 +138,7 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
         }),
     });
 
-    body.push(SwiftGeneratorToken::StructMethod {
+    body.push(SwiftIR::StructMethod {
         id: String::from("createDefault"),
         is_static: true,
         return_type_id: enum_type_id,
@@ -148,17 +146,17 @@ fn generate_enum_model(node: &EnumASTNode) -> SwiftGeneratorToken {
         arguments: vec![],
     });
 
-    SwiftGeneratorToken::Enum {
+    SwiftIR::Enum {
         id: node.id.clone(),
         body,
     }
 }
 
-pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> SwiftGeneratorToken {
+pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> SwiftIR {
     let mut body = vec![];
 
     for field in &node.fields {
-        body.push(SwiftGeneratorToken::StructField {
+        body.push(SwiftIR::StructField {
             id: field.name.clone(),
             type_id: field.type_id.clone(),
         });
@@ -173,21 +171,21 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Sw
         let mut new_instance_body = vec![];
 
         for field in &node.fields {
-            new_instance_body.push(SwiftGeneratorToken::AssignStructNamedArgument {
+            new_instance_body.push(SwiftIR::AssignStructNamedArgument {
                 id: field.name.clone(),
                 type_id: field.type_id.clone(),
                 value: None,
             });
         }
 
-        method_body.push(SwiftGeneratorToken::ReturnStatement {
-            body: Box::new(SwiftGeneratorToken::NewInstance {
+        method_body.push(SwiftIR::ReturnStatement {
+            body: Box::new(SwiftIR::NewInstance {
                 type_id: struct_type_id.clone(),
                 body: new_instance_body,
             }),
         });
 
-        body.push(SwiftGeneratorToken::StructMethod {
+        body.push(SwiftIR::StructMethod {
             id: String::from("createDefault"),
             is_static: true,
             return_type_id: struct_type_id,
@@ -196,7 +194,7 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Sw
         });
     }
 
-    SwiftGeneratorToken::Struct {
+    SwiftIR::Struct {
         id: node.id.clone(),
         body,
     }

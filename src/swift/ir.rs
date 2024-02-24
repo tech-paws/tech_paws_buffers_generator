@@ -8,25 +8,25 @@ use crate::{
 };
 
 #[derive(Clone, Debug, PartialEq, IntoStaticStr)]
-pub enum SwiftGeneratorToken {
+pub enum SwiftIR {
     Struct {
         id: String,
-        body: Vec<SwiftGeneratorToken>,
+        body: Vec<SwiftIR>,
     },
     Enum {
         id: String,
-        body: Vec<SwiftGeneratorToken>,
+        body: Vec<SwiftIR>,
     },
     EnumCase {
         id: String,
-        parameters: Vec<SwiftGeneratorToken>,
+        parameters: Vec<SwiftIR>,
     },
     EnumCaseType {
         id: Option<String>,
         type_id: TypeIDASTNode,
     },
     FieldAccess {
-        instance: Option<Box<SwiftGeneratorToken>>,
+        instance: Option<Box<SwiftIR>>,
         field: String,
     },
     StructConstField {
@@ -42,8 +42,8 @@ pub enum SwiftGeneratorToken {
         id: String,
         is_static: bool,
         return_type_id: TypeIDASTNode,
-        arguments: Vec<SwiftGeneratorToken>,
-        body: Vec<SwiftGeneratorToken>,
+        arguments: Vec<SwiftIR>,
+        body: Vec<SwiftIR>,
     },
     FunctionArgument {
         id: String,
@@ -51,39 +51,39 @@ pub enum SwiftGeneratorToken {
         type_id: TypeIDASTNode,
     },
     ReturnStatement {
-        body: Box<SwiftGeneratorToken>,
+        body: Box<SwiftIR>,
     },
     NewInstance {
         type_id: TypeIDASTNode,
-        body: Vec<SwiftGeneratorToken>,
+        body: Vec<SwiftIR>,
     },
     AssignStructNamedArgument {
         id: String,
         type_id: TypeIDASTNode,
-        value: Option<Box<SwiftGeneratorToken>>,
+        value: Option<Box<SwiftIR>>,
     },
     AssignArgument {
         id: Option<String>,
         type_id: TypeIDASTNode,
-        value: Option<Box<SwiftGeneratorToken>>,
+        value: Option<Box<SwiftIR>>,
     },
     StaticCall {
         type_id: TypeIDASTNode,
-        method: Box<SwiftGeneratorToken>,
+        method: Box<SwiftIR>,
     },
     Call {
         id: String,
-        arguments: Vec<SwiftGeneratorToken>,
+        arguments: Vec<SwiftIR>,
     },
 }
 
-pub fn stringify_tokens(tokens: &[SwiftGeneratorToken]) -> String {
+pub fn stringify_tokens(tokens: &[SwiftIR]) -> String {
     let mut writer = Writer::default();
     write_tokens(&mut writer, tokens);
     writer.show().to_string()
 }
 
-pub fn write_tokens_comma_separated(writer: &mut Writer, tokens: &[SwiftGeneratorToken]) {
+pub fn write_tokens_comma_separated(writer: &mut Writer, tokens: &[SwiftIR]) {
     let mut it = tokens.iter().peekable();
 
     while let Some(token) = it.next() {
@@ -97,8 +97,8 @@ pub fn write_tokens_comma_separated(writer: &mut Writer, tokens: &[SwiftGenerato
     }
 }
 
-pub fn write_tokens(writer: &mut Writer, tokens: &[SwiftGeneratorToken]) {
-    let mut last_token: Option<&SwiftGeneratorToken> = None;
+pub fn write_tokens(writer: &mut Writer, tokens: &[SwiftIR]) {
+    let mut last_token: Option<&SwiftIR> = None;
 
     for token in tokens {
         let gaps_pairs = vec![
@@ -130,16 +130,16 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[SwiftGeneratorToken]) {
     }
 }
 
-fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
+fn write_token(writer: &mut Writer, token: &SwiftIR) {
     match token {
-        SwiftGeneratorToken::Struct { id, body } => {
+        SwiftIR::Struct { id, body } => {
             writer.writeln(&format!("struct {} {{", id.to_case(Case::Pascal)));
             writer.push_tab();
             write_tokens(writer, body);
             writer.pop_tab();
             writer.writeln("}");
         }
-        SwiftGeneratorToken::StructConstField { id, type_id, value } => {
+        SwiftIR::StructConstField { id, type_id, value } => {
             writer.writeln(&format!(
                 "static let {}: {} = {}",
                 id.to_case(Case::Camel),
@@ -147,12 +147,12 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 generate_const_value(value, type_id)
             ));
         }
-        SwiftGeneratorToken::StructField { id, type_id } => writer.writeln(&format!(
+        SwiftIR::StructField { id, type_id } => writer.writeln(&format!(
             "var {}: {}",
             id.to_case(Case::Camel),
             generate_type_id(type_id),
         )),
-        SwiftGeneratorToken::StructMethod {
+        SwiftIR::StructMethod {
             id,
             is_static,
             return_type_id,
@@ -178,18 +178,18 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
             writer.pop_tab();
             writer.writeln("}");
         }
-        SwiftGeneratorToken::FunctionArgument {
+        SwiftIR::FunctionArgument {
             id: _,
             named: _,
             type_id: _,
         } => {}
-        SwiftGeneratorToken::ReturnStatement { body } => {
+        SwiftIR::ReturnStatement { body } => {
             writer.write_tabs();
             writer.write("return ");
             write_token(writer, body);
             writer.new_line();
         }
-        SwiftGeneratorToken::NewInstance { type_id, body } => {
+        SwiftIR::NewInstance { type_id, body } => {
             writer.write(&generate_type_id(type_id));
 
             if body.is_empty() {
@@ -204,7 +204,7 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 writer.write(")");
             }
         }
-        SwiftGeneratorToken::AssignStructNamedArgument { id, type_id, value } => {
+        SwiftIR::AssignStructNamedArgument { id, type_id, value } => {
             if let Some(value) = value {
                 writer.write(&format!("{}: ", id.to_case(Case::Camel),));
                 write_token(writer, value);
@@ -216,7 +216,7 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 ));
             }
         }
-        SwiftGeneratorToken::AssignArgument { id, type_id, value } => {
+        SwiftIR::AssignArgument { id, type_id, value } => {
             if let Some(id) = id {
                 writer.write(&format!("/* {} */ ", id.to_case(Case::Camel),));
 
@@ -231,11 +231,11 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 writer.write(&generate_default_const_value(type_id));
             }
         }
-        SwiftGeneratorToken::StaticCall {
+        SwiftIR::StaticCall {
             type_id: _,
             method: _,
         } => {}
-        SwiftGeneratorToken::Call { id, arguments } => {
+        SwiftIR::Call { id, arguments } => {
             writer.write(id);
 
             if arguments.is_empty() {
@@ -250,14 +250,14 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 writer.write(")");
             }
         }
-        SwiftGeneratorToken::Enum { id, body } => {
+        SwiftIR::Enum { id, body } => {
             writer.writeln(&format!("enum {} {{", id.to_case(Case::Pascal)));
             writer.push_tab();
             write_tokens(writer, body);
             writer.pop_tab();
             writer.writeln("}");
         }
-        SwiftGeneratorToken::EnumCase { id, parameters } => {
+        SwiftIR::EnumCase { id, parameters } => {
             if parameters.is_empty() {
                 writer.writeln(&format!("case {}", id.to_case(Case::Camel)));
             } else {
@@ -268,14 +268,14 @@ fn write_token(writer: &mut Writer, token: &SwiftGeneratorToken) {
                 writer.writeln(")");
             }
         }
-        SwiftGeneratorToken::EnumCaseType { id, type_id } => {
+        SwiftIR::EnumCaseType { id, type_id } => {
             if let Some(id) = id {
                 writer.write(&format!("/* {} */ {}", id, generate_type_id(type_id)));
             } else {
                 writer.write(&generate_type_id(type_id));
             }
         }
-        SwiftGeneratorToken::FieldAccess { instance, field } => {
+        SwiftIR::FieldAccess { instance, field } => {
             if let Some(instance) = instance {
                 write_token(writer, instance);
                 writer.write(&format!(".{}", field.to_case(Case::Camel)));

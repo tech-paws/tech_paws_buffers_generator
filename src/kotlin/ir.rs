@@ -8,34 +8,76 @@ use crate::{
 };
 
 #[derive(Clone, Debug, PartialEq, IntoStaticStr)]
-pub enum KotlinGeneratorToken {
+pub enum KotlinIR {
     Object {
         id: String,
-        body: Vec<KotlinGeneratorToken>,
+        body: Vec<KotlinIR>,
     },
-    ConstValStatement {
+    ValDeclaration {
         id: String,
-        type_id: Box<KotlinGeneratorToken>,
-        value: Box<KotlinGeneratorToken>,
+        is_const: bool,
+        type_id: Box<KotlinIR>,
+        value: Option<Box<KotlinIR>>,
+    },
+    Declaration {
+        body: Box<KotlinIR>,
+        separator: Option<&'static str>,
     },
     TypeId(TypeIDASTNode),
     ConstValueExpr {
         type_id: TypeIDASTNode,
         value: ConstValueASTNode,
     },
+    DefaulConstValueExpr(TypeIDASTNode),
+    Class {
+        id: String,
+        is_data_class: bool,
+        fields: Vec<KotlinIR>,
+        body: Vec<KotlinIR>,
+    },
+    CompanionObject {
+        body: Vec<KotlinIR>,
+    },
+    Gap,
+    FunInline {
+        id: String,
+        arguments: Vec<KotlinIR>,
+        return_type_id: Box<KotlinIR>,
+        body: Box<KotlinIR>,
+    },
+    Fun {
+        id: String,
+        arguments: Vec<KotlinIR>,
+        return_type_id: Box<KotlinIR>,
+        body: Vec<KotlinIR>,
+    },
+    Call {
+        id: String,
+        arguments: Vec<KotlinIR>,
+    },
+    AssignArgument {
+        id: String,
+        value: Box<KotlinIR>,
+    },
 }
 
-pub fn stringify_tokens(tokens: &[KotlinGeneratorToken]) -> String {
+pub fn stringify_tokens(tokens: &[KotlinIR]) -> String {
     let mut writer = Writer::default();
     write_tokens(&mut writer, tokens);
     writer.show().to_string()
 }
 
-pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinGeneratorToken]) {
-    let mut last_token: Option<&KotlinGeneratorToken> = None;
+pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinIR]) {
+    let mut last_token: Option<&KotlinIR> = None;
 
     for token in tokens {
-        let gaps_pairs = vec![("Object", "Object"), ("Object", "ConstValStatement")];
+        let gaps_pairs = vec![
+            ("Object", "Object"),
+            ("Object", "Declaration"),
+            ("Object", "Class"),
+            ("Class", "Declaration"),
+            ("Class", "Class"),
+        ];
 
         if let Some(last_token) = last_token {
             for (left, right) in gaps_pairs {
@@ -54,27 +96,159 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinGeneratorToken]) {
     }
 }
 
-fn write_token(writer: &mut Writer, token: &KotlinGeneratorToken) {
+fn write_token(writer: &mut Writer, token: &KotlinIR) {
     match token {
-        KotlinGeneratorToken::Object { id, body } => {
+        KotlinIR::Gap => writer.new_line(),
+        KotlinIR::Object { id, body } => {
             writer.writeln(&format!("object {} {{", id.to_case(Case::Pascal)));
             writer.push_tab();
             write_tokens(writer, body);
             writer.pop_tab();
             writer.writeln("}");
         }
-        KotlinGeneratorToken::ConstValStatement { id, type_id, value } => {
+        KotlinIR::Declaration { body, separator } => {
             writer.write_tabs();
-            writer.write(&format!("const val {}", id));
-            writer.write(": ");
-            write_token(writer, type_id);
-            writer.write(" = ");
-            write_token(writer, value);
+            write_token(writer, body);
+
+            if let Some(separator) = separator {
+                writer.write(separator);
+            }
+
             writer.new_line();
         }
-        KotlinGeneratorToken::TypeId(type_id) => writer.write(&generate_type_id(type_id)),
-        KotlinGeneratorToken::ConstValueExpr { type_id, value } => {
+        KotlinIR::ValDeclaration {
+            id,
+            is_const,
+            type_id,
+            value,
+        } => {
+            if *is_const {
+                writer.write("const ");
+            }
+
+            writer.write(&format!("val {}", id));
+            writer.write(": ");
+            write_token(writer, type_id);
+
+            if let Some(value) = value {
+                writer.write(" = ");
+                write_token(writer, value);
+            }
+        }
+        KotlinIR::TypeId(type_id) => writer.write(&generate_type_id(type_id)),
+        KotlinIR::ConstValueExpr { type_id, value } => {
             writer.write(&generate_const_value(type_id, value))
+        }
+        KotlinIR::DefaulConstValueExpr(type_id) => {
+            writer.write(&generate_default_const_value(type_id));
+        }
+        KotlinIR::Class {
+            id,
+            is_data_class,
+            fields,
+            body,
+        } => {
+            writer.write_tabs();
+
+            if *is_data_class {
+                writer.write("data ");
+            }
+
+            writer.write(&format!("class {}(", id));
+
+            if fields.is_empty() {
+                writer.write(") {");
+                writer.new_line();
+            } else {
+                writer.new_line();
+                writer.push_tab();
+                write_tokens(writer, fields);
+                writer.pop_tab();
+                writer.writeln(") {");
+            }
+
+            writer.push_tab();
+            write_tokens(writer, body);
+            writer.pop_tab();
+            writer.writeln("}");
+        }
+        KotlinIR::CompanionObject { body } => {
+            writer.writeln("companion object {");
+            writer.push_tab();
+            write_tokens(writer, body);
+            writer.pop_tab();
+            writer.writeln("}");
+        }
+        KotlinIR::FunInline {
+            id,
+            arguments,
+            return_type_id,
+            body,
+        } => {
+            writer.write_tabs();
+            writer.write(&format!("fun {}(", id));
+
+            if !arguments.is_empty() {
+                writer.new_line();
+                writer.push_tab();
+                write_tokens(writer, arguments);
+                writer.pop_tab();
+                writer.new_line();
+            }
+
+            writer.write("): ");
+            write_token(writer, return_type_id);
+            writer.write(" = ");
+
+            write_token(writer, body);
+            writer.new_line();
+        }
+        KotlinIR::Fun {
+            id,
+            arguments,
+            return_type_id,
+            body,
+        } => {
+            writer.write_tabs();
+            writer.write(&format!("fun {}(", id));
+
+            if !arguments.is_empty() {
+                writer.new_line();
+                writer.push_tab();
+                write_tokens(writer, arguments);
+                writer.pop_tab();
+                writer.new_line();
+            }
+
+            writer.write("): ");
+            write_token(writer, return_type_id);
+            writer.write(" {");
+            writer.new_line();
+
+            writer.push_tab();
+            write_tokens(writer, body);
+            writer.pop_tab();
+
+            writer.new_line();
+        }
+        KotlinIR::Call { id, arguments } => {
+            writer.write(id);
+
+            if arguments.is_empty() {
+                writer.write("()");
+            } else {
+                writer.write("(");
+                writer.new_line();
+                writer.push_tab();
+                write_tokens(writer, arguments);
+                writer.pop_tab();
+                writer.write_tabs();
+                writer.write(")");
+            }
+        }
+        KotlinIR::AssignArgument { id, value } => {
+            writer.write(&format!("{} = ", id.to_case(Case::Camel),));
+            write_token(writer, value);
         }
     }
 }
@@ -102,8 +276,16 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
             "CommandsBufferAddress" => String::from("ULong"),
             _ => id.clone(),
         },
-        TypeIDASTNode::Generic { id, generics } => {
-            format!(
+        TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Vec" => format!(
+                "List<{}>",
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            _ => format!(
                 "{}<{}>",
                 id,
                 generics
@@ -111,8 +293,8 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
                     .map(generate_type_id)
                     .collect::<Vec<String>>()
                     .join(", ")
-            )
-        }
+            ),
+        },
     }
 }
 
@@ -157,6 +339,44 @@ pub fn generate_const_value(type_id: &TypeIDASTNode, node: &ConstValueASTNode) -
                 }
             }
             Literal::BoolLiteral(value) => format!("{}", value),
+        },
+    }
+}
+
+pub fn generate_default_const_value(type_id: &TypeIDASTNode) -> String {
+    match type_id {
+        TypeIDASTNode::Integer { size, signed, .. } => match size {
+            1 if *signed => String::from("0"),
+            4 if *signed => String::from("0"),
+            8 if *signed => String::from("0L"),
+            1 if !*signed => String::from("0U"),
+            4 if !*signed => String::from("0U"),
+            8 if !*signed => String::from("0UL"),
+            _ => panic!("Unsupported integer size"),
+        },
+        TypeIDASTNode::Number { id: _, size } => match size {
+            4 => String::from("0f"),
+            8 => String::from("0.0"),
+            _ => panic!("Unsupported integer size"),
+        },
+        TypeIDASTNode::Bool { id: _ } => String::from("false"),
+        TypeIDASTNode::Char { id: _ } => String::from("0"),
+        TypeIDASTNode::Other { id } => match id.as_str() {
+            "String" => String::from("\"\""),
+            "Vec" => String::from("listOf()"),
+            _ => format!("{}.createDefault()", id),
+        },
+        TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Vec" => String::from("listOf()"),
+            _ => format!(
+                "{}.createDefault<{}>()",
+                id,
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
         },
     }
 }
