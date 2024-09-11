@@ -6,11 +6,11 @@ pub enum ASTNode {
     Struct(StructASTNode),
     Fn(FnASTNode),
     Directive(DirectiveASTNode),
-    Const(ConstASTNode),
+    Const(ConstBlockASTNode),
 }
 
 #[derive(Debug, Clone)]
-pub struct ConstASTNode {
+pub struct ConstBlockASTNode {
     pub id: String,
     pub items: Vec<ConstItemASTNode>,
 }
@@ -22,8 +22,8 @@ pub enum ConstItemASTNode {
         type_id: TypeIDASTNode,
         value: ConstValueASTNode,
     },
-    ConstNode {
-        node: ConstASTNode,
+    ConstsBlock {
+        node: ConstBlockASTNode,
     },
 }
 
@@ -59,7 +59,7 @@ pub struct FnASTNode {
     pub position: u32,
     pub args: Vec<FnArgASTNode>,
     pub return_type_id: Option<TypeIDASTNode>,
-    pub is_read: bool,
+    pub is_stream: bool,
     pub is_async: bool,
 }
 
@@ -188,6 +188,28 @@ pub fn contains_consts_nodes(ast: &[ASTNode]) -> bool {
     for node in ast {
         if let ASTNode::Const(_) = node {
             return true;
+        }
+    }
+
+    false
+}
+
+pub fn contains_fn_nodes(ast: &[ASTNode]) -> bool {
+    for node in ast {
+        if let ASTNode::Fn(_) = node {
+            return true;
+        }
+    }
+
+    false
+}
+
+pub fn contains_buffers_nodes(ast: &[ASTNode]) -> bool {
+    for node in ast {
+        match node {
+            ASTNode::Struct(_) => return true,
+            ASTNode::Enum(_) => return true,
+            _ => (),
         }
     }
 

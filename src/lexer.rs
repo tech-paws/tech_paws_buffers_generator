@@ -3,7 +3,7 @@ pub enum Token {
     Struct,
     Enum,
     Fn,
-    Read,
+    Signal,
     Async,
     Const,
     ID { name: String },
@@ -189,7 +189,7 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
         "struct" => Token::Struct,
         "enum" => Token::Enum,
         "fn" => Token::Fn,
-        "read" => Token::Read,
+        "signal" => Token::Signal,
         "async" => Token::Async,
         "const" => Token::Const,
         "true" => Token::Literal(Literal::BoolLiteral(true)),
@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn lex_keywords() {
-        let mut lexer = Lexer::tokenize("struct enum fn async read const");
+        let mut lexer = Lexer::tokenize("struct enum fn async stream const");
         let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Struct);
         let token = lexer.next_token();
@@ -427,7 +427,7 @@ mod tests {
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Async);
         let token = lexer.next_token();
-        assert_eq!(token.clone(), Token::Read);
+        assert_eq!(token.clone(), Token::Signal);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::Const);
         let token = lexer.next_token();

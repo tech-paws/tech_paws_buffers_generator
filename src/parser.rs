@@ -10,7 +10,7 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
             Token::Async => ast_nodes.push(parse_async(lexer)),
             Token::Fn => ast_nodes.push(parse_fn(lexer, false)),
-            Token::Read => ast_nodes.push(parse_read(lexer, false)),
+            Token::Signal => ast_nodes.push(parse_stream(lexer, false)),
             Token::Const => ast_nodes.push(ASTNode::Const(parse_const(lexer))),
             Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
             _ => panic!("Unexpected token: {:?}", lexer.current_token()),
@@ -301,6 +301,8 @@ pub fn parse_struct_parameters_with_positions(lexer: &mut Lexer) -> Vec<StructFi
         lexer.next_token();
     }
 
+    fields.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
+
     fields
 }
 
@@ -327,6 +329,8 @@ pub fn parse_tuple_parameters_with_positions(lexer: &mut Lexer) -> Vec<TupleFiel
 
         lexer.next_token();
     }
+
+    fields.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
 
     fields
 }
@@ -422,8 +426,11 @@ pub fn parse_async(lexer: &mut Lexer) -> ASTNode {
 
     match lexer.current_token() {
         Token::Fn => parse_fn(lexer, true),
-        Token::Read => parse_read(lexer, true),
-        _ => panic!("Expected 'fn' or read' but got {:?}", lexer.current_token()),
+        Token::Signal => parse_stream(lexer, true),
+        _ => panic!(
+            "Expected 'fn' or stream' but got {:?}",
+            lexer.current_token()
+        ),
     }
 }
 
@@ -456,7 +463,7 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
             id,
             args,
             position: lexer.next_fn_poisition(),
-            is_read: false,
+            is_stream: false,
             is_async,
             return_type_id: None,
         });
@@ -483,14 +490,14 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         args,
         return_type_id,
         position: lexer.next_fn_poisition(),
-        is_read: false,
+        is_stream: false,
         is_async,
     })
 }
 
-pub fn parse_read(lexer: &mut Lexer, is_async: bool) -> ASTNode {
-    if *lexer.current_token() != Token::Read {
-        panic!("Expected 'read' but got {:?}", lexer.current_token());
+pub fn parse_stream(lexer: &mut Lexer, is_async: bool) -> ASTNode {
+    if *lexer.current_token() != Token::Signal {
+        panic!("Expected 'stream' but got {:?}", lexer.current_token());
     };
 
     let id = if let Token::ID { name } = lexer.next_token() {
@@ -505,7 +512,7 @@ pub fn parse_read(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         return ASTNode::Fn(FnASTNode {
             id,
             args: vec![],
-            is_read: true,
+            is_stream: true,
             position: lexer.next_fn_poisition(),
             is_async,
             return_type_id: None,
@@ -533,7 +540,7 @@ pub fn parse_read(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         args: vec![],
         return_type_id,
         position: lexer.next_fn_poisition(),
-        is_read: true,
+        is_stream: true,
         is_async,
     })
 }
@@ -562,7 +569,7 @@ pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
     args
 }
 
-pub fn parse_const(lexer: &mut Lexer) -> ConstASTNode {
+pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
     let id = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
@@ -581,7 +588,7 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstASTNode {
         match lexer.current_token() {
             Token::Const => {
                 let const_ast_node = parse_const(lexer);
-                items.push(ConstItemASTNode::ConstNode {
+                items.push(ConstItemASTNode::ConstsBlock {
                     node: const_ast_node,
                 });
             }
@@ -620,7 +627,7 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstASTNode {
 
     lexer.next_token();
 
-    ConstASTNode { id, items }
+    ConstBlockASTNode { id, items }
 }
 
 /// Parse #[<number>]
@@ -829,14 +836,14 @@ mod tests {
                     position,
                     args,
                     return_type_id,
-                    is_read,
+                    is_stream,
                     is_async,
                 }) => {
                     writer.writeln_tab(tab, "Fn {");
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, &format!("position: {:?},", position));
                     writer.writeln_tab(tab + 1, &format!("return_type_id: {:?},", return_type_id));
-                    writer.writeln_tab(tab + 1, &format!("is_read: {:?},", is_read));
+                    writer.writeln_tab(tab + 1, &format!("is_stream: {:?},", is_stream));
                     writer.writeln_tab(tab + 1, &format!("is_async: {:?},", is_async));
                     writer.writeln_tab(tab + 1, "args: [");
 
@@ -847,7 +854,7 @@ mod tests {
                     writer.writeln_tab(tab + 1, "]");
                     writer.writeln_tab(tab, "}");
                 }
-                ASTNode::Const(ConstASTNode { id, items }) => {
+                ASTNode::Const(ConstBlockASTNode { id, items }) => {
                     writer.writeln_tab(tab, "Const {");
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, "items: [");
@@ -861,7 +868,7 @@ mod tests {
                                 writer.writeln_tab(tab + 3, &format!("value: {:?}", value));
                                 writer.writeln_tab(tab + 2, "}");
                             }
-                            ConstItemASTNode::ConstNode { node } => {
+                            ConstItemASTNode::ConstsBlock { node } => {
                                 writer.write(&stringify_ast_impl(
                                     tab + 2,
                                     &[ASTNode::Const(node.clone())],

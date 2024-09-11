@@ -17,10 +17,10 @@ async fn say_hello_async(name: String) -> String;
 
 async fn sum_async(a: i32, b: f32, c: f64) -> f64;
 
-read trigger;
+stream trigger;
 
-read theme -> Theme;
+stream theme -> Theme;
 
-async read trigger_async;
+async stream trigger_async;
 
-async read theme_async -> Theme;
+async stream theme_async -> Theme;

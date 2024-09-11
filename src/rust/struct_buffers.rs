@@ -7,7 +7,7 @@ use crate::{
 pub fn generate_struct_buffers(node: &StructASTNode) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln(&format!("impl IntoVMBuffers for {} {{", node.id));
+    writer.writeln(&format!("impl TechPawsBuffersModel for {} {{", node.id));
 
     writer.write(&generate_struct_buffers_read_from_buffers(node));
     writer.writeln("");

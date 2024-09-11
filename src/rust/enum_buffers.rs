@@ -3,7 +3,7 @@ use crate::{ast::{EnumASTNode, TypeIDASTNode, EnumItemASTNode}, writer::Writer, 
 pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln(&format!("impl IntoVMBuffers for {} {{", node.id));
+    writer.writeln(&format!("impl TechPawsBuffersModel for {} {{", node.id));
     writer.write(&generate_enum_buffers_read_from_buffers(node));
     writer.writeln("");
     writer.write(&generate_enum_buffers_write_to_buffers(node));

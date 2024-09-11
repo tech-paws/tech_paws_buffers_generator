@@ -1,7 +1,7 @@
 use convert_case::{Case, Casing};
 
 use crate::ast::{
-    ASTNode, ConstASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode, StructASTNode,
+    ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode, StructASTNode,
     TypeIDASTNode,
 };
 
@@ -19,7 +19,7 @@ pub fn generate_consts(ast: &[ASTNode]) -> Vec<KotlinIR> {
     tokens
 }
 
-pub fn generate_const_block(const_node: &ConstASTNode) -> KotlinIR {
+pub fn generate_const_block(const_node: &ConstBlockASTNode) -> KotlinIR {
     let mut body = vec![];
 
     for item in &const_node.items {
@@ -38,7 +38,7 @@ pub fn generate_const_block(const_node: &ConstASTNode) -> KotlinIR {
                     }),
                 });
             }
-            ConstItemASTNode::ConstNode { node } => {
+            ConstItemASTNode::ConstsBlock { node } => {
                 body.push(generate_const_block(node));
             }
         }
@@ -89,11 +89,11 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
         EnumItemASTNode::Tuple { values, .. } => {
             let mut fields = vec![];
 
-            for (idx, value) in values.iter().enumerate() {
+            for value in values.iter() {
                 fields.push(KotlinIR::Declaration {
                     separator: Some(","),
                     body: Box::new(KotlinIR::ValDeclaration {
-                        id: format!("p{}", idx),
+                        id: format!("p{}", value.position),
                         is_const: false,
                         type_id: Box::new(KotlinIR::TypeId(value.type_id.clone())),
                         value: None,
@@ -135,6 +135,7 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
     }
 }
 
+#[allow(clippy::vec_init_then_push)]
 pub fn generate_enum_interface(node: &EnumASTNode) -> KotlinIR {
     let enum_type_id = TypeIDASTNode::Other {
         id: node.id.clone(),
@@ -182,7 +183,6 @@ pub fn generate_enum_interface(node: &EnumASTNode) -> KotlinIR {
                     arguments,
                 }
             }
-            _ => KotlinIR::Id(first_case_id),
         }),
     };
 
@@ -409,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn generate_enum_model_gaps_test() {
+    fn generate_enum_model_extended_test() {
         let src = fs::read_to_string("test_resources/enum_extended.tpb").unwrap();
         let target = fs::read_to_string("test_resources/kotlin/enum_extended.kt").unwrap();
         let mut lexer = Lexer::tokenize(&src);

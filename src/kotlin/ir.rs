@@ -141,12 +141,6 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
             } else {
                 writer.new_line();
             }
-            // writer.write(" {")
-
-            // writer.push_tab();
-            // write_tokens(writer, body);
-            // writer.pop_tab();
-            // writer.writeln("}");
         }
         KotlinIR::Declaration { body, separator } => {
             writer.write_tabs();
@@ -299,8 +293,7 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
             writer.push_tab();
             write_tokens(writer, body);
             writer.pop_tab();
-
-            writer.new_line();
+            writer.write("}");
         }
         KotlinIR::Call { id, arguments } => {
             writer.write(id);

@@ -1,4 +1,4 @@
-impl IntoVMBuffers for MyEnum {
+impl TechPawsBuffersModel for MyEnum {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         let value = bytes_reader.read_u32();
 
@@ -64,7 +64,7 @@ impl IntoVMBuffers for MyEnum {
     }
 }
 
-impl IntoVMBuffers for MyEnumWithoutPositions {
+impl TechPawsBuffersModel for MyEnumWithoutPositions {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         let value = bytes_reader.read_u32();
 

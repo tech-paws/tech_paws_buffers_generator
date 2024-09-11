@@ -12,10 +12,46 @@ pub enum SwiftIR {
     Struct {
         id: String,
         body: Vec<SwiftIR>,
+        extends: Vec<SwiftIR>,
+    },
+    Gap,
+    Id(String),
+    TypeId(TypeIDASTNode),
+    List {
+        items: Vec<SwiftIR>,
+        separator: &'static str,
+        new_line: bool,
+    },
+    Statements {
+        items: Vec<SwiftIR>,
+    },
+    TopLevelDeclarations {
+        items: Vec<SwiftIR>,
+    },
+    ForLoop {
+        item: Option<Box<SwiftIR>>,
+        collection_expr: Box<SwiftIR>,
+        body: Box<SwiftIR>,
+    },
+    Switch {
+        item: Box<SwiftIR>,
+        body: Box<SwiftIR>,
+    },
+    Case {
+        item: Box<SwiftIR>,
+        body: Box<SwiftIR>,
+    },
+    DefaultCase {
+        body: Box<SwiftIR>,
+    },
+    Range {
+        from: Box<SwiftIR>,
+        to: Box<SwiftIR>,
     },
     Enum {
         id: String,
         body: Vec<SwiftIR>,
+        extends: Vec<SwiftIR>,
     },
     EnumCase {
         id: String,
@@ -38,49 +74,85 @@ pub enum SwiftIR {
         id: String,
         type_id: TypeIDASTNode,
     },
-    StructMethod {
+    Func {
         id: String,
         is_static: bool,
-        return_type_id: TypeIDASTNode,
-        arguments: Vec<SwiftIR>,
-        body: Vec<SwiftIR>,
+        return_type_id: Option<Box<SwiftIR>>,
+        arguments: Option<Box<SwiftIR>>,
+        body: Option<Box<SwiftIR>>,
+    },
+    VarDeclaration {
+        id: String,
+        is_const: bool,
+        type_id: Option<Box<SwiftIR>>,
+        value: Option<Box<SwiftIR>>,
+    },
+    StaticVarDeclaration {
+        id: String,
+        is_const: bool,
+        is_private: bool,
+        is_private_set: bool,
+        type_id: Option<Box<SwiftIR>>,
+        value: Option<Box<SwiftIR>>,
     },
     FunctionArgument {
         id: String,
         named: bool,
-        type_id: TypeIDASTNode,
+        type_id: Box<SwiftIR>,
     },
     ReturnStatement {
         body: Box<SwiftIR>,
     },
-    NewInstance {
-        type_id: TypeIDASTNode,
-        body: Vec<SwiftIR>,
-    },
+    Continue,
     AssignStructNamedArgument {
         id: String,
-        type_id: TypeIDASTNode,
+        default_value_type_id: Option<TypeIDASTNode>,
         value: Option<Box<SwiftIR>>,
     },
     AssignArgument {
         id: Option<String>,
-        type_id: TypeIDASTNode,
+        default_value_type_id: TypeIDASTNode,
         value: Option<Box<SwiftIR>>,
     },
-    StaticCall {
-        type_id: TypeIDASTNode,
-        method: Box<SwiftIR>,
+    SetVar {
+        id: String,
+        value: Box<SwiftIR>,
     },
     Call {
         id: String,
-        arguments: Vec<SwiftIR>,
+        arguments: Option<Box<SwiftIR>>,
+    },
+    ChainCalls {
+        items: Vec<SwiftIR>,
+    },
+    TrailingCall {
+        id: String,
+        arguments: Option<Box<SwiftIR>>,
+        input: Option<Box<SwiftIR>>,
+        body: Box<SwiftIR>,
+    },
+    NamedBlock {
+        id: String,
+        body: Box<SwiftIR>,
     },
 }
 
-pub fn stringify_tokens(tokens: &[SwiftIR]) -> String {
+pub fn stringify_ir(tokens: &[SwiftIR]) -> String {
     let mut writer = Writer::default();
     write_tokens(&mut writer, tokens);
     writer.show().to_string()
+}
+
+pub fn write_tokens_separated(writer: &mut Writer, tokens: &[SwiftIR], separator: &'static str) {
+    let mut it = tokens.iter().peekable();
+
+    while let Some(token) = it.next() {
+        write_token(writer, token);
+
+        if it.peek().is_some() {
+            writer.write(separator);
+        }
+    }
 }
 
 pub fn write_tokens_comma_separated(writer: &mut Writer, tokens: &[SwiftIR]) {
@@ -107,10 +179,14 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[SwiftIR]) {
             ("Enum", "Enum"),
             ("Struct", "StructConstField"),
             ("Struct", "StructField"),
-            ("StructMethod", "StructMethod"),
-            ("StructMethod", "StructConstField"),
-            ("StructMethod", "StructField"),
-            ("StructMethod", "EnumCase"),
+            ("Func", "Func"),
+            ("Func", "StructConstField"),
+            ("Func", "StructField"),
+            ("Func", "EnumCase"),
+            ("Func", "TopLevelDeclarations"),
+            ("TopLevelDeclarations", "TopLevelDeclarations"),
+            ("Statements", "Statements"),
+            ("Statements", "ReturnStatement"),
         ];
 
         if let Some(last_token) = last_token {
@@ -132,8 +208,207 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[SwiftIR]) {
 
 fn write_token(writer: &mut Writer, token: &SwiftIR) {
     match token {
-        SwiftIR::Struct { id, body } => {
-            writer.writeln(&format!("struct {} {{", id.to_case(Case::Pascal)));
+        SwiftIR::Id(id) => writer.write(id),
+        SwiftIR::Gap => (),
+        SwiftIR::TypeId(type_id) => writer.write(&generate_type_id(type_id)),
+        SwiftIR::List {
+            items,
+            separator,
+            new_line,
+        } => {
+            let mut it = items.iter().peekable();
+
+            if *new_line && !items.is_empty() {
+                writer.new_line();
+                writer.push_tab();
+            }
+
+            while let Some(item) = it.next() {
+                if *new_line {
+                    writer.write_tabs();
+                }
+
+                write_token(writer, item);
+
+                if it.peek().is_some() {
+                    writer.write(separator);
+
+                    if *new_line {
+                        writer.new_line();
+                    }
+                }
+            }
+
+            if *new_line && !items.is_empty() {
+                writer.new_line();
+                writer.pop_tab();
+                writer.write_tabs();
+            }
+        }
+        SwiftIR::TopLevelDeclarations { items } => {
+            for item in items {
+                writer.write_tabs();
+
+                // NOTE(sysint64): Removing trailing spaces when Gap is used.
+                match item {
+                    SwiftIR::Gap => {}
+                    _ => {
+                        writer.write_tabs();
+                        write_token(writer, item);
+                    }
+                }
+
+                writer.new_line();
+            }
+        }
+        SwiftIR::Statements { items } => {
+            let mut it = items.iter().peekable();
+
+            while let Some(item) = it.next() {
+                // NOTE(sysint64): Removing trailing spaces when Gap is used.
+                match item {
+                    SwiftIR::Gap => {}
+                    _ => {
+                        writer.write_tabs();
+                        write_token(writer, item);
+                    }
+                }
+
+                if it.peek().is_some() {
+                    writer.new_line();
+                }
+            }
+        }
+        SwiftIR::Range { from, to } => {
+            write_token(writer, from);
+            writer.write("...");
+            write_token(writer, to);
+        }
+        SwiftIR::ForLoop {
+            item,
+            collection_expr,
+            body,
+        } => {
+            writer.write("for ");
+
+            if let Some(item) = item {
+                write_token(writer, item);
+            } else {
+                writer.write("_");
+            }
+
+            writer.write(" in ");
+            write_token(writer, collection_expr);
+
+            writer.write(" {");
+            writer.new_line();
+
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+            writer.new_line();
+            writer.write_tabs();
+            writer.write("}");
+        }
+        SwiftIR::Switch { item, body } => {
+            writer.write("switch ");
+            write_token(writer, item);
+
+            writer.write(" {");
+            writer.new_line();
+            write_token(writer, body);
+            writer.new_line();
+            writer.write_tabs();
+            writer.write("}");
+        }
+        SwiftIR::Case { item, body } => {
+            writer.write("case ");
+            write_token(writer, item);
+
+            writer.write(":");
+            writer.new_line();
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+        }
+        SwiftIR::DefaultCase { body } => {
+            writer.write("default:");
+            writer.new_line();
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+        }
+        SwiftIR::VarDeclaration {
+            id,
+            is_const,
+            type_id,
+            value,
+        } => {
+            if *is_const {
+                writer.write("let ");
+            } else {
+                writer.write("var ");
+            }
+
+            writer.write(id);
+
+            if let Some(type_id) = type_id {
+                writer.write(": ");
+                write_token(writer, type_id);
+            }
+
+            if let Some(value) = value {
+                writer.write(" = ");
+                write_token(writer, value);
+            }
+        }
+        SwiftIR::StaticVarDeclaration {
+            id,
+            is_const,
+            is_private,
+            is_private_set,
+            type_id,
+            value,
+        } => {
+            if *is_private {
+                if *is_private_set {
+                    writer.write("private(set) ");
+                } else {
+                    writer.write("private ");
+                }
+            }
+
+            writer.write("static ");
+
+            if *is_const {
+                writer.write("let ");
+            } else {
+                writer.write("var ");
+            }
+
+            writer.write(id);
+
+            if let Some(type_id) = type_id {
+                writer.write(": ");
+                write_token(writer, type_id);
+            }
+
+            if let Some(value) = value {
+                writer.write(" = ");
+                write_token(writer, value);
+            }
+        }
+        SwiftIR::Struct { id, body, extends } => {
+            writer.write_tabs();
+            writer.write(&format!("struct {}", id));
+
+            if !extends.is_empty() {
+                writer.write(": ");
+                write_tokens_separated(writer, extends, ", ");
+            }
+
+            writer.write(" {");
+            writer.new_line();
             writer.push_tab();
             write_tokens(writer, body);
             writer.pop_tab();
@@ -148,75 +423,101 @@ fn write_token(writer: &mut Writer, token: &SwiftIR) {
             ));
         }
         SwiftIR::StructField { id, type_id } => writer.writeln(&format!(
-            "var {}: {}",
+            "let {}: {}",
             id.to_case(Case::Camel),
             generate_type_id(type_id),
         )),
-        SwiftIR::StructMethod {
+        SwiftIR::Func {
             id,
             is_static,
             return_type_id,
-            arguments: _,
+            arguments,
             body,
         } => {
+            writer.write_tabs();
+
             if *is_static {
-                writer.writeln(&format!(
-                    "static func {}() -> {} {{",
-                    id.to_case(Case::Camel),
-                    generate_type_id(return_type_id),
-                ));
-            } else {
-                writer.writeln(&format!(
-                    "func {}() -> {} {{",
-                    id.to_case(Case::Camel),
-                    generate_type_id(return_type_id),
-                ));
+                writer.write("static ");
             }
 
-            writer.push_tab();
-            write_tokens(writer, body);
-            writer.pop_tab();
-            writer.writeln("}");
-        }
-        SwiftIR::FunctionArgument {
-            id: _,
-            named: _,
-            type_id: _,
-        } => {}
-        SwiftIR::ReturnStatement { body } => {
-            writer.write_tabs();
-            writer.write("return ");
-            write_token(writer, body);
-            writer.new_line();
-        }
-        SwiftIR::NewInstance { type_id, body } => {
-            writer.write(&generate_type_id(type_id));
+            writer.write(&format!("func {}(", id));
 
-            if body.is_empty() {
-                writer.write("()");
+            if let Some(arguments) = arguments {
+                write_token(writer, arguments);
+            }
+
+            if let Some(return_type_id) = return_type_id {
+                writer.write(") -> ");
+                write_token(writer, return_type_id);
             } else {
-                writer.write("(");
-                writer.new_line();
-                writer.push_tab();
-                write_tokens_comma_separated(writer, body);
-                writer.pop_tab();
-                writer.write_tabs();
                 writer.write(")");
             }
+
+            writer.write(" {");
+            writer.new_line();
+
+            if let Some(body) = body {
+                writer.push_tab();
+                write_token(writer, body);
+                writer.pop_tab();
+
+                match body.as_ref() {
+                    SwiftIR::Statements { items } => {
+                        if !items.is_empty() {
+                            writer.new_line();
+                        }
+                    }
+                    _ => {
+                        writer.new_line();
+                    }
+                }
+            }
+
+            writer.writeln("}");
         }
-        SwiftIR::AssignStructNamedArgument { id, type_id, value } => {
+        SwiftIR::FunctionArgument { id, named, type_id } => {
+            if !named {
+                writer.write("_ ");
+            }
+
+            writer.write(id);
+            writer.write(": ");
+            write_token(writer, type_id);
+        }
+        SwiftIR::ReturnStatement { body } => {
+            writer.write("return ");
+            write_token(writer, body);
+        }
+        SwiftIR::Continue => {
+            writer.write("continue");
+        }
+        SwiftIR::AssignStructNamedArgument {
+            id,
+            default_value_type_id,
+            value,
+        } => {
             if let Some(value) = value {
                 writer.write(&format!("{}: ", id.to_case(Case::Camel),));
                 write_token(writer, value);
-            } else {
+            } else if let Some(default_value_type_id) = default_value_type_id {
                 writer.write(&format!(
                     "{}: {}",
                     id.to_case(Case::Camel),
-                    generate_default_const_value(type_id)
+                    generate_default_const_value(default_value_type_id)
                 ));
+            } else {
+                panic!("value or default_value_type_id should be specified");
             }
         }
-        SwiftIR::AssignArgument { id, type_id, value } => {
+        SwiftIR::SetVar { id, value } => {
+            writer.write(&format!("{} = ", id));
+            write_token(writer, value);
+        }
+        SwiftIR::AssignArgument {
+            id,
+            default_value_type_id: type_id,
+            value,
+        } => {
             if let Some(id) = id {
                 writer.write(&format!("/* {} */ ", id.to_case(Case::Camel),));
 
@@ -231,31 +532,124 @@ fn write_token(writer: &mut Writer, token: &SwiftIR) {
                 writer.write(&generate_default_const_value(type_id));
             }
         }
-        SwiftIR::StaticCall {
-            type_id: _,
-            method: _,
-        } => {}
         SwiftIR::Call { id, arguments } => {
             writer.write(id);
 
-            if arguments.is_empty() {
-                writer.write("()");
-            } else {
+            if let Some(arguments) = arguments {
                 writer.write("(");
-                writer.new_line();
-                writer.push_tab();
-                write_tokens_comma_separated(writer, arguments);
-                writer.pop_tab();
-                writer.write_tabs();
+                write_token(writer, arguments);
                 writer.write(")");
+            } else {
+                writer.write("()");
             }
         }
-        SwiftIR::Enum { id, body } => {
-            writer.writeln(&format!("enum {} {{", id.to_case(Case::Pascal)));
+        SwiftIR::ChainCalls { items } => {
+            writer.push_tab();
+            let mut it = items.iter().peekable();
+
+            while let Some(item) = it.next() {
+                // NOTE(sysint64): Removing trailing spaces when Gap is used.
+                match item {
+                    SwiftIR::Gap => {}
+                    _ => {
+                        write_token(writer, item);
+                    }
+                }
+
+                if it.peek().is_some() {
+                    writer.new_line();
+                    writer.write_tabs();
+                }
+            }
+            writer.pop_tab();
+        }
+        SwiftIR::NamedBlock { id, body } => {
+            writer.write(id);
+            writer.write(" {");
+            writer.new_line();
+
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+
+            match body.as_ref() {
+                SwiftIR::Statements { items } => {
+                    if !items.is_empty() {
+                        writer.new_line();
+                    }
+                }
+                _ => {
+                    writer.new_line();
+                }
+            }
+
+            writer.write_tabs();
+            writer.write("}");
+        }
+        SwiftIR::TrailingCall {
+            id,
+            arguments,
+            input,
+            body,
+        } => {
+            writer.write(id);
+
+            if let Some(arguments) = arguments {
+                writer.write("(");
+                write_token(writer, arguments);
+                writer.write(")");
+            } else {
+                writer.write("()");
+            }
+
+            writer.write(" {");
+
+            if let Some(input) = input {
+                writer.write(" ");
+                write_token(writer, input);
+                writer.write(" in");
+            }
+
+            writer.new_line();
+
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+
+            match body.as_ref() {
+                SwiftIR::Statements { items } => {
+                    if !items.is_empty() {
+                        writer.new_line();
+                    }
+                }
+                _ => {
+                    writer.new_line();
+                }
+            }
+
+            writer.write_tabs();
+            writer.write("}");
+        }
+        SwiftIR::Enum { id, body, extends } => {
+            writer.write_tabs();
+            writer.write(&format!("enum {}", id.to_case(Case::Pascal)));
+
+            if !extends.is_empty() {
+                writer.write(": ");
+                write_tokens_separated(writer, extends, ", ");
+            }
+
+            writer.write(" {");
+            writer.new_line();
             writer.push_tab();
             write_tokens(writer, body);
             writer.pop_tab();
             writer.writeln("}");
+            // writer.writeln(&format!("enum {} {{", id.to_case(Case::Pascal)));
+            // writer.push_tab();
+            // write_tokens(writer, body);
+            // writer.pop_tab();
+            // writer.writeln("}");
         }
         SwiftIR::EnumCase { id, parameters } => {
             if parameters.is_empty() {
@@ -310,6 +704,15 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
             _ => id.clone(),
         },
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Option" => format!(
+                "{}?",
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .first()
+                    .expect("Optional type cannot be empty")
+            ),
             "Vec" => format!(
                 "[{}]",
                 generics
@@ -381,12 +784,13 @@ pub fn generate_default_const_value(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Other { id } => match id.as_str() {
             "String" => String::from("\"\""),
             "Vec" => String::from("[]"),
-            _ => format!("{}.createDefault()", id),
+            _ => format!("{}.createBuffersDefault()", id),
         },
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Option" => String::from("nil"),
             "Vec" => String::from("[]"),
             _ => format!(
-                "{}<{}>.createDefault()",
+                "{}<{}>.createBuffersDefault()",
                 id,
                 generics
                     .iter()

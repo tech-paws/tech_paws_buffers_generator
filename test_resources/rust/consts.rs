@@ -11,7 +11,7 @@ pub mod commands {
 }
 
 pub mod addr {
-    pub const SOME_VALUE: String = "Hello World!";
+    pub const SOME_VALUE: &'static str = "Hello World!";
 
     pub mod groups {
         pub const MAIN: tech_paws_runtime::GroupAddress = tech_paws_runtime::GroupAddress(0);

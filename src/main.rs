@@ -1,9 +1,8 @@
 pub mod ast;
-pub mod dart;
-pub mod dart_generator;
 pub mod kotlin;
 pub mod lexer;
 pub mod parser;
+// pub mod dart;
 pub mod rust;
 pub mod rust_generator;
 pub mod swift;
@@ -28,23 +27,15 @@ struct Cli {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct YamlData {
-    dart: Option<Vec<YamlParams>>,
     rust: Option<Vec<YamlParams>>,
+    swift: Option<Vec<YamlParams>>,
+    kotlin: Option<Vec<YamlParams>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct YamlParams {
     src: String,
     dest: String,
-
-    #[serde(default)]
-    skip_models: bool,
-
-    #[serde(default)]
-    skip_buffers: bool,
-
-    #[serde(default)]
-    skip_rpc: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -58,15 +49,6 @@ enum Commands {
 
         #[clap(short, long, arg_enum)]
         lang: Lang,
-
-        #[clap(long, value_parser)]
-        skip_models: bool,
-
-        #[clap(long, value_parser)]
-        skip_buffers: bool,
-
-        #[clap(long, value_parser)]
-        skip_rpc: bool,
     },
     Yaml {
         /// Path to a config
@@ -78,7 +60,8 @@ enum Commands {
 #[derive(ArgEnum, Clone, Debug)]
 enum Lang {
     Rust,
-    Dart,
+    Swift,
+    Kotlin,
 }
 
 fn main() -> std::io::Result<()> {
@@ -94,10 +77,7 @@ fn main() -> std::io::Result<()> {
             input,
             output,
             lang,
-            skip_models,
-            skip_buffers,
-            skip_rpc,
-        } => generate(input, output, lang, *skip_models, *skip_buffers, *skip_rpc)?,
+        } => generate(input, output, lang)?,
 
         Commands::Yaml { path } => {
             let mut path_file = File::open(path)?;
@@ -106,7 +86,13 @@ fn main() -> std::io::Result<()> {
             let data = serde_yaml::from_str::<YamlData>(contents.as_str()).unwrap();
             let working_dir = path.parent().unwrap();
 
-            if let Some(rust) = data.rust {
+            if let Some(rust) = &data.rust {
+                for item in rust.iter() {
+                    let src = working_dir.join(&item.src);
+                }
+            }
+
+            if let Some(rust) = &data.rust {
                 for item in rust.iter() {
                     let src = working_dir.join(&item.src);
                     let dest = working_dir.join(&item.dest);
@@ -118,28 +104,38 @@ fn main() -> std::io::Result<()> {
                         &src.to_str().unwrap().to_string(),
                         &dest.to_str().unwrap().to_string(),
                         &Lang::Rust,
-                        item.skip_models,
-                        item.skip_buffers,
-                        item.skip_rpc,
                     )?
                 }
             }
 
-            if let Some(dart) = data.dart {
-                for item in dart.iter() {
+            if let Some(swift) = data.swift {
+                for item in swift.iter() {
                     let src = working_dir.join(&item.src);
                     let dest = working_dir.join(&item.dest);
 
-                    log::info!("Generate dart buffer: {}", src.display());
-                    log::info!("Generate dart dest: {}", dest.display());
+                    log::info!("Generate swift buffer: {}", src.display());
+                    log::info!("Generate swift dest: {}", dest.display());
 
                     generate(
                         &src.to_str().unwrap().to_string(),
                         &dest.to_str().unwrap().to_string(),
-                        &Lang::Dart,
-                        item.skip_models,
-                        item.skip_buffers,
-                        item.skip_rpc,
+                        &Lang::Swift,
+                    )?
+                }
+            }
+
+            if let Some(kotlin) = data.kotlin {
+                for item in kotlin.iter() {
+                    let src = working_dir.join(&item.src);
+                    let dest = working_dir.join(&item.dest);
+
+                    log::info!("Generate kotlin buffer: {}", src.display());
+                    log::info!("Generate kotlin dest: {}", dest.display());
+
+                    generate(
+                        &src.to_str().unwrap().to_string(),
+                        &dest.to_str().unwrap().to_string(),
+                        &Lang::Kotlin,
                     )?
                 }
             }
@@ -149,14 +145,7 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn generate(
-    input: &String,
-    output: &String,
-    lang: &Lang,
-    skip_models: bool,
-    skip_buffers: bool,
-    skip_rpc: bool,
-) -> std::io::Result<()> {
+fn generate(input: &String, output: &String, lang: &Lang) -> std::io::Result<()> {
     let mut input_file = File::open(input)?;
     let mut contents = String::new();
     input_file.read_to_string(&mut contents)?;
@@ -164,9 +153,10 @@ fn generate(
     let mut lexer = lexer::Lexer::tokenize(&contents);
     let ast = parser::parse(&mut lexer);
 
-    let data = match lang {
-        Lang::Rust => rust_generator::generate(&ast, !skip_models, !skip_buffers, !skip_rpc),
-        Lang::Dart => dart_generator::generate(&ast, !skip_models, !skip_buffers, !skip_rpc),
+    let data: String = match lang {
+        Lang::Rust => rust_generator::generate(&ast),
+        Lang::Swift => swift::generate(&ast),
+        Lang::Kotlin => "Not Implemented".to_string(),
     };
 
     if output == "-" {

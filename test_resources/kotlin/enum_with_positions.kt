@@ -7,12 +7,13 @@ sealed interface MyEnum {
 object MyEnumIdle : MyEnum
 
 data class MyEnumMove(
-    val x: Double,
     val y: Double,
+    val x: Double,
 ) : MyEnum
 
 data class MyEnumUpdate(
-    val p0: Double,
-    val p1: Double,
-    val p2: String,
+    val p1: String,
+    val p2: Float,
+    val p3: Int,
+    val p8: Double,
 ) : MyEnum

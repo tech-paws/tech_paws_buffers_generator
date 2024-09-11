@@ -2,6 +2,7 @@ pub struct Writer {
     res: String,
     tab: String,
     const_tabs: usize,
+    contains_tabs: bool,
 }
 
 impl Writer {
@@ -10,6 +11,7 @@ impl Writer {
             res: String::with_capacity(10000),
             tab: " ".repeat(tab_size),
             const_tabs: 0,
+            contains_tabs: false,
         }
     }
 
@@ -26,26 +28,27 @@ impl Writer {
     }
 
     pub fn write_tabs(&mut self) {
-        self.res += &self.tab.repeat(self.const_tabs);
+        if !self.contains_tabs {
+            self.res += &self.tab.repeat(self.const_tabs);
+            self.contains_tabs = true;
+        }
     }
 
     pub fn write(&mut self, data: &str) {
         self.res += data;
-    }
-
-    pub fn write_tab(&mut self, tab: usize, data: &str) {
-        self.res += &self.tab.repeat(self.const_tabs + tab);
-        self.res += data;
+        self.contains_tabs = false;
     }
 
     pub fn writeln(&mut self, data: &str) {
         self.res += &self.tab.repeat(self.const_tabs);
         self.res += data;
         self.res += "\n";
+        self.contains_tabs = false;
     }
 
     pub fn new_line(&mut self) {
         self.res += "\n";
+        self.contains_tabs = false;
     }
 
     pub fn writeln_tab(&mut self, tab: usize, data: &str) {

@@ -1,14 +1,19 @@
+use convert_case::{Case, Casing};
+
 use crate::{
-    ast::{ConstASTNode, ConstItemASTNode, TypeIDASTNode},
+    ast::{ConstBlockASTNode, ConstItemASTNode, TypeIDASTNode},
     rust_generator::generate_const_value,
     rust_generator::generate_type_id,
     writer::Writer,
 };
 
-pub fn generate_const_block(tab: usize, const_node: &ConstASTNode) -> String {
+pub fn generate_const_block(tab: usize, const_node: &ConstBlockASTNode) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln_tab(tab, &format!("pub mod {} {{", const_node.id));
+    writer.writeln_tab(
+        tab,
+        &format!("pub mod {} {{", const_node.id.to_case(Case::Snake)),
+    );
 
     let mut is_first = true;
     let mut is_value = false;
@@ -35,6 +40,7 @@ pub fn generate_const_block(tab: usize, const_node: &ConstASTNode) -> String {
                             String::from("tech_paws_runtime::CommandsBufferAddress"),
                             format!("tech_paws_runtime::CommandsBufferAddress({})", const_value),
                         ),
+                        "String" => (String::from("&'static str"), const_value),
                         _ => (generated_type_id, const_value),
                     },
                     _ => (generated_type_id, const_value),
@@ -45,7 +51,7 @@ pub fn generate_const_block(tab: usize, const_node: &ConstASTNode) -> String {
                     &format!("pub const {}: {} = {};", id, type_id, value),
                 );
             }
-            ConstItemASTNode::ConstNode { node } => {
+            ConstItemASTNode::ConstsBlock { node } => {
                 if is_value && !is_first {
                     writer.writeln("");
                 }

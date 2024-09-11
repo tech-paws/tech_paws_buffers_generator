@@ -1,161 +1,86 @@
-pub fn register_rpc(runtime: &mut TechPawsRuntime, addr: &TechPawsRpcAddress) {
+pub fn register_rpc(runtime: &mut TechPawsBuffersRuntime) {
     let scope_id = TechPawsScopeId(uuid!("4de616f8-12c5-4d2c-8d48-9c5fb038991f"));
     runtime.memory.add_scope(scope_id);
-    runtime.register_sync_rpc_method(
-        addr.sync_group_address,
-        scope_id,
-        RpcMethodAddress(0),
-        print_hello_world_rpc_handler,
+    runtime.register_rpc_method(
+        TechPawsRpcMethod {
+            scope_id,
+            rpc_method_address: RpcMethodAddress(0),
+            handler: print_hello_world_rpc_handler,
+        },
+        TechPawsRuntimeRpcMethodPayloadSize::Zero,
     );
-    runtime.register_sync_rpc_method(
-        addr.sync_group_address,
-        scope_id,
-        RpcMethodAddress(1),
-        hello_world_rpc_handler,
+    runtime.register_rpc_method(
+        TechPawsRpcMethod {
+            scope_id,
+            rpc_method_address: RpcMethodAddress(1),
+            handler: hello_world_rpc_handler,
+        },
+        TechPawsRuntimeRpcMethodPayloadSize::Medium,
     );
-    runtime.register_sync_rpc_method(
-        addr.sync_group_address,
-        scope_id,
-        RpcMethodAddress(2),
-        say_hello_rpc_handler,
+    runtime.register_rpc_method(
+        TechPawsRpcMethod {
+            scope_id,
+            rpc_method_address: RpcMethodAddress(2),
+            handler: say_hello_rpc_handler,
+        },
+        TechPawsRuntimeRpcMethodPayloadSize::Medium,
     );
-    runtime.register_sync_rpc_method(
-        addr.sync_group_address,
-        scope_id,
-        RpcMethodAddress(3),
-        sum_rpc_handler,
+    runtime.register_rpc_method(
+        TechPawsRpcMethod {
+            scope_id,
+            rpc_method_address: RpcMethodAddress(3),
+            handler: sum_rpc_handler,
+        },
+        TechPawsRuntimeRpcMethodPayloadSize::Medium,
     );
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct __print_hello_world_rpc_args__;
-
-impl IntoVMBuffers for __print_hello_world_rpc_args__ {
-    fn read_from_buffers(_: &mut BytesReader) -> Self {
-        __print_hello_world_rpc_args__
-    }
-
-    fn write_to_buffers(&self, _: &mut BytesWriter) {}
-
-    fn skip_in_buffers(_: &mut BytesReader, _: u64) {}
 }
 
 pub fn print_hello_world_rpc_handler(
     scope_id: TechPawsScopeId,
     memory: &mut TechPawsRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
-) -> bool {
-    let args = memory.get_scope_mut(scope_id).rpc_buffer_read(
-        rpc_method_address,
-        TechPawsRuntimeRpcMethodBuffer::Server,
-        |bytes_reader| {
-            let status = bytes_reader.read_u8();
-
-            if status == 0xFF {
-                Some(__print_hello_world_rpc_args__::read_from_buffers(bytes_reader))
-            } else {
-                None
-            }
-        },
-    );
-
-    if let Some(args) = &args {
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Server,
-            |bytes_writer| {
-                bytes_writer.write_u8(0x00);
-            },
-        );
-
-        print_hello_world();
-
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Client,
-            |bytes_writer| {
-                bytes_writer.write_u8(0xFF);
-            },
-        );
-    }
-
-    args.is_some()
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct __hello_world_rpc_args__;
-
-impl IntoVMBuffers for __hello_world_rpc_args__ {
-    fn read_from_buffers(_: &mut BytesReader) -> Self {
-        __hello_world_rpc_args__
-    }
-
-    fn write_to_buffers(&self, _: &mut BytesWriter) {}
-
-    fn skip_in_buffers(_: &mut BytesReader, _: u64) {}
+) {
+    print_hello_world();
 }
 
 pub fn hello_world_rpc_handler(
     scope_id: TechPawsScopeId,
     memory: &mut TechPawsRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
-) -> bool {
-    let args = memory.get_scope_mut(scope_id).rpc_buffer_read(
-        rpc_method_address,
-        TechPawsRuntimeRpcMethodBuffer::Server,
-        |bytes_reader| {
-            let status = bytes_reader.read_u8();
+) {
+    let result = hello_world();
 
-            if status == 0xFF {
-                Some(__hello_world_rpc_args__::read_from_buffers(bytes_reader))
-            } else {
-                None
-            }
+    memory.get_scope_mut(scope_id).rpc_buffer_write(
+        rpc_method_address,
+        TechPawsRuntimeRpcMethodBuffer::Client,
+        |bytes_writer| {
+            result.write_to_buffers(bytes_writer);
         },
     );
-
-    if let Some(args) = &args {
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Server,
-            |bytes_writer| {
-                bytes_writer.write_u8(0x00);
-            },
-        );
-
-        let result = hello_world();
-
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Client,
-            |bytes_writer| {
-                bytes_writer.write_u8(0xFF);
-                result.write_to_buffers(bytes_writer);
-            },
-        );
-    }
-
-    args.is_some()
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct __say_hello_rpc_args__ {
-    pub name: String,
+    pub first_name: String,
+    pub last_name: String,
 }
 
-impl IntoVMBuffers for __say_hello_rpc_args__ {
+impl TechPawsBuffersModel for __say_hello_rpc_args__ {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         Self {
-            name: String::read_from_buffers(bytes_reader),
+            first_name: String::read_from_buffers(bytes_reader),
+            last_name: String::read_from_buffers(bytes_reader),
         }
     }
 
     fn write_to_buffers(&self, bytes_writer: &mut BytesWriter) {
-        self.name.write_to_buffers(bytes_writer);
+        self.first_name.write_to_buffers(bytes_writer);
+        self.last_name.write_to_buffers(bytes_writer);
     }
 
     fn skip_in_buffers(bytes_reader: &mut BytesReader, count: u64) {
         for _ in 0..count {
+            String::read_from_buffers(bytes_reader);
             String::read_from_buffers(bytes_reader);
         }
     }
@@ -165,45 +90,25 @@ pub fn say_hello_rpc_handler(
     scope_id: TechPawsScopeId,
     memory: &mut TechPawsRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
-) -> bool {
+) {
     let args = memory.get_scope_mut(scope_id).rpc_buffer_read(
         rpc_method_address,
         TechPawsRuntimeRpcMethodBuffer::Server,
-        |bytes_reader| {
-            let status = bytes_reader.read_u8();
-
-            if status == 0xFF {
-                Some(__say_hello_rpc_args__::read_from_buffers(bytes_reader))
-            } else {
-                None
-            }
-        },
+        |bytes_reader| __say_hello_rpc_args__::read_from_buffers(bytes_reader),
     );
 
-    if let Some(args) = &args {
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Server,
-            |bytes_writer| {
-                bytes_writer.write_u8(0x00);
-            },
-        );
+    let result = say_hello(
+        args.first_name,
+        args.last_name,
+    );
 
-        let result = say_hello(
-            args.clone().name,
-        );
-
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Client,
-            |bytes_writer| {
-                bytes_writer.write_u8(0xFF);
-                result.write_to_buffers(bytes_writer);
-            },
-        );
-    }
-
-    args.is_some()
+    memory.get_scope_mut(scope_id).rpc_buffer_write(
+        rpc_method_address,
+        TechPawsRuntimeRpcMethodBuffer::Client,
+        |bytes_writer| {
+            result.write_to_buffers(bytes_writer);
+        },
+    );
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -213,7 +118,7 @@ pub struct __sum_rpc_args__ {
     pub c: f64,
 }
 
-impl IntoVMBuffers for __sum_rpc_args__ {
+impl TechPawsBuffersModel for __sum_rpc_args__ {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         Self {
             a: bytes_reader.read_i32(),
@@ -241,45 +146,24 @@ pub fn sum_rpc_handler(
     scope_id: TechPawsScopeId,
     memory: &mut TechPawsRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
-) -> bool {
+) {
     let args = memory.get_scope_mut(scope_id).rpc_buffer_read(
         rpc_method_address,
         TechPawsRuntimeRpcMethodBuffer::Server,
-        |bytes_reader| {
-            let status = bytes_reader.read_u8();
-
-            if status == 0xFF {
-                Some(__sum_rpc_args__::read_from_buffers(bytes_reader))
-            } else {
-                None
-            }
-        },
+        |bytes_reader| __sum_rpc_args__::read_from_buffers(bytes_reader),
     );
 
-    if let Some(args) = &args {
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Server,
-            |bytes_writer| {
-                bytes_writer.write_u8(0x00);
-            },
-        );
+    let result = sum(
+        args.a,
+        args.b,
+        args.c,
+    );
 
-        let result = sum(
-            args.clone().a,
-            args.clone().b,
-            args.clone().c,
-        );
-
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            TechPawsRuntimeRpcMethodBuffer::Client,
-            |bytes_writer| {
-                bytes_writer.write_u8(0xFF);
-                bytes_writer.write_f64(result);
-            },
-        );
-    }
-
-    args.is_some()
+    memory.get_scope_mut(scope_id).rpc_buffer_write(
+        rpc_method_address,
+        TechPawsRuntimeRpcMethodBuffer::Client,
+        |bytes_writer| {
+            bytes_writer.write_f64(result);
+        },
+    );
 }

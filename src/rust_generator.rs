@@ -7,7 +7,7 @@ use crate::rust::struct_buffers::generate_struct_buffers;
 use crate::rust::struct_models::generate_struct_model;
 use crate::{lexer::Literal, writer::Writer};
 
-pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> String {
+pub fn generate(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
 
     writer.writeln("// GENERATED, DO NOT EDIT");
@@ -17,21 +17,27 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
     writer.writeln("#![allow(unknown_lints)]");
     writer.writeln("");
 
-    if rpc && !ast::find_fn_nodes(ast).is_empty() {
-        writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
-        writer.writeln("use tech_paws_runtime::{");
-        writer.writeln_tab(
-            1,
-            "memory::TechPawsRuntimeMemory, RpcMethodAddress, TechPawsRpcAddress, TechPawsRuntime,",
+    let has_rpc = ast::contains_fn_nodes(ast);
+    let has_buffers = ast::contains_buffers_nodes(ast);
+    let has_consts = ast::contains_consts_nodes(ast);
+
+    if has_buffers || has_rpc {
+        writer.writeln(
+            "use tech_paws_buffers::memory::{BytesReader, BytesWriter, TechPawsBuffersModel};",
         );
-        writer.writeln_tab(
-            1,
-            "TechPawsRuntimeAsyncContext, TechPawsRuntimeRpcMethodBuffer, TechPawsScopeId,",
+    }
+
+    if has_rpc {
+        writer.writeln("use tech_paws_buffers::runtime_memory::{");
+        writer.writeln(
+            "    RpcMethodAddress, TechPawsRuntimeMemory, TechPawsRuntimeRpcMethodBuffer,",
         );
+        writer.writeln("    TechPawsRuntimeRpcMethodPayloadSize, TechPawsScopeId,");
         writer.writeln("};");
+        writer.writeln(
+            "use tech_paws_buffers::{RpcMethodHandler, TechPawsBuffersRuntime, TechPawsRpcMethod, TechPawsSignalRpcResult};",
+        );
         writer.writeln("use uuid::uuid;");
-    } else if buffers {
-        writer.writeln("use tech_paws_buffers::{BytesReader, BytesWriter, IntoVMBuffers};");
     }
 
     let imports = ast::find_directive_group_values(ast, "rust", "use");
@@ -49,22 +55,19 @@ pub fn generate(ast: &[ASTNode], models: bool, buffers: bool, rpc: bool) -> Stri
         writer.writeln(&format!("use {};", import));
     }
 
-    if ast::contains_consts_nodes(ast) {
+    if has_consts {
         writer.writeln("");
         writer.write(&generate_consts(ast));
     }
 
-    if models {
+    if has_buffers {
         writer.writeln("");
         writer.write(&generate_models(ast));
-    }
-
-    if buffers {
         writer.writeln("");
         writer.write(&generate_buffers(ast));
     }
 
-    if rpc {
+    if has_rpc {
         writer.writeln("");
         writer.write(&generate_rpc(ast));
     }
@@ -141,7 +144,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
 
     for node in ast {
         if let ASTNode::Fn(node) = node {
-            writer.writeln(&generate_rpc_method(node))
+            writer.writeln(&generate_rpc_method(node));
         }
     }
 
@@ -299,7 +302,7 @@ mod tests {
         let target = fs::read_to_string("test_resources/rust/empty.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
-        let actual = generate(&ast, true, true, true);
+        let actual = generate(&ast);
         assert_eq!(actual, target);
     }
 
@@ -348,6 +351,17 @@ mod tests {
     }
 
     #[test]
+    fn generate_consts_test() {
+        let src = fs::read_to_string("test_resources/consts.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/consts.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_consts(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
     fn generate_rpc_sync_methods() {
         let src = fs::read_to_string("test_resources/rpc_sync_methods.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/rpc_sync_methods.rs").unwrap();
@@ -359,45 +373,12 @@ mod tests {
     }
 
     #[test]
-    fn generate_rpc_async_methods() {
-        let src = fs::read_to_string("test_resources/rpc_async_methods.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/rust/rpc_async_methods.rs").unwrap();
+    fn generate_rpc_stream_methods() {
+        let src = fs::read_to_string("test_resources/rpc_stream_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/rpc_stream_methods.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_rpc_read_methods() {
-        let src = fs::read_to_string("test_resources/rpc_read_methods.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/rust/rpc_read_methods.rs").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_rpc_methods() {
-        let src = fs::read_to_string("test_resources/rpc_methods.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/rust/rpc_methods.rs").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
-        println!("{}", actual);
-        assert_eq!(actual, target);
-    }
-
-    #[test]
-    fn generate_consts_test() {
-        let src = fs::read_to_string("test_resources/consts.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/rust/consts.rs").unwrap();
-        let mut lexer = Lexer::tokenize(&src);
-        let ast = parse(&mut lexer);
-        let actual = generate_consts(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }

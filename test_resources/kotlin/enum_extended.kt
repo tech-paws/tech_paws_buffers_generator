@@ -12,9 +12,9 @@ data class MyEnumMove(
 ) : MyEnum
 
 data class MyEnumUpdate(
-    val p0: Double,
     val p1: Double,
-    val p2: String,
+    val p2: Double,
+    val p4: String,
 ) : MyEnum
 
 sealed interface MyEnumWithoutPositions {

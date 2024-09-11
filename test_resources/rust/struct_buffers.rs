@@ -1,4 +1,4 @@
-impl IntoVMBuffers for Empty {
+impl TechPawsBuffersModel for Empty {
     fn read_from_buffers(_: &mut BytesReader) -> Self {
         Empty
     }
@@ -8,7 +8,7 @@ impl IntoVMBuffers for Empty {
     fn skip_in_buffers(_: &mut BytesReader, _: u64) {}
 }
 
-impl IntoVMBuffers for ViewData {
+impl TechPawsBuffersModel for ViewData {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         Self {
             delta_time: bytes_reader.read_f32(),
@@ -50,7 +50,7 @@ impl IntoVMBuffers for ViewData {
     }
 }
 
-impl IntoVMBuffers for Test {
+impl TechPawsBuffersModel for Test {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         Self {
             touch_x: bytes_reader.read_f32(),
@@ -74,7 +74,7 @@ impl IntoVMBuffers for Test {
     }
 }
 
-impl IntoVMBuffers for GenericType {
+impl TechPawsBuffersModel for GenericType {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         Self {
             items: Vec::<Test>::read_from_buffers(bytes_reader),

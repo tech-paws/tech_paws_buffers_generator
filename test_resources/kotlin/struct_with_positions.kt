@@ -1,12 +1,12 @@
 data class Test(
-    val touchX: Float,
     val touchY: Float,
+    val touchX: Float,
     val touchStatus: TouchStatus,
 ) {
     companion object {
         fun createDefault(): Test = Test(
-            touchX = 0f,
             touchY = 0f,
+            touchX = 0f,
             touchStatus = TouchStatus.createDefault(),
         )
     }
