@@ -4,6 +4,29 @@
 
 Tech Paws Buffer Generator is a code generator for Tech Paws Buffers, a protocol similar to gRPC but designed to replace FFI (Foreign Function Interface). It establishes lightweight yet fast communication between different programming languages, offering a richer type system and signal RPC methods.
 
+Currently, Rust serves as the primary language implementing core features. This allows developers to create functions in Rust and execute them in other languages such as Dart, Swift, or Kotlin.
+
+## Project Status
+
+**Current Stage: Pre-Alpha**
+
+Tech Paws Buffer Generator is currently in the pre-alpha stage of development and is designed for internal use within the Tech.Paws project. Key points to note:
+
+- The project is in early development and not yet ready for public use.
+- The runtime for Tech Paws Buffer Generator is not yet publicly available.
+- This tool is specifically designed and currently limited to internal use within the Tech.Paws project.
+- The core functionality is under active development.
+- The API and features are subject to change.
+- It may contain bugs and is not suitable for production use outside of its intended internal context.
+
+We are sharing this repository for transparency and to provide insight into our development process. However, please be aware that:
+
+- External contributions are not being accepted at this time.
+- The project may not be immediately usable or fully functional for those outside the Tech.Paws project.
+- Documentation and support are primarily geared towards internal developers.
+
+We appreciate your interest in the project. As it evolves, we may expand its scope and availability. Please check back for updates on its status and potential future public releases.
+
 ## Models Example
 
 Tech Paws Buffer Generator supports various data structures and types. Here's an example of the models you can define:
@@ -116,3 +139,11 @@ struct Position2D {
 #[memory(emplace)]
 signal render_commands -> Vec<RenderCommand>;
 ```
+
+## Contributing
+
+As this is an internal project for Tech.Paws, we are not accepting external contributions at this time. If you are a member of the Tech.Paws team, please refer to our internal contributing guidelines.
+
+## License
+
+Licensed under the Apache License 2.0. ([LICENSE](LICENSE) or <http://www.apache.org/licenses/LICENSE-2.0>)
