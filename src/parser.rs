@@ -1,6 +1,14 @@
 use crate::ast::*;
 use crate::lexer::{Lexer, Literal, Token};
 
+macro_rules! parse_error {
+    ($lexer:expr, $($arg:tt)*) => ({
+        let line = $lexer.line();
+        let pos = $lexer.pos();
+        panic!("{}:{}: {}", line, pos, format!($($arg)*));
+    });
+}
+
 pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
     let mut ast_nodes = vec![];
 
@@ -10,10 +18,10 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
             Token::Async => ast_nodes.push(parse_async(lexer)),
             Token::Fn => ast_nodes.push(parse_fn(lexer, false)),
-            Token::Signal => ast_nodes.push(parse_stream(lexer, false)),
+            Token::Signal => ast_nodes.push(parse_signal(lexer, false)),
             Token::Const => ast_nodes.push(ASTNode::Const(parse_const(lexer))),
             Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
-            _ => panic!("Unexpected token: {:?}", lexer.current_token()),
+            _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
         }
     }
 
@@ -22,13 +30,21 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
 
 pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
     if *lexer.current_token() != Token::Struct {
-        panic!("Expected 'struct' but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected 'struct' but got {:?}",
+            lexer.current_token()
+        );
     }
 
     let name = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
-        panic!("Expected string value, but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected string value, but got {:?}",
+            lexer.current_token()
+        );
     };
 
     if *lexer.next_token() == Token::Symbol(';') {
@@ -43,19 +59,27 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
     }
 
     if *lexer.current_token() != Token::Symbol('{') {
-        panic!("Expected ';' or '{{', but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected ';' or '{{', but got {:?}",
+            lexer.current_token()
+        );
     }
 
     match lexer.next_token() {
         Token::Symbol('#') => (),
         Token::ID { name: _ } => (),
-        _ => panic!("Expected '#' or Id, but got {:?}", lexer.current_token()),
+        _ => parse_error!(
+            lexer,
+            "Expected '#' or Id, but got {:?}",
+            lexer.current_token()
+        ),
     }
 
     let parameters = parse_struct_parameters(lexer);
 
     if *lexer.current_token() != Token::Symbol('}') {
-        panic!("Expected '}}', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '}}', but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -70,29 +94,41 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
 
 pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
     if *lexer.current_token() != Token::Enum {
-        panic!("Expected 'struct' but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected 'struct' but got {:?}",
+            lexer.current_token()
+        );
     }
 
     let name = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
-        panic!("Expected string value, but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected string value, but got {:?}",
+            lexer.current_token()
+        );
     };
 
     if *lexer.next_token() != Token::Symbol('{') {
-        panic!("Expected '{{', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '{{', but got {:?}", lexer.current_token());
     }
 
     match lexer.next_token() {
         Token::Symbol('#') => (),
         Token::ID { name: _ } => (),
-        _ => panic!("Expected '#' or Id, but got {:?}", lexer.current_token()),
+        _ => parse_error!(
+            lexer,
+            "Expected '#' or Id, but got {:?}",
+            lexer.current_token()
+        ),
     }
 
     let node = parse_enum_items(name, lexer);
 
     if *lexer.current_token() != Token::Symbol('}') {
-        panic!("Expected '}}', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '}}', but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -115,7 +151,7 @@ pub fn parse_enum_items_with_positions(id: String, lexer: &mut Lexer) -> ASTNode
         let name = if let Token::ID { name } = lexer.current_token() {
             name.clone()
         } else {
-            panic!("Expected id, but got {:?}", lexer.current_token());
+            parse_error!(lexer, "Expected id, but got {:?}", lexer.current_token());
         };
 
         let item = match *lexer.next_token() {
@@ -164,14 +200,18 @@ pub fn parse_enum_items_without_positions(id: String, lexer: &mut Lexer) -> ASTN
 
 pub fn parse_struct_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumItemASTNode {
     if *lexer.current_token() != Token::Symbol('{') {
-        panic!("Expected ';' or '{{', but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected ';' or '{{', but got {:?}",
+            lexer.current_token()
+        );
     }
 
     lexer.next_token();
     let fields = parse_struct_parameters(lexer);
 
     if *lexer.current_token() != Token::Symbol('}') {
-        panic!("Expected '}}', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '}}', but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -185,14 +225,18 @@ pub fn parse_struct_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumIt
 
 pub fn parse_tuple_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumItemASTNode {
     if *lexer.current_token() != Token::Symbol('(') {
-        panic!("Expected ';' or '(', but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected ';' or '(', but got {:?}",
+            lexer.current_token()
+        );
     }
 
     lexer.next_token();
     let values = parse_tuple_parameters(lexer);
 
     if *lexer.current_token() != Token::Symbol(')') {
-        panic!("Expected ')', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected ')', but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -208,7 +252,11 @@ pub fn parse_const_value(lexer: &mut Lexer) -> ConstValueASTNode {
     let literal = if let Token::Literal(literal) = lexer.current_token() {
         literal.clone()
     } else {
-        panic!("Expected const value, but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected const value, but got {:?}",
+            lexer.current_token()
+        );
     };
 
     let type_id = match literal {
@@ -248,7 +296,7 @@ pub fn parse_struct_parameters_without_positions(lexer: &mut Lexer) -> Vec<Struc
         let name = name.clone();
 
         if *lexer.next_token() != Token::Symbol(':') {
-            panic!("Expected ':', but got {:?}", lexer.current_token());
+            parse_error!(lexer, "Expected ':', but got {:?}", lexer.current_token());
         }
 
         lexer.next_token();
@@ -279,11 +327,15 @@ pub fn parse_struct_parameters_with_positions(lexer: &mut Lexer) -> Vec<StructFi
         let name = if let Token::ID { name } = lexer.current_token() {
             name.clone()
         } else {
-            panic!("Expected string value, but got {:?}", lexer.current_token());
+            parse_error!(
+                lexer,
+                "Expected string value, but got {:?}",
+                lexer.current_token()
+            );
         };
 
         if *lexer.next_token() != Token::Symbol(':') {
-            panic!("Expected ':', but got {:?}", lexer.current_token());
+            parse_error!(lexer, "Expected ':', but got {:?}", lexer.current_token());
         }
 
         lexer.next_token();
@@ -359,7 +411,11 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
     let name = if let Token::ID { name } = lexer.current_token() {
         name.clone()
     } else {
-        panic!("Expected string value, but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected string value, but got {:?}",
+            lexer.current_token()
+        );
     };
 
     if let Token::Symbol('<') = lexer.next_token() {
@@ -377,7 +433,11 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
                 Token::Symbol(',') => {
                     continue;
                 }
-                _ => panic!("Expected ',' or '>' but got {:?}", lexer.current_token()),
+                _ => parse_error!(
+                    lexer,
+                    "Expected ',' or '>' but got {:?}",
+                    lexer.current_token()
+                ),
             }
         }
     }
@@ -426,8 +486,9 @@ pub fn parse_async(lexer: &mut Lexer) -> ASTNode {
 
     match lexer.current_token() {
         Token::Fn => parse_fn(lexer, true),
-        Token::Signal => parse_stream(lexer, true),
-        _ => panic!(
+        Token::Signal => parse_signal(lexer, true),
+        _ => parse_error!(
+            lexer,
             "Expected 'fn' or stream' but got {:?}",
             lexer.current_token()
         ),
@@ -436,24 +497,24 @@ pub fn parse_async(lexer: &mut Lexer) -> ASTNode {
 
 pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
     if *lexer.current_token() != Token::Fn {
-        panic!("Expected 'fn' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected 'fn' but got {:?}", lexer.current_token());
     }
 
     let id = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
-        panic!("Expected id, but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected id, but got {:?}", lexer.current_token());
     };
 
     if *lexer.next_token() != Token::Symbol('(') {
-        panic!("Expected '(', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '(', but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
     let args = parse_fn_args(lexer);
 
     if *lexer.current_token() != Token::Symbol(')') {
-        panic!("Expected ')', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected ')', but got {:?}", lexer.current_token());
     }
 
     if *lexer.next_token() == Token::Symbol(';') {
@@ -470,18 +531,18 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
     }
 
     if *lexer.current_token() != Token::Symbol('-') {
-        panic!("Expected '->', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '->', but got {:?}", lexer.current_token());
     }
 
     if *lexer.next_token() != Token::Symbol('>') {
-        panic!("Expected '->', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '->', but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
     let return_type_id = Some(parse_type_id(lexer));
 
     if *lexer.current_token() != Token::Symbol(';') {
-        panic!("Expected ';', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected ';', but got {:?}", lexer.current_token());
     }
     lexer.next_token();
 
@@ -495,15 +556,19 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
     })
 }
 
-pub fn parse_stream(lexer: &mut Lexer, is_async: bool) -> ASTNode {
+pub fn parse_signal(lexer: &mut Lexer, is_async: bool) -> ASTNode {
     if *lexer.current_token() != Token::Signal {
-        panic!("Expected 'stream' but got {:?}", lexer.current_token());
+        parse_error!(
+            lexer,
+            "Expected 'stream' but got {:?}",
+            lexer.current_token()
+        );
     };
 
     let id = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
-        panic!("Expected id, but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected id, but got {:?}", lexer.current_token());
     };
 
     if *lexer.next_token() == Token::Symbol(';') {
@@ -520,18 +585,18 @@ pub fn parse_stream(lexer: &mut Lexer, is_async: bool) -> ASTNode {
     }
 
     if *lexer.current_token() != Token::Symbol('-') {
-        panic!("Expected '->', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '->', but got {:?}", lexer.current_token());
     }
 
     if *lexer.next_token() != Token::Symbol('>') {
-        panic!("Expected '->', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '->', but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
     let return_type_id = Some(parse_type_id(lexer));
 
     if *lexer.current_token() != Token::Symbol(';') {
-        panic!("Expected ';', but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected ';', but got {:?}", lexer.current_token());
     }
     lexer.next_token();
 
@@ -552,7 +617,7 @@ pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
         let id = name.clone();
 
         if *lexer.next_token() != Token::Symbol(':') {
-            panic!("Expected ':', but got {:?}", lexer.current_token());
+            parse_error!(lexer, "Expected ':', but got {:?}", lexer.current_token());
         }
 
         lexer.next_token();
@@ -573,11 +638,11 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
     let id = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
-        panic!("Expected id but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected id but got {:?}", lexer.current_token());
     };
 
     if *lexer.next_token() != Token::Symbol('{') {
-        panic!("Expected '{{' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '{{' but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -596,7 +661,7 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
                 let id = name.clone();
 
                 if *lexer.next_token() != Token::Symbol(':') {
-                    panic!("Expected ':' but got {:?}", lexer.current_token());
+                    parse_error!(lexer, "Expected ':' but got {:?}", lexer.current_token());
                 }
 
                 lexer.next_token();
@@ -604,25 +669,25 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
                 let type_id = parse_type_id(lexer);
 
                 if *lexer.current_token() != Token::Symbol('=') {
-                    panic!("Expected '=' but got {:?}", lexer.current_token());
+                    parse_error!(lexer, "Expected '=' but got {:?}", lexer.current_token());
                 }
 
                 lexer.next_token();
                 let value = parse_const_value(lexer);
 
                 if *lexer.next_token() != Token::Symbol(';') {
-                    panic!("Expected ';' but got {:?}", lexer.current_token());
+                    parse_error!(lexer, "Expected ';' but got {:?}", lexer.current_token());
                 }
 
                 lexer.next_token();
                 items.push(ConstItemASTNode::Value { id, type_id, value });
             }
-            _ => panic!("Unexpected token: {:?}", lexer.current_token()),
+            _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
         }
     }
 
     if *lexer.current_token() != Token::Symbol('}') {
-        panic!("Expected '}}' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '}}' but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -633,21 +698,21 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
 /// Parse #[<number>]
 pub fn parse_position(lexer: &mut Lexer) -> u32 {
     if *lexer.current_token() != Token::Symbol('#') {
-        panic!("Expected '#' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '#' but got {:?}", lexer.current_token());
     }
 
     if *lexer.next_token() != Token::Symbol('[') {
-        panic!("Expected '[' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '[' but got {:?}", lexer.current_token());
     }
 
     let position = if let Token::Literal(Literal::IntLiteral(value)) = lexer.next_token() {
         *value
     } else {
-        panic!("Expected int but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected int but got {:?}", lexer.current_token());
     };
 
     if *lexer.next_token() != Token::Symbol(']') {
-        panic!("Expected ']' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected ']' but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -659,27 +724,31 @@ pub fn parse_position(lexer: &mut Lexer) -> u32 {
 /// args: <id> = <const>, args
 pub fn parse_directive(lexer: &mut Lexer) -> ASTNode {
     if *lexer.current_token() != Token::Symbol('#') {
-        panic!("Expected '#' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '#' but got {:?}", lexer.current_token());
     }
 
     if *lexer.next_token() != Token::Symbol('[') {
-        panic!("Expected '[' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected '[' but got {:?}", lexer.current_token());
     }
 
     let id = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
-        panic!("Expected id but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected id but got {:?}", lexer.current_token());
     };
 
     let directive = match lexer.next_token() {
         Token::Symbol('=') => parse_value_directive(id, lexer),
         Token::Symbol('(') => parse_group_directive(id, lexer),
-        _ => panic!("Expected '=' or '(' but got {:?}", lexer.current_token()),
+        _ => parse_error!(
+            lexer,
+            "Expected '=' or '(' but got {:?}",
+            lexer.current_token()
+        ),
     };
 
     if *lexer.next_token() != Token::Symbol(']') {
-        panic!("Expected ']' but got {:?}", lexer.current_token());
+        parse_error!(lexer, "Expected ']' but got {:?}", lexer.current_token());
     }
 
     lexer.next_token();
@@ -702,7 +771,7 @@ fn parse_group_directive(id: String, lexer: &mut Lexer) -> DirectiveASTNode {
         let id = name.clone();
 
         if *lexer.next_token() != Token::Symbol('=') {
-            panic!("Expected '=', but got {:?}", lexer.current_token());
+            parse_error!(lexer, "Expected '=', but got {:?}", lexer.current_token());
         }
 
         lexer.next_token();

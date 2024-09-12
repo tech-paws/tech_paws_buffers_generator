@@ -67,7 +67,7 @@ enum Lang {
 fn main() -> std::io::Result<()> {
     env_logger::Builder::new()
         .filter(None, log::LevelFilter::Debug)
-        .parse_env(&env::var("TPBUFFER_LOG").unwrap_or_default())
+        .parse_env(env::var("TPBUFFER_LOG").unwrap_or_default())
         .init();
 
     let cli = Cli::parse();
@@ -85,12 +85,6 @@ fn main() -> std::io::Result<()> {
             path_file.read_to_string(&mut contents)?;
             let data = serde_yaml::from_str::<YamlData>(contents.as_str()).unwrap();
             let working_dir = path.parent().unwrap();
-
-            if let Some(rust) = &data.rust {
-                for item in rust.iter() {
-                    let src = working_dir.join(&item.src);
-                }
-            }
 
             if let Some(rust) = &data.rust {
                 for item in rust.iter() {

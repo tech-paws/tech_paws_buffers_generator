@@ -1,4 +1,11 @@
 #[derive(Debug, Clone, PartialEq)]
+pub struct TokenWithLineAndPos {
+    line: usize,
+    pos: usize,
+    token: Token,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Struct,
     Enum,
@@ -22,7 +29,7 @@ pub enum Literal {
 
 pub struct Lexer {
     cursor: usize,
-    tokens: Vec<Token>,
+    tokens: Vec<TokenWithLineAndPos>,
     registered_fn_positions: Vec<u32>,
     last_fn_position: u32,
 }
@@ -30,15 +37,40 @@ pub struct Lexer {
 struct StringReader<'a> {
     data: &'a str,
     cursor: usize,
+    line: usize,
+    pos: usize,
 }
 
 impl<'a> StringReader<'a> {
     fn new(data: &'a str) -> Self {
-        Self { data, cursor: 0 }
+        Self {
+            data,
+            cursor: 0,
+            line: 1,
+            pos: 0,
+        }
+    }
+
+    pub fn line(&self) -> usize {
+        self.line
+    }
+
+    pub fn pos(&self) -> usize {
+        self.pos
     }
 
     pub fn next(&mut self) -> Option<char> {
+        if self.current() != Option::Some('\n') {
+            self.pos += 1;
+        }
+
         self.cursor += 1;
+
+        if self.current() == Option::Some('\n') {
+            self.line += 1;
+            self.pos = 0;
+        }
+
         self.current()
     }
 
@@ -70,22 +102,44 @@ impl Lexer {
                 string_reader.next();
                 continue;
             } else if ch == '/' {
+                let first_ch_line = string_reader.line();
+                let first_ch_pos = string_reader.pos();
+
                 match string_reader.next() {
                     Some('/') => lex_single_line_comment(&mut string_reader),
                     Some('*') => lex_multi_line_comment(&mut string_reader),
                     _ => {
-                        tokens.push(Token::Symbol('/'));
-                        tokens.push(Token::Symbol(ch));
+                        tokens.push(TokenWithLineAndPos {
+                            line: first_ch_line,
+                            pos: first_ch_pos,
+                            token: Token::Symbol('/'),
+                        });
+                        tokens.push(TokenWithLineAndPos {
+                            line: string_reader.line(),
+                            pos: string_reader.pos(),
+                            token: Token::Symbol(ch),
+                        });
+
                         string_reader.next();
                     }
                 }
             } else {
-                tokens.push(Token::Symbol(ch));
+                tokens.push(TokenWithLineAndPos {
+                    line: string_reader.line(),
+                    pos: string_reader.pos(),
+                    token: Token::Symbol(ch),
+                });
+
                 string_reader.next();
             }
         }
 
-        tokens.push(Token::EOF);
+        tokens.push(TokenWithLineAndPos {
+            line: string_reader.line(),
+            pos: string_reader.pos(),
+            token: Token::EOF,
+        });
+
         Lexer {
             tokens,
             cursor: 0,
@@ -115,11 +169,23 @@ impl Lexer {
     }
 
     pub fn current_token(&self) -> &Token {
+        &self.current_token_with_line_and_pos().token
+    }
+
+    fn current_token_with_line_and_pos(&self) -> &TokenWithLineAndPos {
         if self.cursor >= self.tokens.len() {
-            self.tokens.last().unwrap()
+            &self.tokens.last().unwrap()
         } else {
             &self.tokens[self.cursor]
         }
+    }
+
+    pub fn line(&self) -> usize {
+        self.current_token_with_line_and_pos().line
+    }
+
+    pub fn pos(&self) -> usize {
+        self.current_token_with_line_and_pos().pos
     }
 }
 
@@ -168,8 +234,10 @@ fn lex_multi_line_comment(string_reader: &mut StringReader) {
     }
 }
 
-fn lex_id(string_reader: &mut StringReader) -> Token {
+fn lex_id(string_reader: &mut StringReader) -> TokenWithLineAndPos {
     let mut name = String::new();
+    let line = string_reader.line();
+    let pos = string_reader.pos();
 
     loop {
         name += &String::from(string_reader.current().unwrap());
@@ -185,7 +253,7 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
         }
     }
 
-    match name.as_str() {
+    let token = match name.as_str() {
         "struct" => Token::Struct,
         "enum" => Token::Enum,
         "fn" => Token::Fn,
@@ -195,14 +263,21 @@ fn lex_id(string_reader: &mut StringReader) -> Token {
         "true" => Token::Literal(Literal::BoolLiteral(true)),
         "false" => Token::Literal(Literal::BoolLiteral(false)),
         _ => Token::ID { name },
-    }
+    };
+
+    TokenWithLineAndPos { line, pos, token }
 }
 
-fn lex_string(string_reader: &mut StringReader) -> Token {
+fn lex_string(string_reader: &mut StringReader) -> TokenWithLineAndPos {
     let mut value = String::new();
+    let line = string_reader.line();
+    let pos = string_reader.pos();
 
     if string_reader.next().is_none() {
-        panic!("TODO: Use lex error")
+        let line = string_reader.line();
+        let pos = string_reader.pos();
+
+        panic!("{line}:{pos}: Expect string, but got EOF")
     }
 
     loop {
@@ -219,17 +294,24 @@ fn lex_string(string_reader: &mut StringReader) -> Token {
         if next.is_some() {
             continue;
         } else {
-            panic!("Expect '\"', but got EOF");
+            let line = string_reader.line();
+            let pos = string_reader.pos();
+
+            panic!("{line}:{pos}: Expect '\"', but got EOF");
         }
     }
 
-    Token::Literal(Literal::StringLiteral(value))
+    let token = Token::Literal(Literal::StringLiteral(value));
+
+    TokenWithLineAndPos { line, pos, token }
 }
 
-fn lex_number(string_reader: &mut StringReader) -> Token {
+fn lex_number(string_reader: &mut StringReader) -> TokenWithLineAndPos {
     let mut value = String::new();
     let mut is_hex = false;
     let mut is_float = false;
+    let line = string_reader.line();
+    let pos = string_reader.pos();
 
     loop {
         value += &String::from(string_reader.current().unwrap());
@@ -260,7 +342,7 @@ fn lex_number(string_reader: &mut StringReader) -> Token {
         }
     }
 
-    if is_hex {
+    let token = if is_hex {
         Token::Literal(Literal::IntLiteral(
             i64::from_str_radix(value.trim_start_matches("0x"), 16).unwrap(),
         ))
@@ -268,7 +350,9 @@ fn lex_number(string_reader: &mut StringReader) -> Token {
         Token::Literal(Literal::NumberLiteral(value.parse::<f64>().unwrap()))
     } else {
         Token::Literal(Literal::IntLiteral(value.parse::<i64>().unwrap()))
-    }
+    };
+
+    TokenWithLineAndPos { line, pos, token }
 }
 
 #[cfg(test)]
@@ -279,7 +363,12 @@ mod tests {
     fn string_reader_simple() {
         let mut string_reader = StringReader::new("a");
         assert_eq!(string_reader.current(), Some('a'));
+        assert_eq!(string_reader.line(), 1);
+        assert_eq!(string_reader.pos(), 0);
+
         assert_eq!(string_reader.next(), None);
+        assert_eq!(string_reader.line(), 1);
+        assert_eq!(string_reader.pos(), 1);
     }
 
     #[test]
@@ -294,6 +383,43 @@ mod tests {
         assert_eq!(string_reader.current(), Some('3'));
         assert_eq!(string_reader.next(), None);
         assert_eq!(string_reader.current(), None);
+
+        assert_eq!(string_reader.line(), 1);
+        assert_eq!(string_reader.pos(), 6);
+    }
+
+    #[test]
+    fn string_reader_line_break() {
+        let mut string_reader = StringReader::new("abc123\r\ntest\ntest");
+        assert_eq!(string_reader.current(), Some('a'));
+
+        assert_eq!(string_reader.next(), Some('b'));
+        assert_eq!(string_reader.line(), 1);
+        assert_eq!(string_reader.pos(), 1);
+
+        assert_eq!(string_reader.next(), Some('c'));
+        assert_eq!(string_reader.next(), Some('1'));
+        assert_eq!(string_reader.next(), Some('2'));
+        assert_eq!(string_reader.next(), Some('3'));
+
+        assert_eq!(string_reader.next(), Some('\r'));
+        assert_eq!(string_reader.next(), Some('\n'));
+
+        assert_eq!(string_reader.next(), Some('t'));
+        assert_eq!(string_reader.line(), 2);
+        assert_eq!(string_reader.pos(), 0);
+
+        assert_eq!(string_reader.next(), Some('e'));
+        assert_eq!(string_reader.line(), 2);
+        assert_eq!(string_reader.pos(), 1);
+
+        string_reader.next();
+        string_reader.next();
+
+        assert_eq!(string_reader.next(), Some('\n'));
+        assert_eq!(string_reader.next(), Some('t'));
+        assert_eq!(string_reader.line(), 3);
+        assert_eq!(string_reader.pos(), 0);
     }
 
     #[test]
@@ -417,7 +543,7 @@ mod tests {
 
     #[test]
     fn lex_keywords() {
-        let mut lexer = Lexer::tokenize("struct enum fn async stream const");
+        let mut lexer = Lexer::tokenize("struct enum fn async signal const");
         let token = lexer.current_token();
         assert_eq!(token.clone(), Token::Struct);
         let token = lexer.next_token();
