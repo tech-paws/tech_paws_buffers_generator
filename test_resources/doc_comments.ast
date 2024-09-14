@@ -13,6 +13,8 @@ Enum {
     " Some doc comment"
     " Another doc comment"
   ],
+  directives: [
+  ],
   id: "MyEnum",
   items: [
     Empty { doc_comments: [" This is Idle"], position: 1, id: "Idle" }
@@ -46,6 +48,8 @@ Struct {
     " Hello World!"
     " This is View Data, Important Structure!"
   ],
+  directives: [
+  ],
   id: "ViewData",
   fields: [
     StructFieldASTNode { doc_comments: [" Delta time is delta time"], position: 1, name: "delta_time", type_id: Number { id: "f32", size: 4 } }
@@ -63,6 +67,8 @@ Fn {
     ""
     " Don't worry, this function doesn't panic!!"
   ],
+  directives: [
+  ],
   id: "say_hello",
   position: 0,
   return_type_id: Some(Other { id: "String" }),
@@ -75,6 +81,8 @@ Fn {
 Fn {
   doc_comments: [
     " Get up to date view data frame."
+  ],
+  directives: [
   ],
   id: "view_data",
   position: 1,

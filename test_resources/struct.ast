@@ -1,12 +1,16 @@
 Struct {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "Empty",
   fields: [
   ]
 }
 Struct {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "ViewData",
   fields: [
@@ -24,6 +28,8 @@ Struct {
 Struct {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "Test",
   fields: [
     StructFieldASTNode { doc_comments: [], position: 1, name: "touch_y", type_id: Number { id: "f32", size: 4 } }
@@ -33,6 +39,8 @@ Struct {
 }
 Struct {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "GenericType",
   fields: [

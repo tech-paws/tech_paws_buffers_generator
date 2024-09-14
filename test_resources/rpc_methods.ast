@@ -9,6 +9,8 @@ DirectiveASTNode::Value {
 Fn {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "print_hello_world",
   position: 0,
   return_type_id: None,
@@ -19,6 +21,8 @@ Fn {
 }
 Fn {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "hello_world",
   position: 1,
@@ -31,6 +35,8 @@ Fn {
 Fn {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "say_hello",
   position: 2,
   return_type_id: Some(Other { id: "String" }),
@@ -42,6 +48,8 @@ Fn {
 }
 Fn {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "sum",
   position: 3,
@@ -57,6 +65,8 @@ Fn {
 Fn {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "print_hello_world_async",
   position: 4,
   return_type_id: None,
@@ -67,6 +77,8 @@ Fn {
 }
 Fn {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "hello_world_async",
   position: 5,
@@ -79,6 +91,8 @@ Fn {
 Fn {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "say_hello_async",
   position: 6,
   return_type_id: Some(Other { id: "String" }),
@@ -90,6 +104,8 @@ Fn {
 }
 Fn {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "sum_async",
   position: 7,
@@ -105,6 +121,8 @@ Fn {
 Fn {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "trigger",
   position: 8,
   return_type_id: None,
@@ -115,6 +133,8 @@ Fn {
 }
 Fn {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "theme",
   position: 9,
@@ -127,6 +147,8 @@ Fn {
 Fn {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "trigger_async",
   position: 10,
   return_type_id: None,
@@ -137,6 +159,8 @@ Fn {
 }
 Fn {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "theme_async",
   position: 11,

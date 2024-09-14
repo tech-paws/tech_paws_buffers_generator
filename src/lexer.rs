@@ -188,7 +188,7 @@ impl Lexer {
 
     fn current_token_with_line_and_pos(&self) -> &TokenWithLineAndPos {
         if self.cursor >= self.tokens.len() {
-            &self.tokens.last().unwrap()
+            self.tokens.last().unwrap()
         } else {
             &self.tokens[self.cursor]
         }

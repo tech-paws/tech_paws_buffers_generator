@@ -1,6 +1,8 @@
 use crate::ast::*;
 use crate::lexer::{Lexer, Literal, Token};
 
+static TOP_LEVEL_DIRECTIVES: [&str; 6] = ["id", "namespace", "dart", "rust", "swift", "kotlin"];
+
 macro_rules! parse_error {
     ($lexer:expr, $($arg:tt)*) => ({
         let line = $lexer.line();
@@ -12,6 +14,7 @@ macro_rules! parse_error {
 #[derive(Clone, Default)]
 struct ParseContext {
     doc_comments: Vec<String>,
+    directives: Vec<DirectiveASTNode>,
 }
 
 pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
@@ -26,11 +29,7 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
 }
 
 fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNode {
-    let mut context = if let Some(context) = context {
-        context
-    } else {
-        ParseContext::default()
-    };
+    let mut context = context.unwrap_or_default();
 
     match lexer.current_token().clone() {
         Token::Struct => parse_struct(&mut context, lexer),
@@ -51,7 +50,51 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
                 },
             }
         }
-        Token::Symbol('#') => parse_directive(lexer),
+        Token::Symbol('#') => {
+            let mut directives = vec![];
+
+            while let Token::Symbol('#') = lexer.current_token() {
+                let directive = parse_directive(lexer);
+
+                if TOP_LEVEL_DIRECTIVES.contains(&directive.id()) {
+                    if !directives.is_empty() {
+                        parse_error!(lexer, "Invalid directive: {}", directive.id());
+                    }
+
+                    return ASTNode::Directive(directive);
+                } else {
+                    directives.push(directive);
+                }
+            }
+
+            match lexer.current_token().clone() {
+                Token::Struct | Token::Enum | Token::Fn | Token::Signal => {
+                    context.directives = directives;
+                    parse_with_context(Some(context), lexer)
+                }
+                _ => parse_error!(
+                    lexer,
+                    "Invalid directive: {}",
+                    directives.first().unwrap().id()
+                ),
+            }
+
+            // // let directives = vec![parse_directive(lexer)];
+
+            // // while Token
+
+            // context.directives = directives;
+
+            // match lexer.current_token().clone() {
+            //     Token::Struct | Token::Enum | Token::Fn | Token::Signal => {
+            //         parse_with_context(Some(context), lexer)
+            //     }
+            //     _ => ASTNode::DocComments {
+            //         comments: context.doc_comments,
+            //     },
+            // }
+        }
+        // Token::Symbol('#') => ASTNode::Directive(parse_directive(lexer)),
         _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
     }
 }
@@ -92,6 +135,7 @@ fn parse_struct(context: &mut ParseContext, lexer: &mut Lexer) -> ASTNode {
         return ASTNode::Struct(StructASTNode {
             id: name,
             doc_comments: context.doc_comments.clone(),
+            directives: context.directives.clone(),
             fields: Vec::new(),
             emplace_buffers: true,
             into_buffers: true,
@@ -128,6 +172,7 @@ fn parse_struct(context: &mut ParseContext, lexer: &mut Lexer) -> ASTNode {
     ASTNode::Struct(StructASTNode {
         id: name,
         doc_comments: context.doc_comments.clone(),
+        directives: context.directives.clone(),
         fields: parameters,
         emplace_buffers: true,
         into_buffers: true,
@@ -238,6 +283,7 @@ fn parse_enum_items(context: &mut ParseContext, id: String, lexer: &mut Lexer) -
 
     ASTNode::Enum(EnumASTNode {
         doc_comments: context.doc_comments.clone(),
+        directives: context.directives.clone(),
         id,
         items,
     })
@@ -570,13 +616,14 @@ fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> AS
         lexer.next_token();
 
         return ASTNode::Fn(FnASTNode {
+            doc_comments: context.doc_comments.clone(),
+            directives: context.directives.clone(),
             id,
             args,
             position: lexer.next_fn_poisition(),
             is_signal: false,
             is_async,
             return_type_id: None,
-            doc_comments: context.doc_comments.clone(),
         });
     }
 
@@ -597,13 +644,14 @@ fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> AS
     lexer.next_token();
 
     ASTNode::Fn(FnASTNode {
+        doc_comments: context.doc_comments.clone(),
+        directives: context.directives.clone(),
         id,
         args,
         return_type_id,
         position: lexer.next_fn_poisition(),
         is_signal: false,
         is_async,
-        doc_comments: context.doc_comments.clone(),
     })
 }
 
@@ -626,13 +674,14 @@ fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -
         lexer.next_token();
 
         return ASTNode::Fn(FnASTNode {
+            doc_comments: context.doc_comments.clone(),
+            directives: context.directives.clone(),
             id,
             args: vec![],
             is_signal: true,
             position: lexer.next_fn_poisition(),
             is_async,
             return_type_id: None,
-            doc_comments: context.doc_comments.clone(),
         });
     }
 
@@ -653,8 +702,9 @@ fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -
     lexer.next_token();
 
     ASTNode::Fn(FnASTNode {
-        id,
         doc_comments: context.doc_comments.clone(),
+        directives: context.directives.clone(),
+        id,
         args: vec![],
         return_type_id,
         position: lexer.next_fn_poisition(),
@@ -775,7 +825,7 @@ pub fn parse_position(lexer: &mut Lexer) -> u32 {
 /// Parse:
 /// #[<id> = <const>] | #[<id>(<args>)]
 /// args: <id> = <const>, args
-pub fn parse_directive(lexer: &mut Lexer) -> ASTNode {
+pub fn parse_directive(lexer: &mut Lexer) -> DirectiveASTNode {
     if *lexer.current_token() != Token::Symbol('#') {
         parse_error!(lexer, "Expected '#' but got {:?}", lexer.current_token());
     }
@@ -806,7 +856,7 @@ pub fn parse_directive(lexer: &mut Lexer) -> ASTNode {
 
     lexer.next_token();
 
-    ASTNode::Directive(directive)
+    directive
 }
 
 fn parse_value_directive(id: String, lexer: &mut Lexer) -> DirectiveASTNode {
@@ -909,6 +959,7 @@ mod tests {
                     doc_comments,
                     id,
                     items,
+                    directives,
                 }) => {
                     writer.writeln_tab(tab, "Enum {");
                     writer.writeln_tab(tab + 1, "doc_comments: [");
@@ -916,6 +967,17 @@ mod tests {
                     for comment in doc_comments {
                         writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
                     }
+
+                    writer.writeln_tab(tab + 1, "],");
+
+                    writer.writeln_tab(tab + 1, "directives: [");
+
+                    let nodes: Vec<ASTNode> = directives
+                        .iter()
+                        .map(|directive| ASTNode::Directive(directive.clone()))
+                        .collect();
+
+                    writer.write(&stringify_ast_impl(tab + 2, &nodes));
 
                     writer.writeln_tab(tab + 1, "],");
 
@@ -991,6 +1053,7 @@ mod tests {
                     fields,
                     emplace_buffers: _,
                     into_buffers: _,
+                    directives,
                 }) => {
                     writer.writeln_tab(tab, "Struct {");
 
@@ -999,6 +1062,17 @@ mod tests {
                     for comment in doc_comments {
                         writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
                     }
+
+                    writer.writeln_tab(tab + 1, "],");
+
+                    writer.writeln_tab(tab + 1, "directives: [");
+
+                    let nodes: Vec<ASTNode> = directives
+                        .iter()
+                        .map(|directive| ASTNode::Directive(directive.clone()))
+                        .collect();
+
+                    writer.write(&stringify_ast_impl(tab + 2, &nodes));
 
                     writer.writeln_tab(tab + 1, "],");
 
@@ -1020,6 +1094,7 @@ mod tests {
                     is_signal,
                     is_async,
                     doc_comments,
+                    directives,
                 }) => {
                     writer.writeln_tab(tab, "Fn {");
 
@@ -1028,6 +1103,17 @@ mod tests {
                     for comment in doc_comments {
                         writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
                     }
+
+                    writer.writeln_tab(tab + 1, "],");
+
+                    writer.writeln_tab(tab + 1, "directives: [");
+
+                    let nodes: Vec<ASTNode> = directives
+                        .iter()
+                        .map(|directive| ASTNode::Directive(directive.clone()))
+                        .collect();
+
+                    writer.write(&stringify_ast_impl(tab + 2, &nodes));
 
                     writer.writeln_tab(tab + 1, "],");
 

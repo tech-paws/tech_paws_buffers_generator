@@ -15,16 +15,113 @@ DirectiveASTNode::Group {
     }
   ]
 }
-DirectiveASTNode::Group {
-  group_id: "memory",
+Struct {
+  doc_comments: [
+  ],
+  directives: [
+    DirectiveASTNode::Group {
+      group_id: "memory",
+      args: [
+        IdValuePair {
+          id: "emplace"
+          value: None
+        }
+        IdValuePair {
+          id: "copy"
+          value: None
+        }
+      ]
+    }
+  ],
+  id: "Point",
+  fields: [
+    StructFieldASTNode { doc_comments: [], position: 0, name: "x", type_id: Integer { id: "i32", size: 4, signed: true } }
+    StructFieldASTNode { doc_comments: [], position: 1, name: "y", type_id: Integer { id: "i32", size: 4, signed: true } }
+  ]
+}
+Enum {
+  doc_comments: [
+  ],
+  directives: [
+    DirectiveASTNode::Group {
+      group_id: "memory",
+      args: [
+        IdValuePair {
+          id: "emplace"
+          value: None
+        }
+      ]
+    }
+  ],
+  id: "Variant",
+  items: [
+    Empty { doc_comments: [], position: 0, id: "None" }
+    TupleFieldASTNode {
+      doc_comments: [
+      ],
+      position: 1,
+      id: "Something",
+      items: [
+        TupleFieldASTNode { doc_comments: [], position: 0, type_id: Other { id: "Point" } }
+      ]
+    }
+  ]
+}
+Struct {
+  doc_comments: [
+  ],
+  directives: [
+  ],
+  id: "Regular",
+  fields: [
+    StructFieldASTNode { doc_comments: [], position: 0, name: "value", type_id: Integer { id: "i32", size: 4, signed: true } }
+  ]
+}
+Fn {
+  doc_comments: [
+  ],
+  directives: [
+    DirectiveASTNode::Group {
+      group_id: "memory",
+      args: [
+        IdValuePair {
+          id: "emplace"
+          value: None
+        }
+        IdValuePair {
+          id: "copy"
+          value: None
+        }
+      ]
+    }
+  ],
+  id: "hello_world",
+  position: 0,
+  return_type_id: None,
+  is_signal: false,
+  is_async: false,
   args: [
-    IdValuePair {
-      id: "emplace"
-      value: None
+  ]
+}
+Fn {
+  doc_comments: [
+  ],
+  directives: [
+    DirectiveASTNode::Group {
+      group_id: "memory",
+      args: [
+        IdValuePair {
+          id: "emplace"
+          value: None
+        }
+      ]
     }
-    IdValuePair {
-      id: "copy"
-      value: None
-    }
+  ],
+  id: "test",
+  position: 1,
+  return_type_id: Some(Generic { id: "Vec", generics: [Other { id: "Variant" }] }),
+  is_signal: true,
+  is_async: false,
+  args: [
   ]
 }

@@ -104,6 +104,7 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
 
         let args_struct = StructASTNode {
             doc_comments: vec![],
+            directives: vec![],
             id: args_struct_id.clone(),
             fields: args_struct_fields,
             emplace_buffers: false,

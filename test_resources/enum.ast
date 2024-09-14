@@ -1,6 +1,8 @@
 Enum {
   doc_comments: [
   ],
+  directives: [
+  ],
   id: "MyEnum",
   items: [
     Empty { doc_comments: [], position: 1, id: "Idle" }
@@ -29,6 +31,8 @@ Enum {
 }
 Enum {
   doc_comments: [
+  ],
+  directives: [
   ],
   id: "MyEnumWithoutPositions",
   items: [

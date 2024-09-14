@@ -28,7 +28,7 @@ pub enum ConstItemASTNode {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DirectiveASTNode {
     Value {
         id: String,
@@ -40,9 +40,22 @@ pub enum DirectiveASTNode {
     },
 }
 
+impl DirectiveASTNode {
+    pub fn id(&self) -> &str {
+        match self {
+            DirectiveASTNode::Value { id, value: _ } => &id,
+            DirectiveASTNode::Group {
+                group_id,
+                values: _,
+            } => &group_id,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct EnumASTNode {
     pub doc_comments: Vec<String>,
+    pub directives: Vec<DirectiveASTNode>,
     pub id: String,
     pub items: Vec<EnumItemASTNode>,
 }
@@ -50,6 +63,7 @@ pub struct EnumASTNode {
 #[derive(Debug)]
 pub struct StructASTNode {
     pub doc_comments: Vec<String>,
+    pub directives: Vec<DirectiveASTNode>,
     pub id: String,
     pub fields: Vec<StructFieldASTNode>,
     pub emplace_buffers: bool,
@@ -59,6 +73,7 @@ pub struct StructASTNode {
 #[derive(Debug)]
 pub struct FnASTNode {
     pub doc_comments: Vec<String>,
+    pub directives: Vec<DirectiveASTNode>,
     pub id: String,
     pub position: u32,
     pub args: Vec<FnArgASTNode>,
@@ -96,7 +111,7 @@ pub enum ConstValueASTNode {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IdValuePair {
     pub id: String,
     pub value: Option<ConstValueASTNode>,
