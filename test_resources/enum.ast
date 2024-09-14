@@ -1,44 +1,56 @@
 Enum {
+  doc_comments: [
+  ],
   id: "MyEnum",
   items: [
-    Empty { position: 1, id: "Idle" }
+    Empty { doc_comments: [], position: 1, id: "Idle" }
     EnumItemASTNode {
+      doc_comments: [
+      ],
       position: 2,
       id: "Move",
       fields: [
-        StructFieldASTNode { position: 1, name: "x", type_id: Number { id: "f64", size: 8 } }
-        StructFieldASTNode { position: 2, name: "y", type_id: Number { id: "f64", size: 8 } }
+        StructFieldASTNode { doc_comments: [], position: 1, name: "x", type_id: Number { id: "f64", size: 8 } }
+        StructFieldASTNode { doc_comments: [], position: 2, name: "y", type_id: Number { id: "f64", size: 8 } }
       ]
     }
     TupleFieldASTNode {
+      doc_comments: [
+      ],
       position: 3,
       id: "Update",
       items: [
-        TupleFieldASTNode { position: 1, type_id: Number { id: "f64", size: 8 } }
-        TupleFieldASTNode { position: 2, type_id: Number { id: "f64", size: 8 } }
-        TupleFieldASTNode { position: 4, type_id: Other { id: "String" } }
+        TupleFieldASTNode { doc_comments: [], position: 1, type_id: Number { id: "f64", size: 8 } }
+        TupleFieldASTNode { doc_comments: [], position: 2, type_id: Number { id: "f64", size: 8 } }
+        TupleFieldASTNode { doc_comments: [], position: 4, type_id: Other { id: "String" } }
       ]
     }
   ]
 }
 Enum {
+  doc_comments: [
+  ],
   id: "MyEnumWithoutPositions",
   items: [
     TupleFieldASTNode {
+      doc_comments: [
+      ],
       position: 0,
       id: "Option1",
       items: [
-        TupleFieldASTNode { position: 0, type_id: Integer { id: "u64", size: 8, signed: false } }
+        TupleFieldASTNode { doc_comments: [], position: 0, type_id: Integer { id: "u64", size: 8, signed: false } }
       ]
     }
     EnumItemASTNode {
+      doc_comments: [
+      ],
       position: 1,
       id: "Option2",
       fields: [
-        StructFieldASTNode { position: 0, name: "name", type_id: Other { id: "String" } }
+        StructFieldASTNode { doc_comments: [], position: 0, name: "name", type_id: Other { id: "String" } }
       ]
     }
-    Empty { position: 2, id: "Option3" }
-    Empty { position: 3, id: "Option4" }
+    Empty { doc_comments: [], position: 2, id: "Option3" }
+    Empty { doc_comments: [], position: 3, id: "Option4" }
   ]
 }

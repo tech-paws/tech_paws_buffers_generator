@@ -95,6 +95,7 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
     if !node.args.is_empty() {
         for (i, arg) in node.args.iter().enumerate() {
             args_struct_fields.push(StructFieldASTNode {
+                doc_comments: vec![],
                 position: i as u32,
                 name: arg.id.clone(),
                 type_id: arg.type_id.clone(),
@@ -102,6 +103,7 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
         }
 
         let args_struct = StructASTNode {
+            doc_comments: vec![],
             id: args_struct_id.clone(),
             fields: args_struct_fields,
             emplace_buffers: false,

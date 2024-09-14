@@ -1,0 +1,86 @@
+DocComment {
+  comments: [
+    " Top level doc comment"
+    " Some description"
+  ]
+}
+DirectiveASTNode::Value {
+  id: "namespace"
+  value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
+}
+Enum {
+  doc_comments: [
+    " Some doc comment"
+    " Another doc comment"
+  ],
+  id: "MyEnum",
+  items: [
+    Empty { doc_comments: [" This is Idle"], position: 1, id: "Idle" }
+    EnumItemASTNode {
+      doc_comments: [
+        " This is Move!"
+      ],
+      position: 2,
+      id: "Move",
+      fields: [
+        StructFieldASTNode { doc_comments: [" This is x field"], position: 1, name: "x", type_id: Number { id: "f64", size: 8 } }
+        StructFieldASTNode { doc_comments: [" This is y field"], position: 2, name: "y", type_id: Number { id: "f64", size: 8 } }
+      ]
+    }
+    TupleFieldASTNode {
+      doc_comments: [
+        " This is Update case"
+      ],
+      position: 3,
+      id: "Update",
+      items: [
+        TupleFieldASTNode { doc_comments: [" This is first option"], position: 1, type_id: Number { id: "f64", size: 8 } }
+        TupleFieldASTNode { doc_comments: [" This is second option"], position: 2, type_id: Number { id: "f64", size: 8 } }
+        TupleFieldASTNode { doc_comments: [" This is third option"], position: 4, type_id: Other { id: "String" } }
+      ]
+    }
+  ]
+}
+Struct {
+  doc_comments: [
+    " Hello World!"
+    " This is View Data, Important Structure!"
+  ],
+  id: "ViewData",
+  fields: [
+    StructFieldASTNode { doc_comments: [" Delta time is delta time"], position: 1, name: "delta_time", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [" View Width"], position: 2, name: "view_width", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [" View Height!"], position: 3, name: "view_height", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [" Touch Start X", " It is starting position"], position: 4, name: "touch_start_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [" Touch Start Y", " It is starting position"], position: 5, name: "touch_start_y", type_id: Number { id: "f32", size: 4 } }
+  ]
+}
+Fn {
+  doc_comments: [
+    " Say hello returns hello [name]! string."
+    ""
+    " # Panic"
+    ""
+    " Don't worry, this function doesn't panic!!"
+  ],
+  id: "say_hello",
+  position: 0,
+  return_type_id: Some(Other { id: "String" }),
+  is_signal: false,
+  is_async: false,
+  args: [
+    FnArgASTNode { id: "name", type_id: Other { id: "String" } }
+  ]
+}
+Fn {
+  doc_comments: [
+    " Get up to date view data frame."
+  ],
+  id: "view_data",
+  position: 1,
+  return_type_id: Some(Other { id: "ViewData" }),
+  is_signal: true,
+  is_async: false,
+  args: [
+  ]
+}

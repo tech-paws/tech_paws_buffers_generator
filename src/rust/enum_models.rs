@@ -14,10 +14,13 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
 
     for item in node.items.iter() {
         match item {
-            EnumItemASTNode::Empty { position: _, id } => {
-                writer.writeln_tab(1, &format!("{},", id))
-            }
+            EnumItemASTNode::Empty {
+                doc_comments: _,
+                position: _,
+                id,
+            } => writer.writeln_tab(1, &format!("{},", id)),
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position: _,
                 id,
                 values,
@@ -27,6 +30,7 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
                 writer.writeln_tab(1, "),");
             }
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position: _,
                 id,
                 fields,
@@ -49,10 +53,13 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
     let default_item = node.items.first().unwrap();
 
     match default_item {
-        EnumItemASTNode::Empty { position: _, id } => {
-            writer.writeln_tab(2, &format!("Self::{}", id))
-        }
+        EnumItemASTNode::Empty {
+            doc_comments: _,
+            position: _,
+            id,
+        } => writer.writeln_tab(2, &format!("Self::{}", id)),
         EnumItemASTNode::Tuple {
+            doc_comments: _,
             position: _,
             id,
             values,
@@ -66,6 +73,7 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
             writer.writeln_tab(2, ")");
         }
         EnumItemASTNode::Struct {
+            doc_comments: _,
             position: _,
             id,
             fields,

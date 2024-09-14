@@ -38,16 +38,16 @@ impl Default for ViewData {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Test {
-    pub touch_x: f32,
     pub touch_y: f32,
+    pub touch_x: f32,
     pub touch_status: TouchStatus,
 }
 
 impl Default for Test {
     fn default() -> Self {
         Self {
-            touch_x: 0.0,
             touch_y: 0.0,
+            touch_x: 0.0,
             touch_status: TouchStatus::default(),
         }
     }

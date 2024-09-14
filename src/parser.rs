@@ -9,29 +9,65 @@ macro_rules! parse_error {
     });
 }
 
+#[derive(Clone, Default)]
+struct ParseContext {
+    doc_comments: Vec<String>,
+}
+
 pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
     let mut ast_nodes = vec![];
 
     while *lexer.current_token() != Token::EOF {
-        match lexer.current_token() {
-            Token::Struct => ast_nodes.push(parse_struct(lexer)),
-            Token::Enum => ast_nodes.push(parse_enum(lexer)),
-            Token::Async => ast_nodes.push(parse_async(lexer)),
-            Token::Fn => ast_nodes.push(parse_fn(lexer, false)),
-            Token::Signal => ast_nodes.push(parse_signal(lexer, false)),
-            Token::Const => ast_nodes.push(ASTNode::Const(parse_const(lexer))),
-            Token::DocComment { value } => ast_nodes.push(ASTNode::DocComment {
-                value: value.clone(),
-            }),
-            Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
-            _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
-        }
+        let node = parse_with_context(None, lexer);
+        ast_nodes.push(node);
     }
 
     ast_nodes
 }
 
-pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
+fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNode {
+    let mut context = if let Some(context) = context {
+        context
+    } else {
+        ParseContext::default()
+    };
+
+    match lexer.current_token().clone() {
+        Token::Struct => parse_struct(&mut context, lexer),
+        Token::Enum => parse_enum(&mut context, lexer),
+        Token::Async => parse_async(&mut context, lexer),
+        Token::Fn => parse_fn(&mut context, lexer, false),
+        Token::Signal => parse_signal(&mut context, lexer, false),
+        Token::Const => ASTNode::Const(parse_const(lexer)),
+        Token::DocComment { .. } => {
+            context.doc_comments = parse_doc_comments(lexer);
+
+            match lexer.current_token().clone() {
+                Token::Struct | Token::Enum | Token::Fn | Token::Signal => {
+                    parse_with_context(Some(context), lexer)
+                }
+                _ => ASTNode::DocComments {
+                    comments: context.doc_comments,
+                },
+            }
+        }
+        Token::Symbol('#') => parse_directive(lexer),
+        _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
+    }
+}
+
+pub fn parse_doc_comments(lexer: &mut Lexer) -> Vec<String> {
+    let mut comments = vec![];
+
+    while let Token::DocComment { value } = lexer.current_token() {
+        comments.push(value.clone());
+        lexer.next_token();
+    }
+
+    comments
+}
+
+fn parse_struct(context: &mut ParseContext, lexer: &mut Lexer) -> ASTNode {
     if *lexer.current_token() != Token::Struct {
         parse_error!(
             lexer,
@@ -55,6 +91,7 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
 
         return ASTNode::Struct(StructASTNode {
             id: name,
+            doc_comments: context.doc_comments.clone(),
             fields: Vec::new(),
             emplace_buffers: true,
             into_buffers: true,
@@ -71,6 +108,7 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
 
     match lexer.next_token() {
         Token::Symbol('#') => (),
+        Token::DocComment { .. } => (),
         Token::ID { name: _ } => (),
         _ => parse_error!(
             lexer,
@@ -89,13 +127,14 @@ pub fn parse_struct(lexer: &mut Lexer) -> ASTNode {
 
     ASTNode::Struct(StructASTNode {
         id: name,
+        doc_comments: context.doc_comments.clone(),
         fields: parameters,
         emplace_buffers: true,
         into_buffers: true,
     })
 }
 
-pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
+fn parse_enum(context: &mut ParseContext, lexer: &mut Lexer) -> ASTNode {
     if *lexer.current_token() != Token::Enum {
         parse_error!(
             lexer,
@@ -120,6 +159,7 @@ pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
 
     match lexer.next_token() {
         Token::Symbol('#') => (),
+        Token::DocComment { .. } => (),
         Token::ID { name: _ } => (),
         _ => parse_error!(
             lexer,
@@ -128,7 +168,7 @@ pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
         ),
     }
 
-    let node = parse_enum_items(name, lexer);
+    let node = parse_enum_items(context, name, lexer);
 
     if *lexer.current_token() != Token::Symbol('}') {
         parse_error!(lexer, "Expected '}}', but got {:?}", lexer.current_token());
@@ -138,70 +178,77 @@ pub fn parse_enum(lexer: &mut Lexer) -> ASTNode {
     node
 }
 
-pub fn parse_enum_items(id: String, lexer: &mut Lexer) -> ASTNode {
-    if let Token::Symbol('#') = lexer.current_token() {
-        parse_enum_items_with_positions(id, lexer)
-    } else {
-        parse_enum_items_without_positions(id, lexer)
-    }
-}
-
-pub fn parse_enum_items_with_positions(id: String, lexer: &mut Lexer) -> ASTNode {
+fn parse_enum_items(context: &mut ParseContext, id: String, lexer: &mut Lexer) -> ASTNode {
     let mut items = vec![];
+    let mut positions = vec![];
+    let mut auto_position = 0;
 
-    while let Token::Symbol('#') = lexer.current_token() {
-        let position = parse_position(lexer);
-        let name = if let Token::ID { name } = lexer.current_token() {
-            name.clone()
+    loop {
+        let mut context = context.clone();
+        context.doc_comments = if let Token::DocComment { .. } = lexer.current_token() {
+            parse_doc_comments(lexer)
         } else {
-            parse_error!(lexer, "Expected id, but got {:?}", lexer.current_token());
+            vec![]
         };
 
-        let item = match *lexer.next_token() {
-            Token::Symbol('(') => parse_tuple_enum(position, name, lexer),
-            Token::Symbol('{') => parse_struct_enum(position, name, lexer),
-            _ => EnumItemASTNode::Empty { position, id: name },
+        let position = if let Token::Symbol('#') = lexer.current_token() {
+            let position = parse_position(lexer);
+
+            if !positions.contains(&position) {
+                positions.push(position);
+            } else {
+                parse_error!(lexer, "the position {} already exists", position);
+            }
+
+            position
+        } else {
+            auto_position
         };
 
-        items.push(item);
+        if let Token::ID { name } = lexer.current_token() {
+            let name = name.clone();
 
-        if *lexer.current_token() != Token::Symbol(',') {
+            let item = match *lexer.next_token() {
+                Token::Symbol('(') => parse_tuple_enum(&mut context, position, name, lexer),
+                Token::Symbol('{') => parse_struct_enum(&mut context, position, name, lexer),
+                _ => EnumItemASTNode::Empty {
+                    doc_comments: context.doc_comments.clone(),
+                    position,
+                    id: name,
+                },
+            };
+
+            auto_position += 1;
+
+            while positions.contains(&auto_position) {
+                auto_position += 1;
+            }
+
+            items.push(item);
+
+            if *lexer.current_token() != Token::Symbol(',') {
+                break;
+            }
+
+            lexer.next_token();
+        } else {
             break;
         }
-
-        lexer.next_token();
     }
 
-    ASTNode::Enum(EnumASTNode { id, items })
+    ASTNode::Enum(EnumASTNode {
+        doc_comments: context.doc_comments.clone(),
+        id,
+        items,
+    })
 }
 
-pub fn parse_enum_items_without_positions(id: String, lexer: &mut Lexer) -> ASTNode {
-    let mut items = vec![];
-    let mut position = 0;
-
-    while let Token::ID { name } = lexer.current_token() {
-        let name = name.clone();
-
-        let item = match *lexer.next_token() {
-            Token::Symbol('(') => parse_tuple_enum(position, name, lexer),
-            Token::Symbol('{') => parse_struct_enum(position, name, lexer),
-            _ => EnumItemASTNode::Empty { position, id: name },
-        };
-
-        position += 1;
-        items.push(item);
-
-        if *lexer.current_token() != Token::Symbol(',') {
-            break;
-        }
-
-        lexer.next_token();
-    }
-
-    ASTNode::Enum(EnumASTNode { id, items })
-}
-
-pub fn parse_struct_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumItemASTNode {
+fn parse_struct_enum(
+    context: &mut ParseContext,
+    position: u32,
+    id: String,
+    lexer: &mut Lexer,
+) -> EnumItemASTNode {
     if *lexer.current_token() != Token::Symbol('{') {
         parse_error!(
             lexer,
@@ -220,13 +267,19 @@ pub fn parse_struct_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumIt
     lexer.next_token();
 
     EnumItemASTNode::Struct {
+        doc_comments: context.doc_comments.clone(),
         position,
         id,
         fields,
     }
 }
 
-pub fn parse_tuple_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumItemASTNode {
+fn parse_tuple_enum(
+    context: &mut ParseContext,
+    position: u32,
+    id: String,
+    lexer: &mut Lexer,
+) -> EnumItemASTNode {
     if *lexer.current_token() != Token::Symbol('(') {
         parse_error!(
             lexer,
@@ -245,6 +298,7 @@ pub fn parse_tuple_enum(position: u32, id: String, lexer: &mut Lexer) -> EnumIte
     lexer.next_token();
 
     EnumItemASTNode::Tuple {
+        doc_comments: context.doc_comments.clone(),
         position,
         id,
         values,
@@ -284,76 +338,61 @@ pub fn parse_const_value(lexer: &mut Lexer) -> ConstValueASTNode {
 }
 
 pub fn parse_struct_parameters(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
-    if let Token::Symbol('#') = lexer.current_token() {
-        parse_struct_parameters_with_positions(lexer)
-    } else {
-        parse_struct_parameters_without_positions(lexer)
-    }
-}
-
-pub fn parse_struct_parameters_without_positions(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
     let mut fields = vec![];
-    let mut position = 0;
+    let mut positions = vec![];
+    let mut auto_position = 0;
 
-    while let Token::ID { name } = lexer.current_token() {
-        let name = name.clone();
-
-        if *lexer.next_token() != Token::Symbol(':') {
-            parse_error!(lexer, "Expected ':', but got {:?}", lexer.current_token());
-        }
-
-        lexer.next_token();
-        let type_id = parse_type_id(lexer);
-        fields.push(StructFieldASTNode {
-            position,
-            name,
-            type_id,
-        });
-
-        position += 1;
-
-        if *lexer.current_token() != Token::Symbol(',') {
-            break;
-        }
-
-        lexer.next_token();
-    }
-
-    fields
-}
-
-pub fn parse_struct_parameters_with_positions(lexer: &mut Lexer) -> Vec<StructFieldASTNode> {
-    let mut fields = vec![];
-
-    while let Token::Symbol('#') = lexer.current_token() {
-        let position = parse_position(lexer);
-        let name = if let Token::ID { name } = lexer.current_token() {
-            name.clone()
+    loop {
+        let doc_comments = if let Token::DocComment { .. } = lexer.current_token() {
+            parse_doc_comments(lexer)
         } else {
-            parse_error!(
-                lexer,
-                "Expected string value, but got {:?}",
-                lexer.current_token()
-            );
+            vec![]
         };
 
-        if *lexer.next_token() != Token::Symbol(':') {
-            parse_error!(lexer, "Expected ':', but got {:?}", lexer.current_token());
-        }
+        let position = if let Token::Symbol('#') = lexer.current_token() {
+            let position = parse_position(lexer);
 
-        lexer.next_token();
-        let type_id = parse_type_id(lexer);
-        fields.push(StructFieldASTNode {
-            position,
-            name,
-            type_id,
-        });
+            if !positions.contains(&position) {
+                positions.push(position);
+            } else {
+                parse_error!(lexer, "the position {} already exists", position);
+            }
 
-        if *lexer.current_token() != Token::Symbol(',') {
+            position
+        } else {
+            auto_position
+        };
+
+        if let Token::ID { name } = lexer.current_token() {
+            let name = name.clone();
+
+            if *lexer.next_token() != Token::Symbol(':') {
+                parse_error!(lexer, "Expected ':', but got {:?}", lexer.current_token());
+            }
+
+            lexer.next_token();
+            let type_id = parse_type_id(lexer);
+            fields.push(StructFieldASTNode {
+                doc_comments,
+                position,
+                name,
+                type_id,
+            });
+
+            auto_position += 1;
+
+            while positions.contains(&auto_position) {
+                auto_position += 1;
+            }
+
+            if *lexer.current_token() != Token::Symbol(',') {
+                break;
+            }
+
+            lexer.next_token();
+        } else {
             break;
         }
-
-        lexer.next_token();
     }
 
     fields.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
@@ -362,50 +401,57 @@ pub fn parse_struct_parameters_with_positions(lexer: &mut Lexer) -> Vec<StructFi
 }
 
 pub fn parse_tuple_parameters(lexer: &mut Lexer) -> Vec<TupleFieldASTNode> {
-    if let Token::Symbol('#') = lexer.current_token() {
-        parse_tuple_parameters_with_positions(lexer)
-    } else {
-        parse_tuple_parameters_without_positions(lexer)
-    }
-}
-
-pub fn parse_tuple_parameters_with_positions(lexer: &mut Lexer) -> Vec<TupleFieldASTNode> {
     let mut fields = vec![];
+    let mut positions = vec![];
+    let mut auto_position = 0;
 
-    while *lexer.current_token() == Token::Symbol('#') {
-        let position = parse_position(lexer);
-        let type_id = parse_type_id(lexer);
+    loop {
+        let doc_comments = if let Token::DocComment { .. } = lexer.current_token() {
+            parse_doc_comments(lexer)
+        } else {
+            vec![]
+        };
 
-        fields.push(TupleFieldASTNode { position, type_id });
+        let position = if let Token::Symbol('#') = lexer.current_token() {
+            let position = parse_position(lexer);
 
-        if *lexer.current_token() != Token::Symbol(',') {
+            if !positions.contains(&position) {
+                positions.push(position);
+            } else {
+                parse_error!(lexer, "the position {} already exists", position);
+            }
+
+            position
+        } else {
+            auto_position
+        };
+
+        if let Token::ID { .. } = lexer.current_token() {
+            let type_id = parse_type_id(lexer);
+
+            fields.push(TupleFieldASTNode {
+                doc_comments,
+                position,
+                type_id,
+            });
+
+            auto_position += 1;
+
+            while positions.contains(&auto_position) {
+                auto_position += 1;
+            }
+
+            if *lexer.current_token() != Token::Symbol(',') {
+                break;
+            }
+
+            lexer.next_token();
+        } else {
             break;
         }
-
-        lexer.next_token();
     }
 
     fields.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
-
-    fields
-}
-
-pub fn parse_tuple_parameters_without_positions(lexer: &mut Lexer) -> Vec<TupleFieldASTNode> {
-    let mut fields = vec![];
-    let mut position = 0;
-
-    while let Token::ID { name: _ } = lexer.current_token() {
-        let type_id = parse_type_id(lexer);
-
-        fields.push(TupleFieldASTNode { position, type_id });
-        position += 1;
-
-        if *lexer.current_token() != Token::Symbol(',') {
-            break;
-        }
-
-        lexer.next_token();
-    }
 
     fields
 }
@@ -484,12 +530,12 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
     }
 }
 
-pub fn parse_async(lexer: &mut Lexer) -> ASTNode {
+fn parse_async(context: &mut ParseContext, lexer: &mut Lexer) -> ASTNode {
     lexer.next_token();
 
     match lexer.current_token() {
-        Token::Fn => parse_fn(lexer, true),
-        Token::Signal => parse_signal(lexer, true),
+        Token::Fn => parse_fn(context, lexer, true),
+        Token::Signal => parse_signal(context, lexer, true),
         _ => parse_error!(
             lexer,
             "Expected 'fn' or stream' but got {:?}",
@@ -498,7 +544,7 @@ pub fn parse_async(lexer: &mut Lexer) -> ASTNode {
     }
 }
 
-pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
+fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> ASTNode {
     if *lexer.current_token() != Token::Fn {
         parse_error!(lexer, "Expected 'fn' but got {:?}", lexer.current_token());
     }
@@ -530,6 +576,7 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
             is_signal: false,
             is_async,
             return_type_id: None,
+            doc_comments: context.doc_comments.clone(),
         });
     }
 
@@ -556,10 +603,11 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         position: lexer.next_fn_poisition(),
         is_signal: false,
         is_async,
+        doc_comments: context.doc_comments.clone(),
     })
 }
 
-pub fn parse_signal(lexer: &mut Lexer, is_async: bool) -> ASTNode {
+fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> ASTNode {
     if *lexer.current_token() != Token::Signal {
         parse_error!(
             lexer,
@@ -584,6 +632,7 @@ pub fn parse_signal(lexer: &mut Lexer, is_async: bool) -> ASTNode {
             position: lexer.next_fn_poisition(),
             is_async,
             return_type_id: None,
+            doc_comments: context.doc_comments.clone(),
         });
     }
 
@@ -605,6 +654,7 @@ pub fn parse_signal(lexer: &mut Lexer, is_async: bool) -> ASTNode {
 
     ASTNode::Fn(FnASTNode {
         id,
+        doc_comments: context.doc_comments.clone(),
         args: vec![],
         return_type_id,
         position: lexer.next_fn_poisition(),
@@ -820,9 +870,15 @@ mod tests {
 
         for node in ast {
             match node {
-                ASTNode::DocComment { value } => {
+                ASTNode::DocComments { comments } => {
                     writer.writeln_tab(tab, "DocComment {");
-                    writer.writeln_tab(tab + 1, &format!("value: \"{}\",", value));
+                    writer.writeln_tab(tab + 1, "comments: [");
+
+                    for comment in comments {
+                        writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
+                    }
+
+                    writer.writeln_tab(tab + 1, "]");
                     writer.writeln_tab(tab, "}");
                 }
                 ASTNode::Directive(DirectiveASTNode::Group {
@@ -849,19 +905,41 @@ mod tests {
                     writer.writeln_tab(tab + 1, &format!("value: {:?}", value));
                     writer.writeln_tab(tab, "}");
                 }
-                ASTNode::Enum(EnumASTNode { id, items }) => {
+                ASTNode::Enum(EnumASTNode {
+                    doc_comments,
+                    id,
+                    items,
+                }) => {
                     writer.writeln_tab(tab, "Enum {");
+                    writer.writeln_tab(tab + 1, "doc_comments: [");
+
+                    for comment in doc_comments {
+                        writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
+                    }
+
+                    writer.writeln_tab(tab + 1, "],");
+
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, "items: [");
 
                     for item in items {
                         match &item {
                             EnumItemASTNode::Tuple {
+                                doc_comments,
                                 position,
                                 id,
                                 values,
                             } => {
                                 writer.writeln_tab(tab + 2, "TupleFieldASTNode {");
+
+                                writer.writeln_tab(tab + 3, "doc_comments: [");
+
+                                for comment in doc_comments {
+                                    writer.writeln_tab(tab + 4, &format!("\"{}\"", comment));
+                                }
+
+                                writer.writeln_tab(tab + 3, "],");
+
                                 writer.writeln_tab(tab + 3, &format!("position: {},", position));
                                 writer.writeln_tab(tab + 3, &format!("id: \"{}\",", id));
                                 writer.writeln_tab(tab + 3, "items: [");
@@ -874,11 +952,21 @@ mod tests {
                                 writer.writeln_tab(tab + 2, "}");
                             }
                             EnumItemASTNode::Struct {
+                                doc_comments,
                                 position,
                                 id,
                                 fields,
                             } => {
                                 writer.writeln_tab(tab + 2, "EnumItemASTNode {");
+
+                                writer.writeln_tab(tab + 3, "doc_comments: [");
+
+                                for comment in doc_comments {
+                                    writer.writeln_tab(tab + 4, &format!("\"{}\"", comment));
+                                }
+
+                                writer.writeln_tab(tab + 3, "],");
+
                                 writer.writeln_tab(tab + 3, &format!("position: {},", position));
                                 writer.writeln_tab(tab + 3, &format!("id: \"{}\",", id));
                                 writer.writeln_tab(tab + 3, "fields: [");
@@ -898,12 +986,22 @@ mod tests {
                     writer.writeln_tab(tab, "}");
                 }
                 ASTNode::Struct(StructASTNode {
+                    doc_comments,
                     id,
                     fields,
                     emplace_buffers: _,
                     into_buffers: _,
                 }) => {
                     writer.writeln_tab(tab, "Struct {");
+
+                    writer.writeln_tab(tab + 1, "doc_comments: [");
+
+                    for comment in doc_comments {
+                        writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
+                    }
+
+                    writer.writeln_tab(tab + 1, "],");
+
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, "fields: [");
 
@@ -921,8 +1019,18 @@ mod tests {
                     return_type_id,
                     is_signal,
                     is_async,
+                    doc_comments,
                 }) => {
                     writer.writeln_tab(tab, "Fn {");
+
+                    writer.writeln_tab(tab + 1, "doc_comments: [");
+
+                    for comment in doc_comments {
+                        writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
+                    }
+
+                    writer.writeln_tab(tab + 1, "],");
+
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, &format!("position: {:?},", position));
                     writer.writeln_tab(tab + 1, &format!("return_type_id: {:?},", return_type_id));

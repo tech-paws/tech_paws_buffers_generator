@@ -508,6 +508,7 @@ fn generate_enum_read_from_buffers_method(node: &EnumASTNode) -> SwiftIR {
                 body: Box::new(SwiftIR::Id(case_id)),
             }],
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position: _,
                 id: _,
                 values,
@@ -548,6 +549,7 @@ fn generate_enum_read_from_buffers_method(node: &EnumASTNode) -> SwiftIR {
                 body
             }
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position: _,
                 id: _,
                 fields,
@@ -643,6 +645,7 @@ fn generate_enum_skip_in_buffers_method(node: &EnumASTNode) -> SwiftIR {
         let body: Vec<SwiftIR> = match case {
             EnumItemASTNode::Empty { .. } => vec![SwiftIR::Continue],
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position: _,
                 id: _,
                 values,
@@ -663,6 +666,7 @@ fn generate_enum_skip_in_buffers_method(node: &EnumASTNode) -> SwiftIR {
                 body
             }
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position: _,
                 id: _,
                 fields,
@@ -775,6 +779,7 @@ fn generate_enum_write_to_buffers_method(node: &EnumASTNode) -> SwiftIR {
         let (case_ir, body) = match case {
             EnumItemASTNode::Empty { .. } => (SwiftIR::Id(case_id), vec![write_type_ir]),
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position: _,
                 id: _,
                 values,
@@ -806,6 +811,7 @@ fn generate_enum_write_to_buffers_method(node: &EnumASTNode) -> SwiftIR {
                 )
             }
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position: _,
                 id: _,
                 fields,

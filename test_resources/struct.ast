@@ -1,34 +1,42 @@
 Struct {
+  doc_comments: [
+  ],
   id: "Empty",
   fields: [
   ]
 }
 Struct {
+  doc_comments: [
+  ],
   id: "ViewData",
   fields: [
-    StructFieldASTNode { position: 0, name: "delta_time", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 1, name: "view_width", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 2, name: "view_height", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 3, name: "touch_start_x", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 4, name: "touch_start_y", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 5, name: "last_touch_x", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 6, name: "last_touch_y", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 7, name: "touch_x", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 8, name: "touch_y", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 0, name: "delta_time", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 1, name: "view_width", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 2, name: "view_height", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 3, name: "touch_start_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 4, name: "touch_start_y", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 5, name: "last_touch_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 6, name: "last_touch_y", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 7, name: "touch_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 8, name: "touch_y", type_id: Number { id: "f32", size: 4 } }
   ]
 }
 Struct {
+  doc_comments: [
+  ],
   id: "Test",
   fields: [
-    StructFieldASTNode { position: 1, name: "touch_x", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 2, name: "touch_y", type_id: Number { id: "f32", size: 4 } }
-    StructFieldASTNode { position: 3, name: "touch_status", type_id: Other { id: "TouchStatus" } }
+    StructFieldASTNode { doc_comments: [], position: 1, name: "touch_y", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 2, name: "touch_x", type_id: Number { id: "f32", size: 4 } }
+    StructFieldASTNode { doc_comments: [], position: 3, name: "touch_status", type_id: Other { id: "TouchStatus" } }
   ]
 }
 Struct {
+  doc_comments: [
+  ],
   id: "GenericType",
   fields: [
-    StructFieldASTNode { position: 0, name: "items", type_id: Generic { id: "Vec", generics: [Other { id: "Test" }] } }
-    StructFieldASTNode { position: 1, name: "table", type_id: Generic { id: "LinearTable", generics: [Number { id: "f32", size: 4 }, Other { id: "Test" }] } }
+    StructFieldASTNode { doc_comments: [], position: 0, name: "items", type_id: Generic { id: "Vec", generics: [Other { id: "Test" }] } }
+    StructFieldASTNode { doc_comments: [], position: 1, name: "table", type_id: Generic { id: "LinearTable", generics: [Number { id: "f32", size: 4 }, Other { id: "Test" }] } }
   ]
 }

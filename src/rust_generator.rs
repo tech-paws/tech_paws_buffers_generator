@@ -91,7 +91,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
             ASTNode::Fn(_) => (),
             ASTNode::Directive(_) => (),
             ASTNode::Const(_) => (),
-            ASTNode::DocComment { .. } => (),
+            ASTNode::DocComments { .. } => (),
         }
     }
 
@@ -114,7 +114,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
             ASTNode::Fn(_) => (),
             ASTNode::Directive(_) => (),
             ASTNode::Const(_) => (),
-            ASTNode::DocComment { .. } => (),
+            ASTNode::DocComments { .. } => (),
         }
     }
 

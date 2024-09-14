@@ -7,7 +7,7 @@ pub enum ASTNode {
     Fn(FnASTNode),
     Directive(DirectiveASTNode),
     Const(ConstBlockASTNode),
-    DocComment { value: String },
+    DocComments { comments: Vec<String> },
 }
 
 #[derive(Debug, Clone)]
@@ -42,12 +42,14 @@ pub enum DirectiveASTNode {
 
 #[derive(Debug)]
 pub struct EnumASTNode {
+    pub doc_comments: Vec<String>,
     pub id: String,
     pub items: Vec<EnumItemASTNode>,
 }
 
 #[derive(Debug)]
 pub struct StructASTNode {
+    pub doc_comments: Vec<String>,
     pub id: String,
     pub fields: Vec<StructFieldASTNode>,
     pub emplace_buffers: bool,
@@ -56,6 +58,7 @@ pub struct StructASTNode {
 
 #[derive(Debug)]
 pub struct FnASTNode {
+    pub doc_comments: Vec<String>,
     pub id: String,
     pub position: u32,
     pub args: Vec<FnArgASTNode>,
@@ -67,15 +70,18 @@ pub struct FnASTNode {
 #[derive(Debug)]
 pub enum EnumItemASTNode {
     Empty {
+        doc_comments: Vec<String>,
         position: u32,
         id: String,
     },
     Tuple {
+        doc_comments: Vec<String>,
         position: u32,
         id: String,
         values: Vec<TupleFieldASTNode>,
     },
     Struct {
+        doc_comments: Vec<String>,
         position: u32,
         id: String,
         fields: Vec<StructFieldASTNode>,
@@ -123,15 +129,43 @@ pub enum TypeIDASTNode {
 }
 
 impl EnumItemASTNode {
+    pub fn doc_comment(&self) -> &Vec<String> {
+        match self {
+            EnumItemASTNode::Empty {
+                doc_comments,
+                position: _,
+                id: _,
+            } => doc_comments,
+            EnumItemASTNode::Tuple {
+                doc_comments,
+                position: _,
+                id: _,
+                values: _,
+            } => doc_comments,
+            EnumItemASTNode::Struct {
+                doc_comments,
+                position: _,
+                id: _,
+                fields: _,
+            } => doc_comments,
+        }
+    }
+
     pub fn id(&self) -> &str {
         match self {
-            EnumItemASTNode::Empty { position: _, id } => id,
+            EnumItemASTNode::Empty {
+                doc_comments: _,
+                position: _,
+                id,
+            } => id,
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position: _,
                 id,
                 values: _,
             } => id,
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position: _,
                 id,
                 fields: _,
@@ -141,13 +175,19 @@ impl EnumItemASTNode {
 
     pub fn position(&self) -> u32 {
         match self {
-            EnumItemASTNode::Empty { position, id: _ } => *position,
+            EnumItemASTNode::Empty {
+                doc_comments: _,
+                position,
+                id: _,
+            } => *position,
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position,
                 id: _,
                 values: _,
             } => *position,
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position,
                 id: _,
                 fields: _,
@@ -168,12 +208,14 @@ impl TypeIDASTNode {
 
 #[derive(Debug)]
 pub struct TupleFieldASTNode {
+    pub doc_comments: Vec<String>,
     pub position: u32,
     pub type_id: TypeIDASTNode,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructFieldASTNode {
+    pub doc_comments: Vec<String>,
     pub position: u32,
     pub name: String,
     pub type_id: TypeIDASTNode,

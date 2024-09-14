@@ -53,15 +53,15 @@ impl TechPawsBuffersModel for ViewData {
 impl TechPawsBuffersModel for Test {
     fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
         Self {
-            touch_x: bytes_reader.read_f32(),
             touch_y: bytes_reader.read_f32(),
+            touch_x: bytes_reader.read_f32(),
             touch_status: TouchStatus::read_from_buffers(bytes_reader),
         }
     }
 
     fn write_to_buffers(&self, bytes_writer: &mut BytesWriter) {
-        bytes_writer.write_f32(self.touch_x);
         bytes_writer.write_f32(self.touch_y);
+        bytes_writer.write_f32(self.touch_x);
         self.touch_status.write_to_buffers(bytes_writer);
     }
 

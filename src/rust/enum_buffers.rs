@@ -1,4 +1,8 @@
-use crate::{ast::{EnumASTNode, TypeIDASTNode, EnumItemASTNode}, writer::Writer, rust_generator::{generate_read, generate_write}};
+use crate::{
+    ast::{EnumASTNode, EnumItemASTNode, TypeIDASTNode},
+    rust_generator::{generate_read, generate_write},
+    writer::Writer,
+};
 
 pub fn generate_enum_buffers(node: &EnumASTNode) -> String {
     let mut writer = Writer::default();
@@ -34,10 +38,15 @@ pub fn generate_enum_buffers_read_from_buffers(node: &EnumASTNode) -> String {
 
     for item in node.items.iter() {
         match item {
-            EnumItemASTNode::Empty { position, id } => {
+            EnumItemASTNode::Empty {
+                doc_comments: _,
+                position,
+                id,
+            } => {
                 writer.writeln_tab(3, &format!("{} => return {}::{},", position, node.id, id));
             }
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position,
                 id,
                 values,
@@ -51,6 +60,7 @@ pub fn generate_enum_buffers_read_from_buffers(node: &EnumASTNode) -> String {
                 writer.writeln_tab(3, "),");
             }
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position,
                 id,
                 fields,
@@ -88,7 +98,11 @@ pub fn generate_enum_buffers_write_to_buffers(node: &EnumASTNode) -> String {
 
     for item in node.items.iter() {
         match item {
-            EnumItemASTNode::Empty { position, id } => {
+            EnumItemASTNode::Empty {
+                doc_comments: _,
+                position,
+                id,
+            } => {
                 writer.writeln_tab(3, &format!("{}::{} => {{", node.id, id));
                 writer.writeln_tab(
                     4,
@@ -97,6 +111,7 @@ pub fn generate_enum_buffers_write_to_buffers(node: &EnumASTNode) -> String {
                 writer.writeln_tab(3, "},");
             }
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position,
                 id,
                 values,
@@ -121,6 +136,7 @@ pub fn generate_enum_buffers_write_to_buffers(node: &EnumASTNode) -> String {
                 writer.writeln_tab(3, "},");
             }
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position,
                 id,
                 fields,
@@ -174,10 +190,15 @@ pub fn generate_enum_buffers_skip(node: &EnumASTNode) -> String {
 
     for item in node.items.iter() {
         match item {
-            EnumItemASTNode::Empty { position, id: _ } => {
+            EnumItemASTNode::Empty {
+                doc_comments: _,
+                position,
+                id: _,
+            } => {
                 writer.writeln_tab(4, &format!("{} => (),", position));
             }
             EnumItemASTNode::Tuple {
+                doc_comments: _,
                 position,
                 id: _,
                 values,
@@ -191,6 +212,7 @@ pub fn generate_enum_buffers_skip(node: &EnumASTNode) -> String {
                 writer.writeln_tab(4, "},");
             }
             EnumItemASTNode::Struct {
+                doc_comments: _,
                 position,
                 id: _,
                 fields,

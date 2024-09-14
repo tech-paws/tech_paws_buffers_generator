@@ -178,6 +178,10 @@ impl Lexer {
         self.current_token()
     }
 
+    pub fn rewind_one_token(&mut self) {
+        self.cursor -= 1;
+    }
+
     pub fn current_token(&self) -> &Token {
         &self.current_token_with_line_and_pos().token
     }
