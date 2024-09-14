@@ -16,6 +16,7 @@ pub enum Token {
     ID { name: String },
     Literal(Literal),
     Symbol(char),
+    DocComment { value: String },
     EOF,
 }
 
@@ -106,7 +107,16 @@ impl Lexer {
                 let first_ch_pos = string_reader.pos();
 
                 match string_reader.next() {
-                    Some('/') => lex_single_line_comment(&mut string_reader),
+                    Some('/') => {
+                        let ch = string_reader.next();
+
+                        if ch == Some('/') {
+                            let token = lex_doc_comment(&mut string_reader);
+                            tokens.push(token);
+                        } else {
+                            lex_single_line_comment(&mut string_reader);
+                        }
+                    }
                     Some('*') => lex_multi_line_comment(&mut string_reader),
                     _ => {
                         tokens.push(TokenWithLineAndPos {
@@ -218,6 +228,30 @@ fn lex_single_line_comment(string_reader: &mut StringReader) {
         }
 
         string_reader.next();
+    }
+}
+
+fn lex_doc_comment(string_reader: &mut StringReader) -> TokenWithLineAndPos {
+    string_reader.next();
+
+    let mut comment = String::new();
+    let line = string_reader.line();
+    let pos = string_reader.pos();
+
+    while let Some(ch) = string_reader.current() {
+        if ch == '\r' || ch == '\n' {
+            string_reader.next();
+            break;
+        }
+
+        comment.push(ch);
+        string_reader.next();
+    }
+
+    TokenWithLineAndPos {
+        line,
+        pos,
+        token: Token::DocComment { value: comment },
     }
 }
 
@@ -571,5 +605,24 @@ mod tests {
         assert_eq!(token.clone(), Token::Enum);
         let token = lexer.next_token();
         assert_eq!(token.clone(), Token::EOF);
+    }
+
+    #[test]
+    fn lex_doc_comments() {
+        let mut lexer = Lexer::tokenize("/// Some documentation here\n///   Some Tab");
+        let token = lexer.current_token();
+        assert_eq!(
+            token.clone(),
+            Token::DocComment {
+                value: String::from(" Some documentation here"),
+            }
+        );
+        let token = lexer.next_token();
+        assert_eq!(
+            token.clone(),
+            Token::DocComment {
+                value: String::from("   Some Tab"),
+            }
+        );
     }
 }

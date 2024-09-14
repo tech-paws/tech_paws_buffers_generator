@@ -7,6 +7,7 @@ pub enum ASTNode {
     Fn(FnASTNode),
     Directive(DirectiveASTNode),
     Const(ConstBlockASTNode),
+    DocComment { value: String },
 }
 
 #[derive(Debug, Clone)]

@@ -13,13 +13,16 @@ pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
     let mut ast_nodes = vec![];
 
     while *lexer.current_token() != Token::EOF {
-        match *lexer.current_token() {
+        match lexer.current_token() {
             Token::Struct => ast_nodes.push(parse_struct(lexer)),
             Token::Enum => ast_nodes.push(parse_enum(lexer)),
             Token::Async => ast_nodes.push(parse_async(lexer)),
             Token::Fn => ast_nodes.push(parse_fn(lexer, false)),
             Token::Signal => ast_nodes.push(parse_signal(lexer, false)),
             Token::Const => ast_nodes.push(ASTNode::Const(parse_const(lexer))),
+            Token::DocComment { value } => ast_nodes.push(ASTNode::DocComment {
+                value: value.clone(),
+            }),
             Token::Symbol('#') => ast_nodes.push(parse_directive(lexer)),
             _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
         }
@@ -817,6 +820,11 @@ mod tests {
 
         for node in ast {
             match node {
+                ASTNode::DocComment { value } => {
+                    writer.writeln_tab(tab, "DocComment {");
+                    writer.writeln_tab(tab + 1, &format!("value: \"{}\",", value));
+                    writer.writeln_tab(tab, "}");
+                }
                 ASTNode::Directive(DirectiveASTNode::Group {
                     group_id,
                     values: args,
@@ -1032,6 +1040,16 @@ mod tests {
     fn parse_consts_test() {
         let src = fs::read_to_string("test_resources/consts.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/consts.ast").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let actual_ast = stringify_ast(&parse(&mut lexer));
+
+        assert_eq!(actual_ast, target_ast);
+    }
+
+    #[test]
+    fn parse_doc_comments_test() {
+        let src = fs::read_to_string("test_resources/doc_comments.tpb").unwrap();
+        let target_ast = fs::read_to_string("test_resources/doc_comments.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let actual_ast = stringify_ast(&parse(&mut lexer));
 
