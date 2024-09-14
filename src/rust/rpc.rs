@@ -8,7 +8,7 @@ use crate::{
 use super::{struct_buffers::generate_struct_buffers, struct_models::generate_struct_model};
 
 pub fn generate_rpc_method(node: &FnASTNode) -> String {
-    if node.is_stream {
+    if node.is_signal {
         generate_stream_rpc_method(node)
     } else if node.is_async {
         panic!("async is not supported");
@@ -43,7 +43,7 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
     let fn_nodes = ast::find_fn_nodes(ast);
 
     for node in fn_nodes.iter() {
-        let register_method = if node.is_stream {
+        let register_method = if node.is_signal {
             "register_signal_rpc_method"
         } else if node.is_async {
             "register_async_rpc_method"

@@ -1,7 +1,7 @@
 pub fn register_rpc(runtime: &mut TechPawsBuffersRuntime) {
     let scope_id = TechPawsScopeId(uuid!("723ca727-6a66-43a7-bfcc-b8ad94eac9be"));
     runtime.memory.add_scope(scope_id);
-    runtime.register_stream_rpc_method(
+    runtime.register_signal_rpc_method(
         TechPawsRpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(0),
@@ -9,7 +9,7 @@ pub fn register_rpc(runtime: &mut TechPawsBuffersRuntime) {
         },
         TechPawsRuntimeRpcMethodPayloadSize::Medium,
     );
-    runtime.register_stream_rpc_method(
+    runtime.register_signal_rpc_method(
         TechPawsRpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(1),
@@ -17,7 +17,7 @@ pub fn register_rpc(runtime: &mut TechPawsBuffersRuntime) {
         },
         TechPawsRuntimeRpcMethodPayloadSize::Medium,
     );
-    runtime.register_stream_rpc_method(
+    runtime.register_signal_rpc_method(
         TechPawsRpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(2),
@@ -34,7 +34,7 @@ pub fn counter_rpc_handler(
 ) {
     let result = counter();
 
-    if let Some(result) = result {
+    if let TechPawsSignalRpcResult::Data(result) = result {
         memory.get_scope_mut(scope_id).rpc_buffer_write(
             rpc_method_address,
             TechPawsRuntimeRpcMethodBuffer::Client,
@@ -53,7 +53,7 @@ pub fn theme_rpc_handler(
 ) {
     let result = theme();
 
-    if let Some(result) = result {
+    if let TechPawsSignalRpcResult::Data(result) = result {
         memory.get_scope_mut(scope_id).rpc_buffer_write(
             rpc_method_address,
             TechPawsRuntimeRpcMethodBuffer::Client,
@@ -72,7 +72,7 @@ pub fn trigger_rpc_handler(
 ) {
     let result = trigger();
 
-    if result.is_some() {
+    if result.has_new_data() {
         memory.get_scope_mut(scope_id).rpc_buffer_write(
             rpc_method_address,
             TechPawsRuntimeRpcMethodBuffer::Client,

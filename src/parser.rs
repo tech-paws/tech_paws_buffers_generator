@@ -524,7 +524,7 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
             id,
             args,
             position: lexer.next_fn_poisition(),
-            is_stream: false,
+            is_signal: false,
             is_async,
             return_type_id: None,
         });
@@ -551,7 +551,7 @@ pub fn parse_fn(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         args,
         return_type_id,
         position: lexer.next_fn_poisition(),
-        is_stream: false,
+        is_signal: false,
         is_async,
     })
 }
@@ -577,7 +577,7 @@ pub fn parse_signal(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         return ASTNode::Fn(FnASTNode {
             id,
             args: vec![],
-            is_stream: true,
+            is_signal: true,
             position: lexer.next_fn_poisition(),
             is_async,
             return_type_id: None,
@@ -605,7 +605,7 @@ pub fn parse_signal(lexer: &mut Lexer, is_async: bool) -> ASTNode {
         args: vec![],
         return_type_id,
         position: lexer.next_fn_poisition(),
-        is_stream: true,
+        is_signal: true,
         is_async,
     })
 }
@@ -770,14 +770,20 @@ fn parse_group_directive(id: String, lexer: &mut Lexer) -> DirectiveASTNode {
     while let Token::ID { name } = lexer.current_token() {
         let id = name.clone();
 
-        if *lexer.next_token() != Token::Symbol('=') {
-            parse_error!(lexer, "Expected '=', but got {:?}", lexer.current_token());
-        }
+        if *lexer.next_token() == Token::Symbol('=') {
+            // parse_error!(lexer, "Expected '=', but got {:?}", lexer.current_token());
 
-        lexer.next_token();
-        let value = parse_const_value(lexer);
-        values.push(IdValuePair { id, value });
-        lexer.next_token();
+            lexer.next_token();
+            let value = parse_const_value(lexer);
+            values.push(IdValuePair {
+                id,
+                value: Some(value),
+            });
+
+            lexer.next_token();
+        } else {
+            values.push(IdValuePair { id, value: None });
+        }
 
         if *lexer.current_token() != Token::Symbol(',') {
             break;
@@ -905,14 +911,14 @@ mod tests {
                     position,
                     args,
                     return_type_id,
-                    is_stream,
+                    is_signal,
                     is_async,
                 }) => {
                     writer.writeln_tab(tab, "Fn {");
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
                     writer.writeln_tab(tab + 1, &format!("position: {:?},", position));
                     writer.writeln_tab(tab + 1, &format!("return_type_id: {:?},", return_type_id));
-                    writer.writeln_tab(tab + 1, &format!("is_stream: {:?},", is_stream));
+                    writer.writeln_tab(tab + 1, &format!("is_signal: {:?},", is_signal));
                     writer.writeln_tab(tab + 1, &format!("is_async: {:?},", is_async));
                     writer.writeln_tab(tab + 1, "args: [");
 

@@ -59,7 +59,7 @@ pub struct FnASTNode {
     pub position: u32,
     pub args: Vec<FnArgASTNode>,
     pub return_type_id: Option<TypeIDASTNode>,
-    pub is_stream: bool,
+    pub is_signal: bool,
     pub is_async: bool,
 }
 
@@ -92,7 +92,7 @@ pub enum ConstValueASTNode {
 #[derive(Debug)]
 pub struct IdValuePair {
     pub id: String,
-    pub value: ConstValueASTNode,
+    pub value: Option<ConstValueASTNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -250,7 +250,9 @@ pub fn find_directive_group_value(
             if target_group_id == group_id {
                 for value in values {
                     if value.id == target_id {
-                        return Some(value.value.clone());
+                        if let Some(value) = value.value.clone() {
+                            return Some(value);
+                        }
                     }
                 }
             }
@@ -272,7 +274,9 @@ pub fn find_directive_group_values(
             if target_group_id == group_id {
                 for value in values {
                     if value.id == target_id {
-                        res.push(value.value.clone());
+                        if let Some(value) = value.value.clone() {
+                            res.push(value);
+                        }
                     }
                 }
             }

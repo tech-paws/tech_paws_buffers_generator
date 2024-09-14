@@ -101,7 +101,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<SwiftIR> {
 
     for node in ast {
         match node {
-            ASTNode::Fn(node) if node.is_stream => {
+            ASTNode::Fn(node) if node.is_signal => {
                 if let Some(return_type_id) = &node.return_type_id {
                     stream_subjects.push(SwiftIR::StaticVarDeclaration {
                         id: format!("{}Current", node.id.to_case(Case::Camel)),
@@ -143,7 +143,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<SwiftIR> {
 
         for node in ast {
             match node {
-                ASTNode::Fn(node) if node.is_stream => {
+                ASTNode::Fn(node) if node.is_signal => {
                     statements.push(SwiftIR::TopLevelDeclarations {
                         items: vec![SwiftIR::StaticVarDeclaration {
                             id: node.id.to_case(Case::Camel),
@@ -199,7 +199,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<SwiftIR> {
 
     for node in ast {
         match node {
-            ASTNode::Fn(node) if !node.is_stream => statements.push(generate_sync_rpc_method(node)),
+            ASTNode::Fn(node) if !node.is_signal => statements.push(generate_sync_rpc_method(node)),
             _ => (),
         }
     }
@@ -220,7 +220,7 @@ fn generate_consume_streams_method(ast: &[ASTNode]) -> SwiftIR {
 
     for node in ast {
         match node {
-            ASTNode::Fn(node) if node.is_stream => {
+            ASTNode::Fn(node) if node.is_signal => {
                 let mut consume_result_body_statements = vec![];
 
                 if let Some(type_id) = &node.return_type_id {

@@ -44,7 +44,7 @@ Fn {
   id: "say_hello",
   position: 0,
   return_type_id: Some(Other { id: "String" }),
-  is_stream: false,
+  is_signal: false,
   is_async: false,
   args: [
     FnArgASTNode { id: "name", type_id: Other { id: "String" } }

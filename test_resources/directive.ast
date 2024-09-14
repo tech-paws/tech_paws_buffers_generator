@@ -7,11 +7,24 @@ DirectiveASTNode::Group {
   args: [
     IdValuePair {
       id: "file_name"
-      value: Literal { literal: StringLiteral("test.dart"), type_id: Other { id: "String" } }
+      value: Some(Literal { literal: StringLiteral("test.dart"), type_id: Other { id: "String" } })
     }
     IdValuePair {
       id: "rpc_prefix"
-      value: Literal { literal: StringLiteral("Prefix"), type_id: Other { id: "String" } }
+      value: Some(Literal { literal: StringLiteral("Prefix"), type_id: Other { id: "String" } })
+    }
+  ]
+}
+DirectiveASTNode::Group {
+  group_id: "memory",
+  args: [
+    IdValuePair {
+      id: "emplace"
+      value: None
+    }
+    IdValuePair {
+      id: "copy"
+      value: None
     }
   ]
 }
