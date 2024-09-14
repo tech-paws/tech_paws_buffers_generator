@@ -78,23 +78,7 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
                     directives.first().unwrap().id()
                 ),
             }
-
-            // // let directives = vec![parse_directive(lexer)];
-
-            // // while Token
-
-            // context.directives = directives;
-
-            // match lexer.current_token().clone() {
-            //     Token::Struct | Token::Enum | Token::Fn | Token::Signal => {
-            //         parse_with_context(Some(context), lexer)
-            //     }
-            //     _ => ASTNode::DocComments {
-            //         comments: context.doc_comments,
-            //     },
-            // }
         }
-        // Token::Symbol('#') => ASTNode::Directive(parse_directive(lexer)),
         _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
     }
 }

@@ -43,11 +43,11 @@ pub enum DirectiveASTNode {
 impl DirectiveASTNode {
     pub fn id(&self) -> &str {
         match self {
-            DirectiveASTNode::Value { id, value: _ } => &id,
+            DirectiveASTNode::Value { id, value: _ } => id,
             DirectiveASTNode::Group {
                 group_id,
                 values: _,
-            } => &group_id,
+            } => group_id,
         }
     }
 }
