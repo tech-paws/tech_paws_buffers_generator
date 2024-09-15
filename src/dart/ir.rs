@@ -56,7 +56,7 @@ pub struct ListIR {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CallIR {
-    pub ids: Vec<DartIR>,
+    pub path: Vec<DartIR>,
     pub is_const: bool,
     pub args: Option<Box<DartIR>>,
 }
@@ -255,7 +255,7 @@ pub fn write_call(writer: &mut Writer, ir: &CallIR) {
         writer.write("const ");
     }
 
-    write_tokens_separated(writer, &ir.ids, ".");
+    write_tokens_separated(writer, &ir.path, ".");
 
     if let Some(args) = &ir.args {
         writer.write("(");
@@ -503,12 +503,12 @@ pub fn generate_default_copy_const_value(type_id: &TypeIDASTNode) -> String {
         TypeIDASTNode::Other { id } => match id.as_str() {
             "String" => String::from("\"\""),
             "Vec" => String::from("[]"),
-            _ => format!("{}.createDefault()", id),
+            _ => format!("const {}.createDefault()", id),
         },
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
             "Option" => String::from("null"),
             "Vec" => String::from(format!(
-                "<{}>[]",
+                "const <{}>[]",
                 generics
                     .iter()
                     .map(generate_copy_type_id)
@@ -516,7 +516,7 @@ pub fn generate_default_copy_const_value(type_id: &TypeIDASTNode) -> String {
                     .join(", ")
             )),
             _ => format!(
-                "{}<{}>.createDefault()",
+                "const {}<{}>.createDefault()",
                 id,
                 generics
                     .iter()

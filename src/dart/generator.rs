@@ -50,7 +50,7 @@ fn generate_copy_struct_model(node: &StructASTNode) -> Vec<DartIR> {
                     is_override: true,
                     args: None,
                     body: Box::new(DartIR::Call(CallIR {
-                        ids: vec![DartIR::Id(node.id.clone())],
+                        path: vec![DartIR::Id(node.id.clone())],
                         is_const: true,
                         args: None,
                     })),
@@ -130,7 +130,7 @@ fn generate_copy_struct_model(node: &StructASTNode) -> Vec<DartIR> {
                     is_override: true,
                     args: None,
                     body: Box::new(DartIR::Call(CallIR {
-                        ids: vec![
+                        path: vec![
                             DartIR::Id(node.id.clone()),
                             DartIR::Id(String::from("createDefault")),
                         ],
@@ -172,6 +172,34 @@ mod tests {
     fn generate_struct_model_test_basic() {
         let src = fs::read_to_string("test_resources/struct_basic.tpb").unwrap();
         let target = fs::read_to_string("test_resources/dart/struct_basic.dart").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+
+        println!("{:?}", actual);
+        println!("{}", stringify_ir(&actual));
+
+        assert_eq!(stringify_ir(&actual), target);
+    }
+
+    #[test]
+    fn generate_struct_model_test_types() {
+        let src = fs::read_to_string("test_resources/struct_types.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/dart/struct_types.dart").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+
+        println!("{:?}", actual);
+        println!("{}", stringify_ir(&actual));
+
+        assert_eq!(stringify_ir(&actual), target);
+    }
+
+    #[test]
+    fn generate_struct_model_test_with_positions() {
+        let src = fs::read_to_string("test_resources/struct_with_positions.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/dart/struct_with_positions.dart").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_models(&ast);
