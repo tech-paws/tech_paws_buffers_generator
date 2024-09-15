@@ -21,127 +21,138 @@ pub fn generate_models(ast: &[ASTNode]) -> Vec<DartIR> {
 }
 
 fn generate_copy_struct_model(node: &StructASTNode) -> Vec<DartIR> {
-    let mut ir = vec![];
-
     if node.fields.is_empty() {
-        ir.push(DartIR::Class(ClassDartIR {
-            id: node.id.clone(),
-            body: vec![DartIR::DefaultConstructor(DefaultConstructorIR {
-                id: node.id.clone(),
-                is_const: true,
-                fields: None,
-            })],
-            implements: vec![],
-        }));
-
-        let factory_id = format!("{}BuffersFactory", node.id);
-
-        ir.push(DartIR::Class(ClassDartIR {
-            id: factory_id.clone(),
-            body: vec![
-                DartIR::DefaultConstructor(DefaultConstructorIR {
-                    id: factory_id.clone(),
-                    is_const: true,
-                    fields: None,
-                }),
-                DartIR::ShortFunc(ShortFuncIR {
-                    id: String::from("createDefault"),
-                    return_type_id: Some(Box::new(DartIR::Id(node.id.clone()))),
-                    is_override: true,
-                    args: None,
-                    body: Box::new(DartIR::Call(CallIR {
-                        path: vec![DartIR::Id(node.id.clone())],
-                        is_const: true,
-                        args: None,
-                    })),
-                }),
-            ],
-            implements: vec![DartIR::Id(format!("BuffersFactory<{}>", node.id))],
-        }));
+        generate_empty_struct(node)
     } else {
-        let mut body = vec![];
-        let mut default_constructor_fields = vec![];
+        generate_copy_struct(node)
+    }
+}
 
-        for field in node.fields.iter() {
-            default_constructor_fields.push(DartIR::ArgumentDeclaration(ArgumentDeclarationIR {
-                id: field.name.to_case(Case::Camel),
-                is_required: true,
-                is_this: true,
-                type_id: None,
-                assign: None,
-            }));
-        }
+fn generate_copy_struct(node: &StructASTNode) -> Vec<DartIR> {
+    let mut ir = vec![];
+    let mut body = vec![];
+    let mut default_constructor_fields = vec![];
 
-        body.push(DartIR::DefaultConstructor(DefaultConstructorIR {
-            id: node.id.clone(),
-            is_const: true,
-            fields: Some(Box::new(DartIR::List(ListIR {
-                items: default_constructor_fields,
-                separator: ",",
-                new_line: true,
-            }))),
-        }));
-
-        let mut assigns = vec![];
-
-        for field in node.fields.iter() {
-            assigns.push(DartIR::Assign(AssignIR {
-                left: Box::new(DartIR::Id(field.name.to_case(Case::Camel))),
-                right: Box::new(DartIR::DefaultCopyValueForTypeID(field.type_id.clone())),
-            }));
-        }
-
-        body.push(DartIR::NamedConstructor(NamedConstructorIR {
-            id: node.id.clone(),
-            name: String::from("createDefault"),
-            is_const: true,
-            fields: None,
-            assigns,
-        }));
-
-        for field in node.fields.iter() {
-            body.push(DartIR::VarDeclaration(VarDeclarationIR {
-                id: field.name.clone().to_case(Case::Camel),
-                type_id: Box::new(DartIR::CopyTypeId(field.type_id.clone())),
-                is_final: true,
-                assign: None,
-            }));
-        }
-
-        ir.push(DartIR::Class(ClassDartIR {
-            id: node.id.clone(),
-            body,
-            implements: vec![],
-        }));
-
-        let factory_id = format!("{}BuffersFactory", node.id);
-
-        ir.push(DartIR::Class(ClassDartIR {
-            id: factory_id.clone(),
-            body: vec![
-                DartIR::DefaultConstructor(DefaultConstructorIR {
-                    id: factory_id.clone(),
-                    is_const: true,
-                    fields: None,
-                }),
-                DartIR::ShortFunc(ShortFuncIR {
-                    id: String::from("createDefault"),
-                    return_type_id: Some(Box::new(DartIR::Id(node.id.clone()))),
-                    is_override: true,
-                    args: None,
-                    body: Box::new(DartIR::Call(CallIR {
-                        path: vec![
-                            DartIR::Id(node.id.clone()),
-                            DartIR::Id(String::from("createDefault")),
-                        ],
-                        is_const: true,
-                        args: None,
-                    })),
-                }),
-            ],
-            implements: vec![DartIR::Id(format!("BuffersFactory<{}>", node.id))],
+    for field in node.fields.iter() {
+        default_constructor_fields.push(DartIR::ArgumentDeclaration(ArgumentDeclarationIR {
+            id: field.name.to_case(Case::Camel),
+            is_required: true,
+            is_this: true,
+            type_id: None,
+            assign: None,
         }));
     }
+
+    body.push(DartIR::DefaultConstructor(DefaultConstructorIR {
+        id: node.id.clone(),
+        is_const: true,
+        fields: Some(Box::new(DartIR::List(ListIR {
+            items: default_constructor_fields,
+            separator: ",",
+            new_line: true,
+        }))),
+    }));
+
+    let mut assigns = vec![];
+
+    for field in node.fields.iter() {
+        assigns.push(DartIR::Assign(AssignIR {
+            left: Box::new(DartIR::Id(field.name.to_case(Case::Camel))),
+            right: Box::new(DartIR::DefaultCopyValueForTypeID(field.type_id.clone())),
+        }));
+    }
+
+    body.push(DartIR::NamedConstructor(NamedConstructorIR {
+        id: node.id.clone(),
+        name: String::from("createDefault"),
+        is_const: true,
+        fields: None,
+        assigns,
+    }));
+
+    for field in node.fields.iter() {
+        body.push(DartIR::VarDeclaration(VarDeclarationIR {
+            id: field.name.clone().to_case(Case::Camel),
+            type_id: Box::new(DartIR::CopyTypeId(field.type_id.clone())),
+            is_final: true,
+            assign: None,
+        }));
+    }
+
+    ir.push(DartIR::Class(ClassDartIR {
+        id: node.id.clone(),
+        body,
+        implements: vec![],
+    }));
+
+    let factory_id = format!("{}BuffersFactory", node.id);
+
+    ir.push(DartIR::Class(ClassDartIR {
+        id: factory_id.clone(),
+        body: vec![
+            DartIR::DefaultConstructor(DefaultConstructorIR {
+                id: factory_id.clone(),
+                is_const: true,
+                fields: None,
+            }),
+            DartIR::ShortFunc(ShortFuncIR {
+                id: String::from("createDefault"),
+                return_type_id: Some(Box::new(DartIR::Id(node.id.clone()))),
+                is_override: true,
+                args: None,
+                body: Box::new(DartIR::Call(CallIR {
+                    path: vec![
+                        DartIR::Id(node.id.clone()),
+                        DartIR::Id(String::from("createDefault")),
+                    ],
+                    is_const: true,
+                    args: None,
+                })),
+            }),
+        ],
+        implements: vec![DartIR::Id(format!("BuffersFactory<{}>", node.id))],
+    }));
+
+    ir
+}
+
+fn generate_empty_struct(node: &StructASTNode) -> Vec<DartIR> {
+    let mut ir = vec![];
+
+    ir.push(DartIR::Class(ClassDartIR {
+        id: node.id.clone(),
+        body: vec![DartIR::DefaultConstructor(DefaultConstructorIR {
+            id: node.id.clone(),
+            is_const: true,
+            fields: None,
+        })],
+        implements: vec![],
+    }));
+
+    let factory_id = format!("{}BuffersFactory", node.id);
+
+    ir.push(DartIR::Class(ClassDartIR {
+        id: factory_id.clone(),
+        body: vec![
+            DartIR::DefaultConstructor(DefaultConstructorIR {
+                id: factory_id.clone(),
+                is_const: true,
+                fields: None,
+            }),
+            DartIR::ShortFunc(ShortFuncIR {
+                id: String::from("createDefault"),
+                return_type_id: Some(Box::new(DartIR::Id(node.id.clone()))),
+                is_override: true,
+                args: None,
+                body: Box::new(DartIR::Call(CallIR {
+                    path: vec![DartIR::Id(node.id.clone())],
+                    is_const: true,
+                    args: None,
+                })),
+            }),
+        ],
+        implements: vec![DartIR::Id(format!("BuffersFactory<{}>", node.id))],
+    }));
 
     ir
 }

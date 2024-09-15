@@ -175,7 +175,7 @@ pub fn write_argument_declaration(writer: &mut Writer, ir: &ArgumentDeclarationI
     }
 
     if let Some(type_id) = &ir.type_id {
-        write_token(writer, &type_id);
+        write_token(writer, type_id);
         writer.write(" ");
     }
 
@@ -187,7 +187,7 @@ pub fn write_argument_declaration(writer: &mut Writer, ir: &ArgumentDeclarationI
 
     if let Some(assign) = &ir.assign {
         writer.write(" = ");
-        write_token(writer, &assign);
+        write_token(writer, assign);
     }
 }
 
@@ -234,12 +234,12 @@ pub fn write_list(writer: &mut Writer, ir: &ListIR) {
         }
 
         write_token(writer, item);
-        writer.write(ir.separator);
 
-        if it.peek().is_some() {
-            if ir.new_line {
-                writer.new_line();
-            }
+        if it.peek().is_some() && ir.new_line {
+            writer.write(ir.separator);
+            writer.new_line();
+        } else if ir.new_line {
+            writer.write(ir.separator);
         }
     }
 
@@ -308,7 +308,7 @@ pub fn write_default_constructor(writer: &mut Writer, ir: &DefaultConstructorIR)
 
     if let Some(fields) = &ir.fields {
         writer.write(&format!("{}({{", ir.id));
-        write_token(writer, &fields);
+        write_token(writer, fields);
         writer.write("});");
     } else {
         writer.write(&format!("{}();", ir.id));
@@ -507,14 +507,14 @@ pub fn generate_default_copy_const_value(type_id: &TypeIDASTNode) -> String {
         },
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
             "Option" => String::from("null"),
-            "Vec" => String::from(format!(
+            "Vec" => format!(
                 "const <{}>[]",
                 generics
                     .iter()
                     .map(generate_copy_type_id)
                     .collect::<Vec<String>>()
                     .join(", ")
-            )),
+            ),
             _ => format!(
                 "const {}<{}>.createDefault()",
                 id,
