@@ -48,17 +48,17 @@ fn generate_const_block(const_node: &ConstBlockASTNode) -> SwiftIR {
 }
 
 pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftIR> {
-    let mut tokens = vec![];
+    let mut ir = vec![];
 
     for node in ast {
         match node {
-            ASTNode::Struct(node) => tokens.push(generate_struct_model(node)),
-            ASTNode::Enum(node) => tokens.push(generate_enum_model(node)),
+            ASTNode::Struct(node) => ir.push(generate_struct_model(node)),
+            ASTNode::Enum(node) => ir.push(generate_enum_model(node)),
             _ => (),
         }
     }
 
-    tokens
+    ir
 }
 
 pub fn generate_rpc(ast: &[ASTNode]) -> Vec<SwiftIR> {
