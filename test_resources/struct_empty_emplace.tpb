@@ -1,0 +1,2 @@
+#[memory(emplace)]
+struct Empty;

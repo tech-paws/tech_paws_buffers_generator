@@ -195,8 +195,8 @@ pub fn write_default_copy_value_for_type_id(writer: &mut Writer, type_id: &TypeI
     writer.write(&generate_default_copy_const_value(type_id));
 }
 
-pub fn write_default_emplace_value_for_type_id(_writer: &mut Writer, _type_id: &TypeIDASTNode) {
-    todo!()
+pub fn write_default_emplace_value_for_type_id(writer: &mut Writer, type_id: &TypeIDASTNode) {
+    writer.write(&generate_default_emplace_const_value(type_id));
 }
 
 pub fn write_asign(writer: &mut Writer, ir: &AssignIR) {
@@ -517,6 +517,44 @@ pub fn generate_default_copy_const_value(type_id: &TypeIDASTNode) -> String {
             ),
             _ => format!(
                 "const {}<{}>.createDefault()",
+                id,
+                generics
+                    .iter()
+                    .map(generate_copy_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+        },
+    }
+}
+
+pub fn generate_default_emplace_const_value(type_id: &TypeIDASTNode) -> String {
+    match type_id {
+        TypeIDASTNode::Integer {
+            id: _,
+            size: _,
+            signed: _,
+        } => String::from("0"),
+        TypeIDASTNode::Number { id: _, size: _ } => String::from("0.0"),
+        TypeIDASTNode::Bool { id: _ } => String::from("false"),
+        TypeIDASTNode::Char { id: _ } => String::from("0"),
+        TypeIDASTNode::Other { id } => match id.as_str() {
+            "String" => String::from("\"\""),
+            "Vec" => String::from("[]"),
+            _ => format!("{}.createDefault()", id),
+        },
+        TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Option" => String::from("null"),
+            "Vec" => format!(
+                "<{}>[]",
+                generics
+                    .iter()
+                    .map(generate_copy_type_id)
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            _ => format!(
+                "{}<{}>.createDefault()",
                 id,
                 generics
                     .iter()
