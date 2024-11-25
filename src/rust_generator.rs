@@ -23,19 +23,17 @@ pub fn generate(ast: &[ASTNode]) -> String {
 
     if has_buffers || has_rpc {
         writer.writeln(
-            "use tech_paws_buffers::memory::{BytesReader, BytesWriter, TechPawsBuffersModel};",
+            "use tech_paws_buffers::memory::{BytesReader, BytesWriter, BuffersModel};",
         );
     }
 
     if has_rpc {
         writer.writeln("use tech_paws_buffers::runtime_memory::{");
-        writer.writeln(
-            "    RpcMethodAddress, TechPawsRuntimeMemory, TechPawsRuntimeRpcMethodBuffer,",
-        );
-        writer.writeln("    TechPawsRuntimeRpcMethodPayloadSize, TechPawsScopeId,");
+        writer.writeln("    RpcMethodAddress, RuntimeMemory, RpcMethodBuffer,");
+        writer.writeln("    RpcMethodPayloadSize, BuffersScopeId,");
         writer.writeln("};");
         writer.writeln(
-            "use tech_paws_buffers::{RpcMethodHandler, TechPawsBuffersRuntime, TechPawsRpcMethod, TechPawsSignalRpcResult};",
+            "use tech_paws_buffers::{RpcMethodHandler, RpcRuntime, RpcMethod, SignalRpcResult};",
         );
         writer.writeln("use uuid::uuid;");
     }

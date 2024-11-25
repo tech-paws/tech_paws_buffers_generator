@@ -20,7 +20,7 @@ pub fn generate_rpc_method(node: &FnASTNode) -> String {
 pub fn generate_register_fn(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln("pub fn register_rpc(runtime: &mut TechPawsBuffersRuntime) {");
+    writer.writeln("pub fn register_rpc(runtime: &mut RpcRuntime) {");
 
     let id = ast::find_directive_value(ast, "id").expect("id is required");
     let id = match id {
@@ -35,7 +35,7 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
 
     writer.push_tab();
     writer.writeln(&format!(
-        "let scope_id = TechPawsScopeId(uuid!(\"{}\"));",
+        "let scope_id = BuffersScopeId(uuid!(\"{}\"));",
         id
     ));
     writer.writeln("runtime.memory.add_scope(scope_id);");
@@ -52,20 +52,20 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
         };
 
         let buffer_size = if node.args.is_empty() && node.return_type_id.is_none() {
-            "TechPawsRuntimeRpcMethodPayloadSize::Zero"
+            "RpcMethodPayloadSize::Zero"
         } else if let Some(TypeIDASTNode::Generic { id, .. }) = node.return_type_id.clone() {
             if id == "Vec" {
-                "TechPawsRuntimeRpcMethodPayloadSize::Large"
+                "RpcMethodPayloadSize::Large"
             } else {
-                "TechPawsRuntimeRpcMethodPayloadSize::Medium"
+                "RpcMethodPayloadSize::Medium"
             }
         } else {
-            "TechPawsRuntimeRpcMethodPayloadSize::Medium"
+            "RpcMethodPayloadSize::Medium"
         };
 
         writer.writeln(&format!("runtime.{}(", register_method));
         writer.push_tab();
-        writer.writeln("TechPawsRpcMethod {");
+        writer.writeln("RpcMethod {");
         writer.push_tab();
         writer.writeln("scope_id,");
         writer.writeln(&format!(
@@ -117,8 +117,8 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
 
     writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
     writer.push_tab();
-    writer.writeln("scope_id: TechPawsScopeId,");
-    writer.writeln("memory: &mut TechPawsRuntimeMemory,");
+    writer.writeln("scope_id: BuffersScopeId,");
+    writer.writeln("memory: &mut RpcRuntimeMemory,");
     writer.writeln("rpc_method_address: RpcMethodAddress,");
     writer.pop_tab();
     writer.writeln(") {");
@@ -129,7 +129,7 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
         writer.writeln("let args = memory.get_scope_mut(scope_id).rpc_buffer_read(");
         writer.push_tab();
         writer.writeln("rpc_method_address,");
-        writer.writeln("TechPawsRuntimeRpcMethodBuffer::Server,");
+        writer.writeln("RpcMethodBuffer::Server,");
         writer.writeln(&format!(
             "|bytes_reader| {}::read_from_buffers(bytes_reader),",
             args_struct_id,
@@ -170,7 +170,7 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
         writer.writeln("memory.get_scope_mut(scope_id).rpc_buffer_write(");
         writer.push_tab();
         writer.writeln("rpc_method_address,");
-        writer.writeln("TechPawsRuntimeRpcMethodBuffer::Client,");
+        writer.writeln("RpcMethodBuffer::Client,");
         writer.writeln("|bytes_writer| {");
         writer.push_tab();
         writer.writeln(&generate_write(return_type_id, "result", false));
@@ -191,8 +191,8 @@ fn generate_stream_rpc_method(node: &FnASTNode) -> String {
 
     writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
     writer.push_tab();
-    writer.writeln("scope_id: TechPawsScopeId,");
-    writer.writeln("memory: &mut TechPawsRuntimeMemory,");
+    writer.writeln("scope_id: BuffersScopeId,");
+    writer.writeln("memory: &mut RpcRuntimeMemory,");
     writer.writeln("rpc_method_address: RpcMethodAddress,");
     writer.pop_tab();
     writer.writeln(") {");
@@ -212,7 +212,7 @@ fn generate_stream_rpc_method(node: &FnASTNode) -> String {
     writer.new_line();
 
     if node.return_type_id.is_some() {
-        writer.writeln("if let TechPawsSignalRpcResult::Data(result) = result {");
+        writer.writeln("if let SignalRpcResult::Data(result) = result {");
         writer.push_tab();
     } else {
         writer.writeln("if result.has_new_data() {");
@@ -222,7 +222,7 @@ fn generate_stream_rpc_method(node: &FnASTNode) -> String {
     writer.writeln("memory.get_scope_mut(scope_id).rpc_buffer_write(");
     writer.push_tab();
     writer.writeln("rpc_method_address,");
-    writer.writeln("TechPawsRuntimeRpcMethodBuffer::Client,");
+    writer.writeln("RpcMethodBuffer::Client,");
     writer.writeln("|bytes_writer| {");
     writer.push_tab();
     writer.writeln("bytes_writer.write_u8(0xFF);");
