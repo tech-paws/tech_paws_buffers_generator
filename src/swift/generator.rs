@@ -954,7 +954,7 @@ fn generate_struct_read_from_buffers_method(node: &StructASTNode) -> SwiftIR {
     for field in &node.fields {
         new_instance_body.push(SwiftIR::AssignStructNamedArgument {
             id: field.name.clone(),
-            default_value_type_id: Some(field.type_id.clone()),
+            default_value_type_id: None,
             value: Some(Box::new(SwiftIR::Id(
                 field.name.to_case(Case::Camel).clone(),
             ))),

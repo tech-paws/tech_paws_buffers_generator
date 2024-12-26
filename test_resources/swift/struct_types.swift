@@ -2,8 +2,8 @@ struct BasicTypesModel: TechPawsBuffersModel {
     let byte: UInt8
     let someInteger: Int32
     let someLong: Int64
-    let someUnsigedInteger: UInt32
-    let someUnsigedLong: UInt32
+    let someUnsignedInteger: UInt32
+    let someUnsignedLong: UInt64
     let someFloatNumber: Float
     let someDoubleNumber: Double
     let someBool: Bool
@@ -12,6 +12,9 @@ struct BasicTypesModel: TechPawsBuffersModel {
     let generic: LinearTable<Float, Test>
     let custom: MyModel
     let optionalString: String?
+    let optionalListString: [String]?
+    let listOptionalString: [String?]
+    let listListString: [[String]]
     let optionalF32: Float?
 
     static func createBuffersDefault() -> Self {
@@ -19,8 +22,8 @@ struct BasicTypesModel: TechPawsBuffersModel {
             byte: 0,
             someInteger: 0,
             someLong: 0,
-            someUnsigedInteger: 0,
-            someUnsigedLong: 0,
+            someUnsignedInteger: 0,
+            someUnsignedLong: 0,
             someFloatNumber: 0,
             someDoubleNumber: 0,
             someBool: false,
@@ -29,6 +32,9 @@ struct BasicTypesModel: TechPawsBuffersModel {
             generic: LinearTable<Float, Test>.createBuffersDefault(),
             custom: MyModel.createBuffersDefault(),
             optionalString: nil,
+            optionalListString: nil,
+            listOptionalString: [],
+            listListString: [],
             optionalF32: nil
         )
     }
@@ -39,8 +45,8 @@ struct BasicTypesModel: TechPawsBuffersModel {
         let byte = bytesReader.readUInt8()
         let someInteger = bytesReader.readInt32()
         let someLong = bytesReader.readInt64()
-        let someUnsigedInteger = bytesReader.readUInt32()
-        let someUnsigedLong = bytesReader.readUInt32()
+        let someUnsignedInteger = bytesReader.readUInt32()
+        let someUnsignedLong = bytesReader.readUInt64()
         let someFloatNumber = bytesReader.readFloat()
         let someDoubleNumber = bytesReader.readDouble()
         let someBool = bytesReader.readBool()
@@ -49,14 +55,17 @@ struct BasicTypesModel: TechPawsBuffersModel {
         let generic = LinearTable<Float, Test>.readFromBuffers(bytesReader)
         let custom = MyModel.readFromBuffers(bytesReader)
         let optionalString = String?.readFromBuffers(bytesReader)
+        let optionalListString = [String]?.readFromBuffers(bytesReader)
+        let listOptionalString = [String?].readFromBuffers(bytesReader)
+        let listListString = [[String]].readFromBuffers(bytesReader)
         let optionalF32 = Float?.readFromBuffers(bytesReader)
 
         return BasicTypesModel(
             byte: byte,
             someInteger: someInteger,
             someLong: someLong,
-            someUnsigedInteger: someUnsigedInteger,
-            someUnsigedLong: someUnsigedLong,
+            someUnsignedInteger: someUnsignedInteger,
+            someUnsignedLong: someUnsignedLong,
             someFloatNumber: someFloatNumber,
             someDoubleNumber: someDoubleNumber,
             someBool: someBool,
@@ -65,6 +74,9 @@ struct BasicTypesModel: TechPawsBuffersModel {
             generic: generic,
             custom: custom,
             optionalString: optionalString,
+            optionalListString: optionalListString,
+            listOptionalString: listOptionalString,
+            listListString: listListString,
             optionalF32: optionalF32
         )
     }
@@ -78,7 +90,7 @@ struct BasicTypesModel: TechPawsBuffersModel {
             let _ = bytesReader.readInt32()
             let _ = bytesReader.readInt64()
             let _ = bytesReader.readUInt32()
-            let _ = bytesReader.readUInt32()
+            let _ = bytesReader.readUInt64()
             let _ = bytesReader.readFloat()
             let _ = bytesReader.readDouble()
             let _ = bytesReader.readBool()
@@ -87,6 +99,9 @@ struct BasicTypesModel: TechPawsBuffersModel {
             let _ = LinearTable<Float, Test>.readFromBuffers(bytesReader)
             let _ = MyModel.readFromBuffers(bytesReader)
             let _ = String?.readFromBuffers(bytesReader)
+            let _ = [String]?.readFromBuffers(bytesReader)
+            let _ = [String?].readFromBuffers(bytesReader)
+            let _ = [[String]].readFromBuffers(bytesReader)
             let _ = Float?.readFromBuffers(bytesReader)
         }
     }
@@ -97,8 +112,8 @@ struct BasicTypesModel: TechPawsBuffersModel {
         bytesWriter.writeUInt8(byte)
         bytesWriter.writeInt32(someInteger)
         bytesWriter.writeInt64(someLong)
-        bytesWriter.writeUInt32(someUnsigedInteger)
-        bytesWriter.writeUInt32(someUnsigedLong)
+        bytesWriter.writeUInt32(someUnsignedInteger)
+        bytesWriter.writeUInt64(someUnsignedLong)
         bytesWriter.writeFloat(someFloatNumber)
         bytesWriter.writeDouble(someDoubleNumber)
         bytesWriter.writeBool(someBool)
@@ -107,6 +122,9 @@ struct BasicTypesModel: TechPawsBuffersModel {
         generic.writeToBuffers(bytesWriter)
         custom.writeToBuffers(bytesWriter)
         optionalString.writeToBuffers(bytesWriter)
+        optionalListString.writeToBuffers(bytesWriter)
+        listOptionalString.writeToBuffers(bytesWriter)
+        listListString.writeToBuffers(bytesWriter)
         optionalF32.writeToBuffers(bytesWriter)
     }
 }

@@ -11,6 +11,7 @@ pub fn generate_models(ast: &[ASTNode]) -> Vec<DartIR> {
     let mut ir = vec![];
 
     for node in ast {
+        #[allow(clippy::single_match)]
         match node {
             ASTNode::Struct(node) => ir.append(&mut generate_struct_model(node)),
             _ => (),

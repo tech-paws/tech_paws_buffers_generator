@@ -5,7 +5,7 @@ use crate::ast::{
     TypeIDASTNode,
 };
 
-use super::ir::KotlinIR;
+use super::ir::{generate_type_id, KotlinIR};
 
 pub fn generate_consts(ast: &[ASTNode]) -> Vec<KotlinIR> {
     let mut tokens = vec![];
@@ -30,7 +30,7 @@ pub fn generate_const_block(const_node: &ConstBlockASTNode) -> KotlinIR {
                     body: Box::new(KotlinIR::ValDeclaration {
                         id: id.clone(),
                         is_const: true,
-                        type_id: Box::new(KotlinIR::TypeId(type_id.clone())),
+                        type_id: Some(Box::new(KotlinIR::TypeId(type_id.clone()))),
                         value: Some(Box::new(KotlinIR::ConstValueExpr {
                             type_id: type_id.clone(),
                             value: value.clone(),
@@ -95,7 +95,7 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                     body: Box::new(KotlinIR::ValDeclaration {
                         id: format!("p{}", value.position),
                         is_const: false,
-                        type_id: Box::new(KotlinIR::TypeId(value.type_id.clone())),
+                        type_id: Some(Box::new(KotlinIR::TypeId(value.type_id.clone()))),
                         value: None,
                     }),
                 });
@@ -118,7 +118,7 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                     body: Box::new(KotlinIR::ValDeclaration {
                         id: field.name.clone(),
                         is_const: false,
-                        type_id: Box::new(KotlinIR::TypeId(field.type_id.clone())),
+                        type_id: Some(Box::new(KotlinIR::TypeId(field.type_id.clone()))),
                         value: None,
                     }),
                 });
@@ -154,33 +154,35 @@ pub fn generate_enum_interface(node: &EnumASTNode) -> KotlinIR {
                 let mut arguments = vec![];
 
                 for value in values {
-                    arguments.push(KotlinIR::Declaration {
-                        separator: Some(","),
-                        body: Box::new(KotlinIR::DefaulConstValueExpr(value.type_id.clone())),
-                    });
+                    arguments.push(KotlinIR::DefaultConstValueExpr(value.type_id.clone()));
                 }
 
                 KotlinIR::Call {
                     id: first_case_id,
-                    arguments,
+                    arguments: Some(Box::new(KotlinIR::List {
+                        separator: ",",
+                        items: arguments,
+                        new_line: true,
+                    })),
                 }
             }
             EnumItemASTNode::Struct { fields, .. } => {
                 let mut arguments = vec![];
 
                 for field in fields {
-                    arguments.push(KotlinIR::Declaration {
-                        separator: Some(","),
-                        body: Box::new(KotlinIR::AssignArgument {
-                            id: field.name.clone(),
-                            value: Box::new(KotlinIR::DefaulConstValueExpr(field.type_id.clone())),
-                        }),
+                    arguments.push(KotlinIR::AssignArgument {
+                        id: field.name.clone(),
+                        value: Box::new(KotlinIR::DefaultConstValueExpr(field.type_id.clone())),
                     });
                 }
 
                 KotlinIR::Call {
                     id: first_case_id,
-                    arguments,
+                    arguments: Some(Box::new(KotlinIR::List {
+                        separator: ",",
+                        items: arguments,
+                        new_line: true,
+                    })),
                 }
             }
         }),
@@ -209,7 +211,7 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Ko
             body: Box::new(KotlinIR::ValDeclaration {
                 id: field.name.to_case(Case::Camel).clone(),
                 is_const: false,
-                type_id: Box::new(KotlinIR::TypeId(field.type_id.clone())),
+                type_id: Some(Box::new(KotlinIR::TypeId(field.type_id.clone()))),
                 value: None,
             }),
         });
@@ -223,12 +225,9 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Ko
         let mut arguments = vec![];
 
         for field in &node.fields {
-            arguments.push(KotlinIR::Declaration {
-                separator: Some(","),
-                body: Box::new(KotlinIR::AssignArgument {
-                    id: field.name.clone(),
-                    value: Box::new(KotlinIR::DefaulConstValueExpr(field.type_id.clone())),
-                }),
+            arguments.push(KotlinIR::AssignArgument {
+                id: field.name.clone(),
+                value: Box::new(KotlinIR::DefaultConstValueExpr(field.type_id.clone())),
             });
         }
 
@@ -238,14 +237,24 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Ko
             return_type_id: Box::new(KotlinIR::TypeId(struct_type_id.clone())),
             body: Box::new(KotlinIR::Call {
                 id: node.id.clone(),
-                arguments,
+                arguments: Some(Box::new(KotlinIR::List {
+                    items: arguments,
+                    separator: ",",
+                    new_line: true,
+                })),
             }),
         };
 
         body.push(KotlinIR::CompanionObject {
-            body: vec![create_default_method],
+            body: vec![
+                create_default_method,
+                generate_struct_read_from_buffers_method(node),
+                generate_struct_skip_in_buffers_method(node),
+            ],
         });
     }
+
+    body.push(generate_struct_write_to_buffers_method(node));
 
     KotlinIR::Class {
         id: node.id.clone(),
@@ -256,10 +265,253 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Ko
     }
 }
 
+fn generate_struct_read_from_buffers_method(node: &StructASTNode) -> KotlinIR {
+    let mut method_statements = vec![];
+    let mut read_body = vec![];
+
+    for field in &node.fields {
+        let read_call = generate_read(&field.type_id);
+
+        read_body.push(KotlinIR::ValDeclaration {
+            id: field.name.to_case(Case::Camel).clone(),
+            is_const: false,
+            type_id: None,
+            value: Some(Box::new(read_call)),
+        });
+    }
+
+    if !read_body.is_empty() {
+        method_statements.push(KotlinIR::Statements { items: read_body });
+    }
+
+    let mut new_instance_body = vec![];
+
+    for field in &node.fields {
+        new_instance_body.push(KotlinIR::AssignArgument {
+            id: field.name.clone(),
+            value: Box::new(KotlinIR::Id(field.name.to_case(Case::Camel).clone())),
+        });
+    }
+
+    if !node.fields.is_empty() {
+        method_statements.push(KotlinIR::Gap);
+    }
+
+    method_statements.push(KotlinIR::ReturnStatement {
+        body: Box::new(KotlinIR::Call {
+            id: node.id.clone(),
+            arguments: Some(Box::new(KotlinIR::List {
+                items: new_instance_body,
+                separator: ",",
+                new_line: true,
+            })),
+        }),
+    });
+
+    KotlinIR::Fun {
+        id: String::from("readFromBuffers"),
+        return_type_id: Some(Box::new(KotlinIR::Id(node.id.clone()))),
+        arguments: Some(Box::new(KotlinIR::List {
+            separator: ",",
+            new_line: false,
+            items: vec![KotlinIR::FunctionArgument {
+                id: "reader".to_string(),
+                type_id: Box::new(KotlinIR::Id("Long".to_string())),
+            }],
+        })),
+        body: Box::new(KotlinIR::Statements {
+            items: method_statements,
+        }),
+    }
+}
+
+fn generate_struct_skip_in_buffers_method(node: &StructASTNode) -> KotlinIR {
+    let mut method_statements = vec![];
+    let mut read_body = vec![];
+
+    for field in &node.fields {
+        read_body.push(generate_read(&field.type_id));
+    }
+
+    if !read_body.is_empty() {
+        method_statements.push(KotlinIR::ForLoop {
+            item: None,
+            collection_expr: Box::new(KotlinIR::Range {
+                inclusive: false,
+                from: Box::new(KotlinIR::Id("0".to_string())),
+                to: Box::new(KotlinIR::Id("count".to_string())),
+            }),
+            body: Box::new(KotlinIR::Statements { items: read_body }),
+        });
+    }
+
+    KotlinIR::Fun {
+        id: String::from("skipInBuffers"),
+        return_type_id: None,
+        arguments: Some(Box::new(KotlinIR::List {
+            separator: ",",
+            new_line: false,
+            items: vec![
+                KotlinIR::FunctionArgument {
+                    id: "reader".to_string(),
+                    type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                },
+                KotlinIR::FunctionArgument {
+                    id: "count".to_string(),
+                    type_id: Box::new(KotlinIR::Id("Int".to_string())),
+                },
+            ],
+        })),
+        body: Box::new(KotlinIR::Statements {
+            items: method_statements,
+        }),
+    }
+}
+
+fn generate_struct_write_to_buffers_method(node: &StructASTNode) -> KotlinIR {
+    let mut method_statements = vec![];
+
+    for field in &node.fields {
+        let write_call = generate_write(&field.type_id, &field.name.to_case(Case::Camel));
+
+        method_statements.push(write_call);
+    }
+
+    KotlinIR::Fun {
+        id: String::from("writeToBuffers"),
+        return_type_id: None,
+        arguments: Some(Box::new(KotlinIR::List {
+            separator: ",",
+            new_line: false,
+            items: vec![KotlinIR::FunctionArgument {
+                id: "writer".to_string(),
+                type_id: Box::new(KotlinIR::Id("Long".to_string())),
+            }],
+        })),
+        body: Box::new(KotlinIR::Statements {
+            items: method_statements,
+        }),
+    }
+}
+
+fn generate_read(type_id: &TypeIDASTNode) -> KotlinIR {
+    let reader_id = "reader".to_string();
+
+    match type_id {
+        TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Option" => KotlinIR::TrailingLambda {
+                call: Box::new(KotlinIR::Call {
+                    id: "readFromBuffersOptional".to_string(),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        items: vec![KotlinIR::Id(reader_id.clone())],
+                        separator: ",",
+                        new_line: false,
+                    })),
+                }),
+                arguments: None,
+                body: Box::new(KotlinIR::Statements {
+                    items: vec![generate_read(
+                        generics.first().expect("Optional type cannot be empty"),
+                    )],
+                }),
+            },
+            "Vec" => KotlinIR::TrailingLambda {
+                call: Box::new(KotlinIR::Call {
+                    id: "readFromBuffersList".to_string(),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        items: vec![KotlinIR::Id(reader_id.clone())],
+                        separator: ",",
+                        new_line: false,
+                    })),
+                }),
+                arguments: None,
+                body: Box::new(KotlinIR::Statements {
+                    items: vec![generate_read(
+                        generics.first().expect("Vec type cannot be empty"),
+                    )],
+                }),
+            },
+            _ => KotlinIR::Call {
+                id: format!("{}.readFromBuffers", generate_type_id(type_id)),
+                arguments: Some(Box::new(KotlinIR::Id(reader_id.clone()))),
+            },
+        },
+        TypeIDASTNode::Other { id } => KotlinIR::Call {
+            id: format!("{id}.readFromBuffers"),
+            arguments: Some(Box::new(KotlinIR::Id(reader_id.clone()))),
+        },
+        _ => KotlinIR::Call {
+            id: format!("{}.readFromBuffers", generate_type_id(type_id)),
+            arguments: Some(Box::new(KotlinIR::Id(reader_id.clone()))),
+        },
+    }
+}
+
+fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> KotlinIR {
+    let writer_id = "writer".to_string();
+
+    match type_id {
+        TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Option" => KotlinIR::TrailingLambda {
+                call: Box::new(KotlinIR::Call {
+                    id: "writeToBuffersOptional".to_string(),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        items: vec![
+                            KotlinIR::Id(writer_id.clone()),
+                            KotlinIR::Id(accessor.to_string()),
+                        ],
+                        separator: ",",
+                        new_line: false,
+                    })),
+                }),
+                arguments: Some(Box::new(KotlinIR::Id(format!("{accessor}Item")))),
+                body: Box::new(KotlinIR::Statements {
+                    items: vec![generate_write(
+                        generics.first().expect("Optional type cannot be empty"),
+                        &format!("{accessor}Item"),
+                    )],
+                }),
+            },
+            "Vec" => KotlinIR::TrailingLambda {
+                call: Box::new(KotlinIR::Call {
+                    id: "writeToBuffersList".to_string(),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        items: vec![
+                            KotlinIR::Id(writer_id.clone()),
+                            KotlinIR::Id(accessor.to_string()),
+                        ],
+                        separator: ",",
+                        new_line: false,
+                    })),
+                }),
+                arguments: Some(Box::new(KotlinIR::Id(format!("{accessor}Item")))),
+                body: Box::new(KotlinIR::Statements {
+                    items: vec![generate_write(
+                        generics.first().expect("Vec type cannot be empty"),
+                        &format!("{accessor}Item"),
+                    )],
+                }),
+            },
+            _ => KotlinIR::Call {
+                id: format!("{}.writeToBuffers", accessor),
+                arguments: Some(Box::new(KotlinIR::Id(writer_id.clone()))),
+            },
+        },
+        TypeIDASTNode::Other { .. } => KotlinIR::Call {
+            id: format!("{}.writeToBuffers", accessor),
+            arguments: Some(Box::new(KotlinIR::Id(writer_id.clone()))),
+        },
+        _ => KotlinIR::Call {
+            id: format!("{}.writeToBuffers", accessor),
+            arguments: Some(Box::new(KotlinIR::Id(writer_id.clone()))),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{kotlin::ir::stringify_tokens, lexer::Lexer, parser::parse};
+    use crate::{kotlin::ir::stringify_ir, lexer::Lexer, parser::parse};
     use std::fs;
 
     #[test]
@@ -271,9 +523,9 @@ mod tests {
         let actual = generate_consts(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -285,9 +537,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -299,9 +551,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -313,9 +565,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -327,9 +579,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -341,9 +593,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -355,9 +607,23 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
+    }
+
+    #[test]
+    fn generate_struct_model_test_types() {
+        let src = fs::read_to_string("test_resources/struct_types.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/kotlin/struct_types.kt").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+
+        println!("{:?}", actual);
+        println!("{}", stringify_ir(&actual));
+
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -369,9 +635,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -386,9 +652,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -403,9 +669,9 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 
     #[test]
@@ -417,8 +683,8 @@ mod tests {
         let actual = generate_models(&ast);
 
         println!("{:?}", actual);
-        println!("{}", stringify_tokens(&actual));
+        println!("{}", stringify_ir(&actual));
 
-        assert_eq!(stringify_tokens(&actual), target);
+        assert_eq!(stringify_ir(&actual), target);
     }
 }

@@ -3,8 +3,8 @@ class BasicTypesModel {
     required this.byte,
     required this.someInteger,
     required this.someLong,
-    required this.someUnsigedInteger,
-    required this.someUnsigedLong,
+    required this.someUnsignedInteger,
+    required this.someUnsignedLong,
     required this.someFloatNumber,
     required this.someDoubleNumber,
     required this.someBool,
@@ -13,6 +13,9 @@ class BasicTypesModel {
     required this.generic,
     required this.custom,
     required this.optionalString,
+    required this.optionalListString,
+    required this.listOptionalString,
+    required this.listListString,
     required this.optionalF32,
   });
 
@@ -20,8 +23,8 @@ class BasicTypesModel {
       : byte = 0,
         someInteger = 0,
         someLong = 0,
-        someUnsigedInteger = 0,
-        someUnsigedLong = 0,
+        someUnsignedInteger = 0,
+        someUnsignedLong = 0,
         someFloatNumber = 0.0,
         someDoubleNumber = 0.0,
         someBool = false,
@@ -30,13 +33,16 @@ class BasicTypesModel {
         generic = const LinearTable<double, Test>.createDefault(),
         custom = const MyModel.createDefault(),
         optionalString = null,
+        optionalListString = null,
+        listOptionalString = const <String?>[],
+        listListString = const <List<String>>[],
         optionalF32 = null;
 
   final int byte;
   final int someInteger;
   final int someLong;
-  final int someUnsigedInteger;
-  final int someUnsigedLong;
+  final int someUnsignedInteger;
+  final int someUnsignedLong;
   final double someFloatNumber;
   final double someDoubleNumber;
   final bool someBool;
@@ -45,6 +51,9 @@ class BasicTypesModel {
   final LinearTable<double, Test> generic;
   final MyModel custom;
   final String? optionalString;
+  final List<String>? optionalListString;
+  final List<String?> listOptionalString;
+  final List<List<String>> listListString;
   final double? optionalF32;
 }
 

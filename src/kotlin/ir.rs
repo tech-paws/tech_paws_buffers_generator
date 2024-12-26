@@ -27,10 +27,15 @@ pub enum KotlinIR {
         body: Vec<KotlinIR>,
     },
     Id(String),
+    List {
+        items: Vec<KotlinIR>,
+        separator: &'static str,
+        new_line: bool,
+    },
     ValDeclaration {
         id: String,
         is_const: bool,
-        type_id: Box<KotlinIR>,
+        type_id: Option<Box<KotlinIR>>,
         value: Option<Box<KotlinIR>>,
     },
     Declaration {
@@ -42,11 +47,24 @@ pub enum KotlinIR {
         type_id: TypeIDASTNode,
         value: ConstValueASTNode,
     },
-    DefaulConstValueExpr(TypeIDASTNode),
+    DefaultConstValueExpr(TypeIDASTNode),
     CompanionObject {
         body: Vec<KotlinIR>,
     },
     Gap,
+    Statements {
+        items: Vec<KotlinIR>,
+    },
+    ForLoop {
+        item: Option<Box<KotlinIR>>,
+        collection_expr: Box<KotlinIR>,
+        body: Box<KotlinIR>,
+    },
+    Range {
+        from: Box<KotlinIR>,
+        to: Box<KotlinIR>,
+        inclusive: bool,
+    },
     FunInline {
         id: String,
         arguments: Vec<KotlinIR>,
@@ -55,13 +73,25 @@ pub enum KotlinIR {
     },
     Fun {
         id: String,
-        arguments: Vec<KotlinIR>,
-        return_type_id: Box<KotlinIR>,
-        body: Vec<KotlinIR>,
+        arguments: Option<Box<KotlinIR>>,
+        return_type_id: Option<Box<KotlinIR>>,
+        body: Box<KotlinIR>,
+    },
+    FunctionArgument {
+        id: String,
+        type_id: Box<KotlinIR>,
+    },
+    ReturnStatement {
+        body: Box<KotlinIR>,
     },
     Call {
         id: String,
-        arguments: Vec<KotlinIR>,
+        arguments: Option<Box<KotlinIR>>,
+    },
+    TrailingLambda {
+        call: Box<KotlinIR>,
+        arguments: Option<Box<KotlinIR>>,
+        body: Box<KotlinIR>,
     },
     AssignArgument {
         id: String,
@@ -69,7 +99,7 @@ pub enum KotlinIR {
     },
 }
 
-pub fn stringify_tokens(tokens: &[KotlinIR]) -> String {
+pub fn stringify_ir(tokens: &[KotlinIR]) -> String {
     let mut writer = Writer::default();
     write_tokens(&mut writer, tokens);
     writer.show().to_string()
@@ -99,6 +129,11 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinIR]) {
             ("Class", "Class"),
             ("Class", "Interface"),
             ("Object", "Interface"),
+            ("Fun", "Fun"),
+            ("Fun", "FunInline"),
+            ("FunInline", "FunInline"),
+            ("CompanionObject", "FunInline"),
+            ("CompanionObject", "Fun"),
         ];
 
         if let Some(last_token) = last_token {
@@ -163,8 +198,11 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
             }
 
             writer.write(&format!("val {}", id));
-            writer.write(": ");
-            write_token(writer, type_id);
+
+            if let Some(type_id) = type_id {
+                writer.write(": ");
+                write_token(writer, type_id);
+            }
 
             if let Some(value) = value {
                 writer.write(" = ");
@@ -175,7 +213,7 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
         KotlinIR::ConstValueExpr { type_id, value } => {
             writer.write(&generate_const_value(type_id, value))
         }
-        KotlinIR::DefaulConstValueExpr(type_id) => {
+        KotlinIR::DefaultConstValueExpr(type_id) => {
             writer.write(&generate_default_const_value(type_id));
         }
         KotlinIR::Class {
@@ -277,37 +315,186 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
             writer.write_tabs();
             writer.write(&format!("fun {}(", id));
 
-            if !arguments.is_empty() {
-                writer.new_line();
-                writer.push_tab();
-                write_tokens(writer, arguments);
-                writer.pop_tab();
-                writer.new_line();
+            if let Some(arguments) = arguments {
+                write_token(writer, arguments);
             }
 
-            writer.write("): ");
-            write_token(writer, return_type_id);
+            if let Some(return_type_id) = return_type_id {
+                writer.write("): ");
+                write_token(writer, return_type_id);
+            } else {
+                writer.write(")");
+            }
+
             writer.write(" {");
             writer.new_line();
 
             writer.push_tab();
-            write_tokens(writer, body);
+            write_token(writer, body);
             writer.pop_tab();
+
+            match body.as_ref() {
+                KotlinIR::Statements { items } => {
+                    if !items.is_empty() {
+                        writer.new_line();
+                    }
+                }
+                _ => {
+                    writer.new_line();
+                }
+            }
+
+            writer.write_tabs();
             writer.write("}");
+            writer.new_line();
+        }
+        KotlinIR::TrailingLambda {
+            call,
+            arguments,
+            body,
+        } => {
+            write_token(writer, call);
+            writer.write(" {");
+
+            if let Some(arguments) = arguments {
+                writer.write(" ");
+                write_token(writer, arguments);
+                writer.write(" ->");
+            }
+
+            writer.new_line();
+
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+
+            match body.as_ref() {
+                KotlinIR::Statements { items } => {
+                    if !items.is_empty() {
+                        writer.new_line();
+                    }
+                }
+                _ => {
+                    writer.new_line();
+                }
+            }
+
+            writer.write_tabs();
+            writer.write("}");
+        }
+        KotlinIR::FunctionArgument { id, type_id } => {
+            writer.write(id);
+            writer.write(": ");
+            write_token(writer, type_id);
+        }
+        KotlinIR::ReturnStatement { body } => {
+            writer.write("return ");
+            write_token(writer, body);
+        }
+        KotlinIR::List {
+            items,
+            separator,
+            new_line,
+        } => {
+            let mut it = items.iter().peekable();
+
+            if *new_line && !items.is_empty() {
+                writer.new_line();
+                writer.push_tab();
+            }
+
+            while let Some(item) = it.next() {
+                if *new_line {
+                    writer.write_tabs();
+                }
+
+                write_token(writer, item);
+
+                if it.peek().is_some() {
+                    writer.write(separator);
+
+                    if *new_line {
+                        writer.new_line();
+                    } else {
+                        writer.write(" ");
+                    }
+                } else if *new_line {
+                    writer.write(separator);
+                }
+            }
+
+            if *new_line && !items.is_empty() {
+                writer.new_line();
+                writer.pop_tab();
+                writer.write_tabs();
+            }
+        }
+        KotlinIR::Range {
+            from,
+            to,
+            inclusive,
+        } => {
+            write_token(writer, from);
+            if !*inclusive {
+                writer.write("..<");
+            } else {
+                writer.write("..");
+            }
+            write_token(writer, to);
+        }
+        KotlinIR::ForLoop {
+            item,
+            collection_expr,
+            body,
+        } => {
+            writer.write("for (");
+
+            if let Some(item) = item {
+                write_token(writer, item);
+            } else {
+                writer.write("i");
+            }
+
+            writer.write(" in ");
+            write_token(writer, collection_expr);
+
+            writer.write(") {");
+            writer.new_line();
+
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+            writer.new_line();
+            writer.write_tabs();
+            writer.write("}");
+        }
+        KotlinIR::Statements { items } => {
+            let mut it = items.iter().peekable();
+
+            while let Some(item) = it.next() {
+                // NOTE(sysint64): Removing trailing spaces when Gap is used.
+                match item {
+                    KotlinIR::Gap => {}
+                    _ => {
+                        writer.write_tabs();
+                        write_token(writer, item);
+                    }
+                }
+
+                if it.peek().is_some() {
+                    writer.new_line();
+                }
+            }
         }
         KotlinIR::Call { id, arguments } => {
             writer.write(id);
 
-            if arguments.is_empty() {
-                writer.write("()");
-            } else {
+            if let Some(arguments) = arguments {
                 writer.write("(");
-                writer.new_line();
-                writer.push_tab();
-                write_tokens(writer, arguments);
-                writer.pop_tab();
-                writer.write_tabs();
+                write_token(writer, arguments);
                 writer.write(")");
+            } else {
+                writer.write("()");
             }
         }
         KotlinIR::AssignArgument { id, value } => {
@@ -341,6 +528,15 @@ pub fn generate_type_id(type_id: &TypeIDASTNode) -> String {
             _ => id.clone(),
         },
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Option" => format!(
+                "{}?",
+                generics
+                    .iter()
+                    .map(generate_type_id)
+                    .collect::<Vec<String>>()
+                    .first()
+                    .expect("Optional type cannot be empty")
+            ),
             "Vec" => format!(
                 "List<{}>",
                 generics
@@ -376,10 +572,10 @@ pub fn generate_const_value(type_id: &TypeIDASTNode, node: &ConstValueASTNode) -
                     ),
                 },
                 TypeIDASTNode::Integer { size, signed, .. } => match size {
-                    1 if *signed => format!("{}", value),
+                    1 if *signed => format!("{}.toByte()", value),
                     4 if *signed => format!("{}", value),
                     8 if *signed => format!("{}L", value),
-                    1 if !*signed => format!("{}U", value),
+                    1 if !*signed => format!("{}.toUByte()", value),
                     4 if !*signed => format!("{}U", value),
                     8 if !*signed => format!("{}UL", value),
                     _ => panic!("Unsupported integer size"),
@@ -410,10 +606,10 @@ pub fn generate_const_value(type_id: &TypeIDASTNode, node: &ConstValueASTNode) -
 pub fn generate_default_const_value(type_id: &TypeIDASTNode) -> String {
     match type_id {
         TypeIDASTNode::Integer { size, signed, .. } => match size {
-            1 if *signed => String::from("0"),
+            1 if *signed => String::from("0.toByte()"),
             4 if *signed => String::from("0"),
             8 if *signed => String::from("0L"),
-            1 if !*signed => String::from("0U"),
+            1 if !*signed => String::from("0.toUByte()"),
             4 if !*signed => String::from("0U"),
             8 if !*signed => String::from("0UL"),
             _ => panic!("Unsupported integer size"),
@@ -431,6 +627,7 @@ pub fn generate_default_const_value(type_id: &TypeIDASTNode) -> String {
             _ => format!("{}.createDefault()", id),
         },
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
+            "Option" => String::from("null"),
             "Vec" => String::from("listOf()"),
             _ => format!(
                 "{}.createDefault<{}>()",
@@ -573,7 +770,7 @@ mod tests {
                     }
                 },
             ),
-            String::from("13")
+            String::from("13.toByte()")
         );
         assert_eq!(
             generate_const_value(
@@ -591,7 +788,7 @@ mod tests {
                     }
                 },
             ),
-            String::from("13U")
+            String::from("13.toUByte()")
         );
     }
 

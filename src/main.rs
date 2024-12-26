@@ -1,8 +1,8 @@
 pub mod ast;
+pub mod dart;
 pub mod kotlin;
 pub mod lexer;
 pub mod parser;
-pub mod dart;
 pub mod rust;
 pub mod rust_generator;
 pub mod swift;
