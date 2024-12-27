@@ -46,6 +46,7 @@ pub fn generate_const_block(const_node: &ConstBlockASTNode) -> KotlinIR {
 
     KotlinIR::Object {
         id: const_node.id.clone(),
+        is_data_object: false,
         extends: vec![],
         body,
     }
@@ -82,18 +83,69 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
 
     match case_node {
         EnumItemASTNode::Empty { .. } => KotlinIR::Object {
-            id: case_id,
-            body: vec![],
+            id: case_id.clone(),
+            is_data_object: true,
+            body: vec![
+                KotlinIR::Fun {
+                    id: String::from("readFromBuffers"),
+                    is_override: false,
+                    return_type_id: Some(Box::new(KotlinIR::Id(case_id.clone()))),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        separator: ",",
+                        new_line: false,
+                        items: vec![KotlinIR::FunctionArgument {
+                            id: "reader".to_string(),
+                            type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                        }],
+                    })),
+                    body: Some(Box::new(KotlinIR::Statements {
+                        items: vec![KotlinIR::ReturnStatement {
+                            body: Box::new(KotlinIR::Id(case_id.clone())),
+                        }],
+                    })),
+                },
+                KotlinIR::Fun {
+                    id: String::from("writeToBuffers"),
+                    is_override: true,
+                    return_type_id: None,
+                    arguments: Some(Box::new(KotlinIR::List {
+                        separator: ",",
+                        new_line: false,
+                        items: vec![KotlinIR::FunctionArgument {
+                            id: "writer".to_string(),
+                            type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                        }],
+                    })),
+                    body: Some(Box::new(KotlinIR::Statements { items: vec![] })),
+                },
+            ],
             extends: vec![KotlinIR::Id(enum_node.id.clone())],
         },
         EnumItemASTNode::Tuple { values, .. } => {
             let mut fields = vec![];
+            let mut read_body = vec![];
+            let mut write_body = vec![];
+            let mut new_instance_body = vec![];
 
             for value in values.iter() {
+                let field_id = format!("p{}", value.position);
+
+                read_body.push(KotlinIR::ValDeclaration {
+                    id: field_id.clone(),
+                    is_const: false,
+                    type_id: None,
+                    value: Some(Box::new(generate_read(&value.type_id))),
+                });
+                write_body.push(generate_write(&value.type_id, &field_id));
+                new_instance_body.push(KotlinIR::AssignArgument {
+                    id: field_id.clone(),
+                    value: Box::new(KotlinIR::Id(field_id.clone())),
+                });
+
                 fields.push(KotlinIR::Declaration {
                     separator: Some(","),
                     body: Box::new(KotlinIR::ValDeclaration {
-                        id: format!("p{}", value.position),
+                        id: field_id.clone(),
                         is_const: false,
                         type_id: Some(Box::new(KotlinIR::TypeId(value.type_id.clone()))),
                         value: None,
@@ -101,18 +153,78 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                 });
             }
 
+            read_body.push(KotlinIR::Gap);
+            read_body.push(KotlinIR::ReturnStatement {
+                body: Box::new(KotlinIR::Call {
+                    id: case_id.clone(),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        items: new_instance_body,
+                        separator: ",",
+                        new_line: true,
+                    })),
+                }),
+            });
+
             KotlinIR::Class {
-                id: case_id,
+                id: case_id.clone(),
                 is_data_class: true,
                 extends: vec![KotlinIR::Id(enum_node.id.clone())],
-                body: vec![],
                 fields,
+                body: vec![
+                    KotlinIR::CompanionObject {
+                        body: vec![KotlinIR::Fun {
+                            id: String::from("readFromBuffers"),
+                            is_override: false,
+                            return_type_id: Some(Box::new(KotlinIR::Id(case_id.clone()))),
+                            arguments: Some(Box::new(KotlinIR::List {
+                                separator: ",",
+                                new_line: false,
+                                items: vec![KotlinIR::FunctionArgument {
+                                    id: "reader".to_string(),
+                                    type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                                }],
+                            })),
+                            body: Some(Box::new(KotlinIR::Statements { items: read_body })),
+                        }],
+                    },
+                    KotlinIR::Fun {
+                        id: String::from("writeToBuffers"),
+                        is_override: true,
+                        return_type_id: None,
+                        arguments: Some(Box::new(KotlinIR::List {
+                            separator: ",",
+                            new_line: false,
+                            items: vec![KotlinIR::FunctionArgument {
+                                id: "writer".to_string(),
+                                type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                            }],
+                        })),
+                        body: Some(Box::new(KotlinIR::Statements { items: write_body })),
+                    },
+                ],
             }
         }
         EnumItemASTNode::Struct { fields, .. } => {
             let mut enum_fields = vec![];
+            let mut read_body = vec![];
+            let mut write_body = vec![];
+            let mut new_instance_body = vec![];
 
             for field in fields {
+                let field_id = field.name.to_case(Case::Camel).clone();
+
+                read_body.push(KotlinIR::ValDeclaration {
+                    id: field_id.clone(),
+                    is_const: false,
+                    type_id: None,
+                    value: Some(Box::new(generate_read(&field.type_id))),
+                });
+                write_body.push(generate_write(&field.type_id, &field_id));
+                new_instance_body.push(KotlinIR::AssignArgument {
+                    id: field_id.clone(),
+                    value: Box::new(KotlinIR::Id(field_id.clone())),
+                });
+
                 enum_fields.push(KotlinIR::Declaration {
                     separator: Some(","),
                     body: Box::new(KotlinIR::ValDeclaration {
@@ -124,12 +236,55 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                 });
             }
 
+            read_body.push(KotlinIR::Gap);
+            read_body.push(KotlinIR::ReturnStatement {
+                body: Box::new(KotlinIR::Call {
+                    id: case_id.clone(),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        items: new_instance_body,
+                        separator: ",",
+                        new_line: true,
+                    })),
+                }),
+            });
+
             KotlinIR::Class {
-                id: case_id,
+                id: case_id.clone(),
                 is_data_class: true,
                 extends: vec![KotlinIR::Id(enum_node.id.clone())],
-                body: vec![],
                 fields: enum_fields,
+                body: vec![
+                    KotlinIR::CompanionObject {
+                        body: vec![KotlinIR::Fun {
+                            id: String::from("readFromBuffers"),
+                            is_override: false,
+                            return_type_id: Some(Box::new(KotlinIR::Id(case_id.clone()))),
+                            arguments: Some(Box::new(KotlinIR::List {
+                                separator: ",",
+                                new_line: false,
+                                items: vec![KotlinIR::FunctionArgument {
+                                    id: "reader".to_string(),
+                                    type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                                }],
+                            })),
+                            body: Some(Box::new(KotlinIR::Statements { items: read_body })),
+                        }],
+                    },
+                    KotlinIR::Fun {
+                        id: String::from("writeToBuffers"),
+                        is_override: true,
+                        return_type_id: None,
+                        arguments: Some(Box::new(KotlinIR::List {
+                            separator: ",",
+                            new_line: false,
+                            items: vec![KotlinIR::FunctionArgument {
+                                id: "writer".to_string(),
+                                type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                            }],
+                        })),
+                        body: Some(Box::new(KotlinIR::Statements { items: write_body })),
+                    },
+                ],
             }
         }
     }
@@ -191,13 +346,140 @@ pub fn generate_enum_interface(node: &EnumASTNode) -> KotlinIR {
     let mut body = vec![];
 
     body.push(KotlinIR::CompanionObject {
-        body: vec![create_default_method],
+        body: vec![
+            create_default_method,
+            generate_enum_read_from_buffers_method(node),
+            generate_enum_skip_in_buffers_method(),
+        ],
+    });
+
+    body.push(KotlinIR::Fun {
+        id: "writeToBuffers".to_string(),
+        is_override: false,
+        arguments: Some(Box::new(KotlinIR::List {
+            separator: ",",
+            new_line: false,
+            items: vec![KotlinIR::FunctionArgument {
+                id: "writer".to_string(),
+                type_id: Box::new(KotlinIR::Id("Long".to_string())),
+            }],
+        })),
+        return_type_id: None,
+        body: None,
     });
 
     KotlinIR::Interface {
         id: node.id.clone(),
         is_sealed: true,
         body,
+    }
+}
+
+fn generate_enum_skip_in_buffers_method() -> KotlinIR {
+    let mut method_statements = vec![];
+
+    method_statements.push(KotlinIR::ForLoop {
+        item: None,
+        collection_expr: Box::new(KotlinIR::Range {
+            inclusive: false,
+            from: Box::new(KotlinIR::Id("0".to_string())),
+            to: Box::new(KotlinIR::Id("count".to_string())),
+        }),
+        body: Box::new(KotlinIR::Statements {
+            items: vec![KotlinIR::Call {
+                id: "readFromBuffers".to_string(),
+                arguments: Some(Box::new(KotlinIR::Id("reader".to_string()))),
+            }],
+        }),
+    });
+
+    KotlinIR::Fun {
+        id: String::from("skipInBuffers"),
+        is_override: false,
+        return_type_id: None,
+        arguments: Some(Box::new(KotlinIR::List {
+            separator: ",",
+            new_line: false,
+            items: vec![
+                KotlinIR::FunctionArgument {
+                    id: "reader".to_string(),
+                    type_id: Box::new(KotlinIR::Id("Long".to_string())),
+                },
+                KotlinIR::FunctionArgument {
+                    id: "count".to_string(),
+                    type_id: Box::new(KotlinIR::Id("Int".to_string())),
+                },
+            ],
+        })),
+        body: Some(Box::new(KotlinIR::Statements {
+            items: method_statements,
+        })),
+    }
+}
+
+fn generate_enum_read_from_buffers_method(node: &EnumASTNode) -> KotlinIR {
+    let mut method_statements = vec![];
+    let case_value_var_name = "case".to_string();
+
+    method_statements.push(KotlinIR::ValDeclaration {
+        id: case_value_var_name.clone(),
+        is_const: false,
+        type_id: None,
+        value: Some(Box::new(generate_read(&TypeIDASTNode::Integer {
+            id: "u32".to_string(),
+            size: 4,
+            signed: false,
+        }))),
+    });
+
+    let mut cases_statements = vec![];
+
+    for case in &node.items {
+        cases_statements.push(KotlinIR::WhenCase {
+            item: Box::new(KotlinIR::Id(format!("{}U", case.position()))),
+            body: Box::new(generate_read(&TypeIDASTNode::Other {
+                id: format!("{}{}", node.id, case.id()),
+            })),
+        });
+    }
+
+    cases_statements.push(KotlinIR::WhenCase {
+        item: Box::new(KotlinIR::Id("else".to_string())),
+        body: Box::new(KotlinIR::Throw {
+            body: Box::new(KotlinIR::Call {
+                id: "IllegalArgumentException".to_string(),
+                arguments: Some(Box::new(KotlinIR::Id(
+                    "\"Invalid enum value: $case\"".to_string(),
+                ))),
+            }),
+        }),
+    });
+
+    method_statements.push(KotlinIR::Gap);
+    method_statements.push(KotlinIR::ReturnStatement {
+        body: Box::new(KotlinIR::When {
+            item: Box::new(KotlinIR::Id(case_value_var_name.clone())),
+            body: Box::new(KotlinIR::Statements {
+                items: cases_statements,
+            }),
+        }),
+    });
+
+    KotlinIR::Fun {
+        id: String::from("readFromBuffers"),
+        is_override: false,
+        return_type_id: Some(Box::new(KotlinIR::Id(node.id.clone()))),
+        arguments: Some(Box::new(KotlinIR::List {
+            separator: ",",
+            new_line: false,
+            items: vec![KotlinIR::FunctionArgument {
+                id: "reader".to_string(),
+                type_id: Box::new(KotlinIR::Id("Long".to_string())),
+            }],
+        })),
+        body: Some(Box::new(KotlinIR::Statements {
+            items: method_statements,
+        })),
     }
 }
 
@@ -310,6 +592,7 @@ fn generate_struct_read_from_buffers_method(node: &StructASTNode) -> KotlinIR {
 
     KotlinIR::Fun {
         id: String::from("readFromBuffers"),
+        is_override: false,
         return_type_id: Some(Box::new(KotlinIR::Id(node.id.clone()))),
         arguments: Some(Box::new(KotlinIR::List {
             separator: ",",
@@ -319,9 +602,9 @@ fn generate_struct_read_from_buffers_method(node: &StructASTNode) -> KotlinIR {
                 type_id: Box::new(KotlinIR::Id("Long".to_string())),
             }],
         })),
-        body: Box::new(KotlinIR::Statements {
+        body: Some(Box::new(KotlinIR::Statements {
             items: method_statements,
-        }),
+        })),
     }
 }
 
@@ -347,6 +630,7 @@ fn generate_struct_skip_in_buffers_method(node: &StructASTNode) -> KotlinIR {
 
     KotlinIR::Fun {
         id: String::from("skipInBuffers"),
+        is_override: false,
         return_type_id: None,
         arguments: Some(Box::new(KotlinIR::List {
             separator: ",",
@@ -362,9 +646,9 @@ fn generate_struct_skip_in_buffers_method(node: &StructASTNode) -> KotlinIR {
                 },
             ],
         })),
-        body: Box::new(KotlinIR::Statements {
+        body: Some(Box::new(KotlinIR::Statements {
             items: method_statements,
-        }),
+        })),
     }
 }
 
@@ -379,6 +663,7 @@ fn generate_struct_write_to_buffers_method(node: &StructASTNode) -> KotlinIR {
 
     KotlinIR::Fun {
         id: String::from("writeToBuffers"),
+        is_override: false,
         return_type_id: None,
         arguments: Some(Box::new(KotlinIR::List {
             separator: ",",
@@ -388,9 +673,9 @@ fn generate_struct_write_to_buffers_method(node: &StructASTNode) -> KotlinIR {
                 type_id: Box::new(KotlinIR::Id("Long".to_string())),
             }],
         })),
-        body: Box::new(KotlinIR::Statements {
+        body: Some(Box::new(KotlinIR::Statements {
             items: method_statements,
-        }),
+        })),
     }
 }
 

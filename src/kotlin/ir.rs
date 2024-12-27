@@ -11,6 +11,7 @@ use crate::{
 pub enum KotlinIR {
     Object {
         id: String,
+        is_data_object: bool,
         body: Vec<KotlinIR>,
         extends: Vec<KotlinIR>,
     },
@@ -52,6 +53,9 @@ pub enum KotlinIR {
         body: Vec<KotlinIR>,
     },
     Gap,
+    Throw {
+        body: Box<KotlinIR>,
+    },
     Statements {
         items: Vec<KotlinIR>,
     },
@@ -75,7 +79,8 @@ pub enum KotlinIR {
         id: String,
         arguments: Option<Box<KotlinIR>>,
         return_type_id: Option<Box<KotlinIR>>,
-        body: Box<KotlinIR>,
+        is_override: bool,
+        body: Option<Box<KotlinIR>>,
     },
     FunctionArgument {
         id: String,
@@ -96,6 +101,14 @@ pub enum KotlinIR {
     AssignArgument {
         id: String,
         value: Box<KotlinIR>,
+    },
+    When {
+        item: Box<KotlinIR>,
+        body: Box<KotlinIR>,
+    },
+    WhenCase {
+        item: Box<KotlinIR>,
+        body: Box<KotlinIR>,
     },
 }
 
@@ -157,8 +170,18 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
     match token {
         KotlinIR::Gap => writer.new_line(),
         KotlinIR::Id(id) => writer.write(id),
-        KotlinIR::Object { id, extends, body } => {
+        KotlinIR::Object {
+            id,
+            is_data_object,
+            extends,
+            body,
+        } => {
             writer.write_tabs();
+
+            if *is_data_object {
+                writer.write("data ");
+            }
+
             writer.write(&format!("object {}", id.to_case(Case::Pascal)));
 
             if !extends.is_empty() {
@@ -308,11 +331,17 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
         }
         KotlinIR::Fun {
             id,
+            is_override,
             arguments,
             return_type_id,
             body,
         } => {
             writer.write_tabs();
+
+            if *is_override {
+                writer.write("override ");
+            }
+
             writer.write(&format!("fun {}(", id));
 
             if let Some(arguments) = arguments {
@@ -326,26 +355,29 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
                 writer.write(")");
             }
 
-            writer.write(" {");
-            writer.new_line();
+            if let Some(body) = body {
+                writer.write(" {");
+                writer.new_line();
 
-            writer.push_tab();
-            write_token(writer, body);
-            writer.pop_tab();
+                writer.push_tab();
+                write_token(writer, body);
+                writer.pop_tab();
 
-            match body.as_ref() {
-                KotlinIR::Statements { items } => {
-                    if !items.is_empty() {
+                match body.as_ref() {
+                    KotlinIR::Statements { items } => {
+                        if !items.is_empty() {
+                            writer.new_line();
+                        }
+                    }
+                    _ => {
                         writer.new_line();
                     }
                 }
-                _ => {
-                    writer.new_line();
-                }
+
+                writer.write_tabs();
+                writer.write("}");
             }
 
-            writer.write_tabs();
-            writer.write("}");
             writer.new_line();
         }
         KotlinIR::TrailingLambda {
@@ -500,6 +532,28 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
         KotlinIR::AssignArgument { id, value } => {
             writer.write(&format!("{} = ", id.to_case(Case::Camel),));
             write_token(writer, value);
+        }
+        KotlinIR::When { item, body } => {
+            writer.write("when (");
+            write_token(writer, item);
+
+            writer.write(") {");
+            writer.new_line();
+            writer.push_tab();
+            write_token(writer, body);
+            writer.pop_tab();
+            writer.new_line();
+            writer.write_tabs();
+            writer.write("}");
+        }
+        KotlinIR::WhenCase { item, body } => {
+            write_token(writer, item);
+            writer.write(" -> ");
+            write_token(writer, body);
+        }
+        KotlinIR::Throw { body } => {
+            writer.write("throw ");
+            write_token(writer, body);
         }
     }
 }
