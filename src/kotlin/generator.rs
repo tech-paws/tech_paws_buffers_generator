@@ -376,23 +376,6 @@ pub fn generate_enum_interface(node: &EnumASTNode) -> KotlinIR {
 }
 
 fn generate_enum_skip_in_buffers_method() -> KotlinIR {
-    let mut method_statements = vec![];
-
-    method_statements.push(KotlinIR::ForLoop {
-        item: None,
-        collection_expr: Box::new(KotlinIR::Range {
-            inclusive: false,
-            from: Box::new(KotlinIR::Id("0".to_string())),
-            to: Box::new(KotlinIR::Id("count".to_string())),
-        }),
-        body: Box::new(KotlinIR::Statements {
-            items: vec![KotlinIR::Call {
-                id: "readFromBuffers".to_string(),
-                arguments: Some(Box::new(KotlinIR::Id("reader".to_string()))),
-            }],
-        }),
-    });
-
     KotlinIR::Fun {
         id: String::from("skipInBuffers"),
         is_override: false,
@@ -412,7 +395,20 @@ fn generate_enum_skip_in_buffers_method() -> KotlinIR {
             ],
         })),
         body: Some(Box::new(KotlinIR::Statements {
-            items: method_statements,
+            items: vec![KotlinIR::ForLoop {
+                item: None,
+                collection_expr: Box::new(KotlinIR::Range {
+                    inclusive: false,
+                    from: Box::new(KotlinIR::Id("0".to_string())),
+                    to: Box::new(KotlinIR::Id("count".to_string())),
+                }),
+                body: Box::new(KotlinIR::Statements {
+                    items: vec![KotlinIR::Call {
+                        id: "readFromBuffers".to_string(),
+                        arguments: Some(Box::new(KotlinIR::Id("reader".to_string()))),
+                    }],
+                }),
+            }],
         })),
     }
 }
