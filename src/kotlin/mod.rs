@@ -23,7 +23,11 @@ pub fn generate(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
 
     writer.writeln("// GENERATED, DO NOT EDIT");
-    writer.writeln("@file:Suppress(\"unused\")");
+    writer.writeln("@file:Suppress(");
+    writer.writeln("    \"unused\",");
+    writer.writeln("    \"MemberVisibilityCanBePrivate\",");
+    writer.writeln("    \"KotlinRedundantDiagnosticSuppress\",");
+    writer.writeln(")");
     writer.writeln("");
 
     let package = ast::find_directive_group_values(ast, "kotlin", "package");

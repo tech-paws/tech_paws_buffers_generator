@@ -1,17 +1,39 @@
 sealed interface MyEnumWithoutPositions {
+    data class Option1(
+        val p0: ULong,
+    ) : MyEnumWithoutPositions
+
+    data class Option2(
+        val name: String,
+    ) : MyEnumWithoutPositions
+
+    data object Option3 : MyEnumWithoutPositions
+
+    data object Option4 : MyEnumWithoutPositions
+
     companion object {
-        fun createDefault(): MyEnumWithoutPositions = MyEnumWithoutPositionsOption1(
+        fun createDefault(): MyEnumWithoutPositions = Option1(
             0UL,
         )
 
         fun readFromBuffers(reader: Long): MyEnumWithoutPositions {
-            val case = UInt.readFromBuffers(reader)
+            return when (val case = UInt.readFromBuffers(reader)) {
+                0U -> {
+                    val p0 = ULong.readFromBuffers(reader)
 
-            return when (case) {
-                0U -> MyEnumWithoutPositionsOption1.readFromBuffers(reader)
-                1U -> MyEnumWithoutPositionsOption2.readFromBuffers(reader)
-                2U -> MyEnumWithoutPositionsOption3.readFromBuffers(reader)
-                3U -> MyEnumWithoutPositionsOption4.readFromBuffers(reader)
+                    Option1(
+                        p0 = p0,
+                    )
+                }
+                1U -> {
+                    val name = String.readFromBuffers(reader)
+
+                    Option2(
+                        name = name,
+                    )
+                }
+                2U -> Option3
+                3U -> Option4
                 else -> throw IllegalArgumentException("Invalid enum value: $case")
             }
         }
@@ -23,59 +45,16 @@ sealed interface MyEnumWithoutPositions {
         }
     }
 
-    fun writeToBuffers(writer: Long)
-}
-
-data class MyEnumWithoutPositionsOption1(
-    val p0: ULong,
-) : MyEnumWithoutPositions {
-    companion object {
-        fun readFromBuffers(reader: Long): MyEnumWithoutPositionsOption1 {
-            val p0 = ULong.readFromBuffers(reader)
-
-            return MyEnumWithoutPositionsOption1(
-                p0 = p0,
-            )
+    fun writeToBuffers(writer: Long) {
+        when (this) {
+            is Option1 -> {
+                p0.writeToBuffers(writer)
+            }
+            is Option2 -> {
+                name.writeToBuffers(writer)
+            }
+            Option3 -> {}
+            Option4 -> {}
         }
-    }
-
-    override fun writeToBuffers(writer: Long) {
-        p0.writeToBuffers(writer)
-    }
-}
-
-data class MyEnumWithoutPositionsOption2(
-    val name: String,
-) : MyEnumWithoutPositions {
-    companion object {
-        fun readFromBuffers(reader: Long): MyEnumWithoutPositionsOption2 {
-            val name = String.readFromBuffers(reader)
-
-            return MyEnumWithoutPositionsOption2(
-                name = name,
-            )
-        }
-    }
-
-    override fun writeToBuffers(writer: Long) {
-        name.writeToBuffers(writer)
-    }
-}
-
-data object MyEnumWithoutPositionsOption3 : MyEnumWithoutPositions {
-    fun readFromBuffers(reader: Long): MyEnumWithoutPositionsOption3 {
-        return MyEnumWithoutPositionsOption3
-    }
-
-    override fun writeToBuffers(writer: Long) {
-    }
-}
-
-data object MyEnumWithoutPositionsOption4 : MyEnumWithoutPositions {
-    fun readFromBuffers(reader: Long): MyEnumWithoutPositionsOption4 {
-        return MyEnumWithoutPositionsOption4
-    }
-
-    override fun writeToBuffers(writer: Long) {
     }
 }

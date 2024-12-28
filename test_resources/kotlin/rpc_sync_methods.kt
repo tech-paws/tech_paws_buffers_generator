@@ -17,7 +17,7 @@ object ExamplesSyncRpc {
         ) { runtime ->
             runtime.callRpc()
 
-            runtime.readResult() { reader ->
+            runtime.readResult { reader ->
                 String.readFromBuffers(reader)
             }
         }
@@ -31,13 +31,13 @@ object ExamplesSyncRpc {
             scopeId = SCOPE_ID,
             methodId = 2U,
         ) { runtime ->
-            runtime.writeArgs() { writer ->
+            runtime.writeArgs { writer ->
                 firstName.writeToBuffers(writer)
                 lastName.writeToBuffers(writer)
             }
             runtime.callRpc()
 
-            runtime.readResult() { reader ->
+            runtime.readResult { reader ->
                 String.readFromBuffers(reader)
             }
         }
@@ -52,14 +52,14 @@ object ExamplesSyncRpc {
             scopeId = SCOPE_ID,
             methodId = 3U,
         ) { runtime ->
-            runtime.writeArgs() { writer ->
+            runtime.writeArgs { writer ->
                 a.writeToBuffers(writer)
                 b.writeToBuffers(writer)
                 c.writeToBuffers(writer)
             }
             runtime.callRpc()
 
-            runtime.readResult() { reader ->
+            runtime.readResult { reader ->
                 Double.readFromBuffers(reader)
             }
         }

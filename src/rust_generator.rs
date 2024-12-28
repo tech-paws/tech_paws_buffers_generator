@@ -29,7 +29,7 @@ pub fn generate(ast: &[ASTNode]) -> String {
 
     if has_rpc {
         writer.writeln("use tech_paws_buffers::runtime_memory::{");
-        writer.writeln("    RpcMethodAddress, RuntimeMemory, RpcMethodBuffer,");
+        writer.writeln("    RpcMethodAddress, RpcRuntimeMemory, RpcMethodBuffer,");
         writer.writeln("    RpcMethodPayloadSize, BuffersScopeId,");
         writer.writeln("};");
         writer.writeln(
