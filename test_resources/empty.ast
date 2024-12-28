@@ -6,3 +6,12 @@ DirectiveASTNode::Value {
   id: "namespace"
   value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
 }
+DirectiveASTNode::Group {
+  group_id: "kotlin",
+  args: [
+    IdValuePair {
+      id: "package"
+      value: Some(Literal { literal: StringLiteral("com.tech_paws.buffers_generated"), type_id: Other { id: "String" } })
+    }
+  ]
+}

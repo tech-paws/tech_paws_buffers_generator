@@ -150,7 +150,7 @@ fn generate(input: &String, output: &String, lang: &Lang) -> std::io::Result<()>
     let data: String = match lang {
         Lang::Rust => rust_generator::generate(&ast),
         Lang::Swift => swift::generate(&ast),
-        Lang::Kotlin => "Not Implemented".to_string(),
+        Lang::Kotlin => kotlin::generate(&ast),
     };
 
     if output == "-" {

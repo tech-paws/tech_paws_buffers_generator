@@ -262,6 +262,18 @@ pub fn contains_fn_nodes(ast: &[ASTNode]) -> bool {
     false
 }
 
+pub fn contains_signal_fn_nodes(ast: &[ASTNode]) -> bool {
+    for node in ast {
+        if let ASTNode::Fn(node) = node {
+            if node.is_signal {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 pub fn contains_buffers_nodes(ast: &[ASTNode]) -> bool {
     for node in ast {
         match node {
