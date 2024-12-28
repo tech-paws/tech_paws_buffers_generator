@@ -1,11 +1,14 @@
 use convert_case::{Case, Casing};
 
-use crate::ast::{
-    ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode, StructASTNode,
-    TypeIDASTNode,
+use crate::{
+    ast::{
+        self, ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode,
+        FnASTNode, StructASTNode, TypeIDASTNode,
+    },
+    lexer::Literal,
 };
 
-use super::ir::{generate_type_id, KotlinIR};
+use super::ir::{generate_default_const_value, generate_type_id, KotlinIR};
 
 pub fn generate_consts(ast: &[ASTNode]) -> Vec<KotlinIR> {
     let mut tokens = vec![];
@@ -30,6 +33,8 @@ pub fn generate_const_block(const_node: &ConstBlockASTNode) -> KotlinIR {
                     body: Box::new(KotlinIR::ValDeclaration {
                         id: id.clone(),
                         is_const: true,
+                        is_private: false,
+                        is_private_set: false,
                         type_id: Some(Box::new(KotlinIR::TypeId(type_id.clone()))),
                         value: Some(Box::new(KotlinIR::ConstValueExpr {
                             type_id: type_id.clone(),
@@ -53,17 +58,320 @@ pub fn generate_const_block(const_node: &ConstBlockASTNode) -> KotlinIR {
 }
 
 pub fn generate_models(ast: &[ASTNode]) -> Vec<KotlinIR> {
-    let mut tokens = vec![];
+    let mut ir = vec![];
 
     for node in ast {
         match node {
-            ASTNode::Struct(node) => tokens.push(generate_struct_model(node, true)),
-            ASTNode::Enum(node) => tokens.append(&mut generate_enum_model(node)),
+            ASTNode::Struct(node) => ir.push(generate_struct_model(node, true)),
+            ASTNode::Enum(node) => ir.append(&mut generate_enum_model(node)),
             _ => (),
         }
     }
 
-    tokens
+    ir
+}
+
+pub fn generate_rpc(ast: &[ASTNode]) -> Vec<KotlinIR> {
+    let mut statements = vec![];
+
+    let namespace = ast::find_directive_value(ast, "namespace").expect("namespace is required");
+    let namespace = match namespace {
+        ast::ConstValueASTNode::Literal {
+            literal,
+            type_id: _,
+        } => match literal {
+            Literal::StringLiteral(value) => value,
+            _ => panic!("namespace should be a string literal"),
+        },
+    };
+
+    let scope_id = ast::find_directive_value(ast, "id").expect("id is required");
+    let scope_id = match scope_id {
+        ast::ConstValueASTNode::Literal {
+            literal,
+            type_id: _,
+        } => match literal {
+            Literal::StringLiteral(value) => value,
+            _ => panic!("id should be a string literal"),
+        },
+    };
+
+    statements.push(KotlinIR::TopLevelDeclarations {
+        items: vec![KotlinIR::ValDeclaration {
+            id: "SCOPE_ID".to_string(),
+            is_const: true,
+            is_private: true,
+            is_private_set: false,
+            type_id: None,
+            value: Some(Box::new(KotlinIR::Id(format!("\"{scope_id}\"")))),
+        }],
+    });
+
+    let mut signal_flows = vec![];
+
+    for node in ast {
+        match node {
+            ASTNode::Fn(node) if node.is_signal => {
+                let current_id = if node.return_type_id.is_some() {
+                    format!("{}Current", node.id.to_case(Case::Camel))
+                } else {
+                    "Unit".to_string()
+                };
+
+                let flow_id = format!("{}Flow", node.id.to_case(Case::Camel));
+
+                if let Some(return_type_id) = &node.return_type_id {
+                    signal_flows.push(KotlinIR::VarDeclaration {
+                        id: current_id.clone(),
+                        is_const: false,
+                        is_private: false,
+                        is_private_set: true,
+                        type_id: Some(Box::new(KotlinIR::TypeId(return_type_id.clone()))),
+                        value: Some(Box::new(KotlinIR::Id(generate_default_const_value(
+                            return_type_id,
+                        )))),
+                    });
+                }
+
+                signal_flows.push(KotlinIR::ValDeclaration {
+                    id: flow_id.clone(),
+                    is_const: false,
+                    is_private: true,
+                    is_private_set: false,
+                    type_id: None,
+                    value: Some(Box::new(KotlinIR::Call {
+                        id: "MutableStateFlow".to_string(),
+                        arguments: Some(Box::new(KotlinIR::Id(current_id.clone()))),
+                    })),
+                });
+            }
+            _ => (),
+        }
+    }
+
+    if !signal_flows.is_empty() {
+        statements.push(KotlinIR::TopLevelDeclarations {
+            items: signal_flows,
+        });
+
+        for node in ast {
+            match node {
+                ASTNode::Fn(node) if node.is_signal => {
+                    statements.push(KotlinIR::TopLevelDeclarations {
+                        items: vec![KotlinIR::ValGetterDeclaration {
+                            id: node.id.to_case(Case::Camel),
+                            is_private: false,
+                            is_private_set: false,
+                            type_id: Some(Box::new(KotlinIR::Id(format!(
+                                "Flow<{}>",
+                                node.return_type_id
+                                    .as_ref()
+                                    .map_or("Unit".to_string(), generate_type_id)
+                            )))),
+                            value: Some(Box::new(KotlinIR::Id(format!(
+                                "{}Flow",
+                                node.id.to_case(Case::Camel)
+                            )))),
+                        }],
+                    });
+                }
+                _ => (),
+            }
+        }
+
+        statements.push(generate_consume_streams_method(ast));
+    }
+
+    for node in ast {
+        match node {
+            ASTNode::Fn(node) if !node.is_signal => statements.push(generate_sync_rpc_method(node)),
+            _ => (),
+        }
+    }
+
+    if ast::contains_fn_nodes(ast) {
+        vec![KotlinIR::Object {
+            id: format!("{}Rpc", namespace.to_case(Case::Pascal)),
+            is_data_object: false,
+            body: statements,
+            extends: vec![],
+        }]
+    } else {
+        vec![]
+    }
+}
+
+fn generate_consume_streams_method(ast: &[ASTNode]) -> KotlinIR {
+    let mut statements = vec![];
+
+    for node in ast {
+        match node {
+            ASTNode::Fn(node) if node.is_signal => {
+                let mut consume_result_body_statements = vec![];
+
+                if let Some(type_id) = &node.return_type_id {
+                    consume_result_body_statements.push(KotlinIR::ValDeclaration {
+                        id: "value".to_string(),
+                        is_const: false,
+                        is_private: false,
+                        is_private_set: false,
+                        type_id: None,
+                        value: Some(Box::new(generate_read(type_id))),
+                    });
+                }
+
+                let value_id = if node.return_type_id.is_some() {
+                    "value"
+                } else {
+                    "Unit"
+                };
+
+                if node.return_type_id.is_some() {
+                    consume_result_body_statements.push(KotlinIR::Assign {
+                        id: format!("{}Current", node.id.to_case(Case::Camel)),
+                        value: Box::new(KotlinIR::Id("value".to_string())),
+                    });
+                }
+
+                consume_result_body_statements.push(KotlinIR::Call {
+                    id: format!("{}Flow.tryEmit", node.id.to_case(Case::Camel)),
+                    arguments: Some(Box::new(KotlinIR::Id(value_id.to_string()))),
+                });
+
+                statements.push(KotlinIR::TrailingBlock {
+                    arguments: Some(Box::new(KotlinIR::Id("reader".to_string()))),
+                    call: Box::new(KotlinIR::Call {
+                        id: "runtime.consumeResult".to_string(),
+                        arguments: Some(Box::new(KotlinIR::List {
+                            items: vec![
+                                KotlinIR::Assign {
+                                    id: "scopeId".to_string(),
+                                    value: Box::new(KotlinIR::Id("SCOPE_ID".to_string())),
+                                },
+                                KotlinIR::Assign {
+                                    id: "methodId".to_string(),
+                                    value: Box::new(KotlinIR::Id(format!("{}U", node.position))),
+                                },
+                            ],
+                            separator: ",",
+                            new_line: true,
+                        })),
+                    }),
+                    body: Box::new(KotlinIR::Statements {
+                        items: consume_result_body_statements,
+                    }),
+                });
+            }
+            _ => (),
+        }
+    }
+
+    KotlinIR::Fun {
+        id: "consumeSignals".to_string(),
+        return_type_id: None,
+        is_override: false,
+        arguments: Some(Box::new(KotlinIR::FunctionArgument {
+            id: "runtime".to_string(),
+            type_id: Box::new(KotlinIR::Id("TechPawsBuffersRpcSignalRuntime".to_string())),
+        })),
+        body: Some(Box::new(KotlinIR::Statements { items: statements })),
+    }
+}
+
+fn generate_sync_rpc_method(node: &FnASTNode) -> KotlinIR {
+    let mut arguments = vec![];
+    let mut rpc_body_statements = vec![];
+    let mut write_body_statements = vec![];
+
+    for argument in &node.args {
+        let id = argument.id.to_case(Case::Camel);
+
+        arguments.push(KotlinIR::FunctionArgument {
+            id: id.clone(),
+            type_id: Box::new(KotlinIR::TypeId(argument.type_id.clone())),
+        });
+
+        write_body_statements.push(generate_write(&argument.type_id, &id));
+    }
+
+    if !node.args.is_empty() {
+        rpc_body_statements.push(KotlinIR::TrailingBlock {
+            call: Box::new(KotlinIR::Call {
+                id: "runtime.writeArgs".to_string(),
+                arguments: None,
+            }),
+            arguments: Some(Box::new(KotlinIR::Id("writer".to_string()))),
+            body: Box::new(KotlinIR::Statements {
+                items: write_body_statements,
+            }),
+        });
+    }
+
+    rpc_body_statements.push(KotlinIR::Call {
+        id: "runtime.callRpc".to_string(),
+        arguments: None,
+    });
+
+    if let Some(return_type_id) = &node.return_type_id {
+        rpc_body_statements.push(KotlinIR::Gap);
+        rpc_body_statements.push(KotlinIR::TrailingBlock {
+            arguments: Some(Box::new(KotlinIR::Id("reader".to_string()))),
+            call: Box::new(KotlinIR::Call {
+                id: "runtime.readResult".to_string(),
+                arguments: None,
+            }),
+            body: Box::new(KotlinIR::Statements {
+                items: vec![generate_read(return_type_id)],
+            }),
+        });
+    }
+
+    let mut call = KotlinIR::Call {
+        id: "TechPawsBuffersRpcRuntime.rpc".to_string(),
+        arguments: Some(Box::new(KotlinIR::List {
+            items: vec![
+                KotlinIR::Assign {
+                    id: "scopeId".to_string(),
+                    value: Box::new(KotlinIR::Id("SCOPE_ID".to_string())),
+                },
+                KotlinIR::Assign {
+                    id: "methodId".to_string(),
+                    value: Box::new(KotlinIR::Id(format!("{}U", node.position))),
+                },
+            ],
+            separator: ",",
+            new_line: true,
+        })),
+    };
+
+    if node.return_type_id.is_some() {
+        call = KotlinIR::ReturnStatement {
+            body: Box::new(call),
+        }
+    }
+
+    KotlinIR::Fun {
+        id: node.id.to_case(Case::Camel).clone(),
+        is_override: false,
+        return_type_id: node
+            .return_type_id
+            .clone()
+            .map(|type_id| Box::new(KotlinIR::TypeId(type_id))),
+        arguments: Some(Box::new(KotlinIR::List {
+            separator: ",",
+            new_line: true,
+            items: arguments,
+        })),
+        body: Some(Box::new(KotlinIR::Statements {
+            items: vec![KotlinIR::TrailingBlock {
+                arguments: Some(Box::new(KotlinIR::Id("runtime".to_string()))),
+                call: Box::new(call),
+                body: Box::new(KotlinIR::Statements {
+                    items: rpc_body_statements,
+                }),
+            }],
+        })),
+    }
 }
 
 pub fn generate_enum_model(node: &EnumASTNode) -> Vec<KotlinIR> {
@@ -133,11 +441,13 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                 read_body.push(KotlinIR::ValDeclaration {
                     id: field_id.clone(),
                     is_const: false,
+                    is_private: false,
+                    is_private_set: false,
                     type_id: None,
                     value: Some(Box::new(generate_read(&value.type_id))),
                 });
                 write_body.push(generate_write(&value.type_id, &field_id));
-                new_instance_body.push(KotlinIR::AssignArgument {
+                new_instance_body.push(KotlinIR::Assign {
                     id: field_id.clone(),
                     value: Box::new(KotlinIR::Id(field_id.clone())),
                 });
@@ -147,6 +457,8 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                     body: Box::new(KotlinIR::ValDeclaration {
                         id: field_id.clone(),
                         is_const: false,
+                        is_private: false,
+                        is_private_set: false,
                         type_id: Some(Box::new(KotlinIR::TypeId(value.type_id.clone()))),
                         value: None,
                     }),
@@ -216,11 +528,13 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                 read_body.push(KotlinIR::ValDeclaration {
                     id: field_id.clone(),
                     is_const: false,
+                    is_private: false,
+                    is_private_set: false,
                     type_id: None,
                     value: Some(Box::new(generate_read(&field.type_id))),
                 });
                 write_body.push(generate_write(&field.type_id, &field_id));
-                new_instance_body.push(KotlinIR::AssignArgument {
+                new_instance_body.push(KotlinIR::Assign {
                     id: field_id.clone(),
                     value: Box::new(KotlinIR::Id(field_id.clone())),
                 });
@@ -230,6 +544,8 @@ pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) 
                     body: Box::new(KotlinIR::ValDeclaration {
                         id: field.name.clone(),
                         is_const: false,
+                        is_private: false,
+                        is_private_set: false,
                         type_id: Some(Box::new(KotlinIR::TypeId(field.type_id.clone()))),
                         value: None,
                     }),
@@ -325,7 +641,7 @@ pub fn generate_enum_interface(node: &EnumASTNode) -> KotlinIR {
                 let mut arguments = vec![];
 
                 for field in fields {
-                    arguments.push(KotlinIR::AssignArgument {
+                    arguments.push(KotlinIR::Assign {
                         id: field.name.clone(),
                         value: Box::new(KotlinIR::DefaultConstValueExpr(field.type_id.clone())),
                     });
@@ -420,6 +736,8 @@ fn generate_enum_read_from_buffers_method(node: &EnumASTNode) -> KotlinIR {
     method_statements.push(KotlinIR::ValDeclaration {
         id: case_value_var_name.clone(),
         is_const: false,
+        is_private: false,
+        is_private_set: false,
         type_id: None,
         value: Some(Box::new(generate_read(&TypeIDASTNode::Integer {
             id: "u32".to_string(),
@@ -489,6 +807,8 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Ko
             body: Box::new(KotlinIR::ValDeclaration {
                 id: field.name.to_case(Case::Camel).clone(),
                 is_const: false,
+                is_private: false,
+                is_private_set: false,
                 type_id: Some(Box::new(KotlinIR::TypeId(field.type_id.clone()))),
                 value: None,
             }),
@@ -503,7 +823,7 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> Ko
         let mut arguments = vec![];
 
         for field in &node.fields {
-            arguments.push(KotlinIR::AssignArgument {
+            arguments.push(KotlinIR::Assign {
                 id: field.name.clone(),
                 value: Box::new(KotlinIR::DefaultConstValueExpr(field.type_id.clone())),
             });
@@ -553,6 +873,8 @@ fn generate_struct_read_from_buffers_method(node: &StructASTNode) -> KotlinIR {
         read_body.push(KotlinIR::ValDeclaration {
             id: field.name.to_case(Case::Camel).clone(),
             is_const: false,
+            is_private: false,
+            is_private_set: false,
             type_id: None,
             value: Some(Box::new(read_call)),
         });
@@ -565,7 +887,7 @@ fn generate_struct_read_from_buffers_method(node: &StructASTNode) -> KotlinIR {
     let mut new_instance_body = vec![];
 
     for field in &node.fields {
-        new_instance_body.push(KotlinIR::AssignArgument {
+        new_instance_body.push(KotlinIR::Assign {
             id: field.name.clone(),
             value: Box::new(KotlinIR::Id(field.name.to_case(Case::Camel).clone())),
         });
@@ -680,7 +1002,7 @@ fn generate_read(type_id: &TypeIDASTNode) -> KotlinIR {
 
     match type_id {
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
-            "Option" => KotlinIR::TrailingLambda {
+            "Option" => KotlinIR::TrailingBlock {
                 call: Box::new(KotlinIR::Call {
                     id: "readFromBuffersOptional".to_string(),
                     arguments: Some(Box::new(KotlinIR::List {
@@ -696,7 +1018,7 @@ fn generate_read(type_id: &TypeIDASTNode) -> KotlinIR {
                     )],
                 }),
             },
-            "Vec" => KotlinIR::TrailingLambda {
+            "Vec" => KotlinIR::TrailingBlock {
                 call: Box::new(KotlinIR::Call {
                     id: "readFromBuffersList".to_string(),
                     arguments: Some(Box::new(KotlinIR::List {
@@ -733,7 +1055,7 @@ fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> KotlinIR {
 
     match type_id {
         TypeIDASTNode::Generic { id, generics } => match id.as_str() {
-            "Option" => KotlinIR::TrailingLambda {
+            "Option" => KotlinIR::TrailingBlock {
                 call: Box::new(KotlinIR::Call {
                     id: "writeToBuffersOptional".to_string(),
                     arguments: Some(Box::new(KotlinIR::List {
@@ -753,7 +1075,7 @@ fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> KotlinIR {
                     )],
                 }),
             },
-            "Vec" => KotlinIR::TrailingLambda {
+            "Vec" => KotlinIR::TrailingBlock {
                 call: Box::new(KotlinIR::Call {
                     id: "writeToBuffersList".to_string(),
                     arguments: Some(Box::new(KotlinIR::List {
@@ -962,6 +1284,34 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_models(&ast);
+
+        println!("{:?}", actual);
+        println!("{}", stringify_ir(&actual));
+
+        assert_eq!(stringify_ir(&actual), target);
+    }
+
+    #[test]
+    fn generate_rpc_sync_methods_test() {
+        let src = fs::read_to_string("test_resources/rpc_sync_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/kotlin/rpc_sync_methods.kt").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_rpc(&ast);
+
+        println!("{:?}", actual);
+        println!("{}", stringify_ir(&actual));
+
+        assert_eq!(stringify_ir(&actual), target);
+    }
+
+    #[test]
+    fn generate_rpc_stream_methods_test() {
+        let src = fs::read_to_string("test_resources/rpc_stream_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/kotlin/rpc_stream_methods.kt").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_rpc(&ast);
 
         println!("{:?}", actual);
         println!("{}", stringify_ir(&actual));

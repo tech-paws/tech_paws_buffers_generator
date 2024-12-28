@@ -33,9 +33,29 @@ pub enum KotlinIR {
         separator: &'static str,
         new_line: bool,
     },
+    TopLevelDeclarations {
+        items: Vec<KotlinIR>,
+    },
     ValDeclaration {
         id: String,
         is_const: bool,
+        is_private: bool,
+        is_private_set: bool,
+        type_id: Option<Box<KotlinIR>>,
+        value: Option<Box<KotlinIR>>,
+    },
+    VarDeclaration {
+        id: String,
+        is_const: bool,
+        is_private: bool,
+        is_private_set: bool,
+        type_id: Option<Box<KotlinIR>>,
+        value: Option<Box<KotlinIR>>,
+    },
+    ValGetterDeclaration {
+        id: String,
+        is_private: bool,
+        is_private_set: bool,
         type_id: Option<Box<KotlinIR>>,
         value: Option<Box<KotlinIR>>,
     },
@@ -93,12 +113,12 @@ pub enum KotlinIR {
         id: String,
         arguments: Option<Box<KotlinIR>>,
     },
-    TrailingLambda {
+    TrailingBlock {
         call: Box<KotlinIR>,
         arguments: Option<Box<KotlinIR>>,
         body: Box<KotlinIR>,
     },
-    AssignArgument {
+    Assign {
         id: String,
         value: Box<KotlinIR>,
     },
@@ -147,6 +167,9 @@ pub fn write_tokens(writer: &mut Writer, tokens: &[KotlinIR]) {
             ("FunInline", "FunInline"),
             ("CompanionObject", "FunInline"),
             ("CompanionObject", "Fun"),
+            ("Fun", "TopLevelDeclarations"),
+            ("FunInline", "TopLevelDeclarations"),
+            ("TopLevelDeclarations", "TopLevelDeclarations"),
         ];
 
         if let Some(last_token) = last_token {
@@ -213,9 +236,15 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
         KotlinIR::ValDeclaration {
             id,
             is_const,
+            is_private,
+            is_private_set,
             type_id,
             value,
         } => {
+            if *is_private {
+                writer.write("private ");
+            }
+
             if *is_const {
                 writer.write("const ");
             }
@@ -230,6 +259,81 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
             if let Some(value) = value {
                 writer.write(" = ");
                 write_token(writer, value);
+            }
+
+            if *is_private_set {
+                writer.new_line();
+                writer.push_tab();
+                writer.write_tabs();
+                writer.write("private set");
+                writer.pop_tab();
+            }
+        }
+        KotlinIR::VarDeclaration {
+            id,
+            is_const,
+            is_private,
+            is_private_set,
+            type_id,
+            value,
+        } => {
+            if *is_private {
+                writer.write("private ");
+            }
+
+            if *is_const {
+                writer.write("const ");
+            }
+
+            writer.write(&format!("var {}", id));
+
+            if let Some(type_id) = type_id {
+                writer.write(": ");
+                write_token(writer, type_id);
+            }
+
+            if let Some(value) = value {
+                writer.write(" = ");
+                write_token(writer, value);
+            }
+
+            if *is_private_set {
+                writer.new_line();
+                writer.push_tab();
+                writer.write_tabs();
+                writer.write("private set");
+                writer.pop_tab();
+            }
+        }
+        KotlinIR::ValGetterDeclaration {
+            id,
+            is_private,
+            is_private_set,
+            type_id,
+            value,
+        } => {
+            if *is_private {
+                writer.write("private ");
+            }
+
+            writer.write(&format!("val {}", id));
+
+            if let Some(type_id) = type_id {
+                writer.write(": ");
+                write_token(writer, type_id);
+            }
+
+            if let Some(value) = value {
+                writer.write(" get() = ");
+                write_token(writer, value);
+            }
+
+            if *is_private_set {
+                writer.new_line();
+                writer.push_tab();
+                writer.write_tabs();
+                writer.write("private set");
+                writer.pop_tab();
             }
         }
         KotlinIR::TypeId(type_id) => writer.write(&generate_type_id(type_id)),
@@ -380,7 +484,7 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
 
             writer.new_line();
         }
-        KotlinIR::TrailingLambda {
+        KotlinIR::TrailingBlock {
             call,
             arguments,
             body,
@@ -529,7 +633,7 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
                 writer.write("()");
             }
         }
-        KotlinIR::AssignArgument { id, value } => {
+        KotlinIR::Assign { id, value } => {
             writer.write(&format!("{} = ", id.to_case(Case::Camel),));
             write_token(writer, value);
         }
@@ -554,6 +658,22 @@ fn write_token(writer: &mut Writer, token: &KotlinIR) {
         KotlinIR::Throw { body } => {
             writer.write("throw ");
             write_token(writer, body);
+        }
+        KotlinIR::TopLevelDeclarations { items } => {
+            for item in items {
+                writer.write_tabs();
+
+                // NOTE(sysint64): Removing trailing spaces when Gap is used.
+                match item {
+                    KotlinIR::Gap => {}
+                    _ => {
+                        writer.write_tabs();
+                        write_token(writer, item);
+                    }
+                }
+
+                writer.new_line();
+            }
         }
     }
 }
