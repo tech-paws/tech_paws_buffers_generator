@@ -9,11 +9,11 @@ object ExamplesStreamRpc {
     private val themeFlow = MutableStateFlow(themeCurrent)
     private val triggerFlow = MutableStateFlow(Unit)
 
-    val counter: Flow<Int> get() = counterFlow
+    val counter: StateFlow<Int> get() = counterFlow
 
-    val theme: Flow<String> get() = themeFlow
+    val theme: StateFlow<String> get() = themeFlow
 
-    val trigger: Flow<Unit> get() = triggerFlow
+    val trigger: StateFlow<Unit> get() = triggerFlow
 
     fun consumeSignals(runtime: TechPawsBuffersRpcSignalRuntime) {
         runtime.consumeResult(

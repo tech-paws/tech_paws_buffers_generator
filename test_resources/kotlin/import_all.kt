@@ -8,7 +8,7 @@
 package com.tech_paws.buffers_generated
 
 import com.tech_paws.buffers.*
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 import kotlinx.coroutines.channels.Channel
@@ -52,7 +52,7 @@ object TestRpc {
         private set
     private val testFlow = MutableStateFlow(testCurrent)
 
-    val test: Flow<String> get() = testFlow
+    val test: StateFlow<String> get() = testFlow
 
     fun consumeSignals(runtime: TechPawsBuffersRpcSignalRuntime) {
         runtime.consumeResult(

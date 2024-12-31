@@ -64,6 +64,7 @@ sealed interface MyEnumWithNamedArguments {
     fun writeToBuffers(writer: Long) {
         when (this) {
             is Option1 -> {
+                0UL.writeToBuffers(writer)
                 name.writeToBuffers(writer)
                 value.writeToBuffers(writer)
                 writeToBuffersList(writer, bytes) { bytesItem ->
@@ -71,12 +72,17 @@ sealed interface MyEnumWithNamedArguments {
                 }
             }
             is Option2 -> {
+                1UL.writeToBuffers(writer)
                 p0.writeToBuffers(writer)
                 p1.writeToBuffers(writer)
                 p2.writeToBuffers(writer)
             }
-            Option3 -> {}
-            Option4 -> {}
+            Option3 -> {
+                2UL.writeToBuffers(writer)
+            }
+            Option4 -> {
+                3UL.writeToBuffers(writer)
+            }
         }
     }
 }

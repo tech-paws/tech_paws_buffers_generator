@@ -65,7 +65,7 @@ pub fn generate(ast: &[ASTNode]) -> String {
     }
 
     if has_signals {
-        writer.writeln("import kotlinx.coroutines.flow.Flow");
+        writer.writeln("import kotlinx.coroutines.flow.StateFlow");
         writer.writeln("import kotlinx.coroutines.flow.MutableStateFlow");
     }
 

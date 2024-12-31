@@ -163,7 +163,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<KotlinIR> {
                             is_private: false,
                             is_private_set: false,
                             type_id: Some(Box::new(KotlinIR::Id(format!(
-                                "Flow<{}>",
+                                "StateFlow<{}>",
                                 node.return_type_id
                                     .as_ref()
                                     .map_or("Unit".to_string(), generate_type_id)
@@ -369,10 +369,7 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> KotlinIR {
 }
 
 pub fn generate_enum_model(node: &EnumASTNode) -> Vec<KotlinIR> {
-    let mut items = vec![];
-
-    items.push(generate_enum_interface(node));
-    items
+    vec![generate_enum_interface(node)]
 }
 
 pub fn generate_enum_case(enum_node: &EnumASTNode, case_node: &EnumItemASTNode) -> KotlinIR {
@@ -570,17 +567,30 @@ fn generate_enum_skip_in_buffers_method() -> KotlinIR {
 
 fn generate_enum_write_to_buffers_method(node: &EnumASTNode) -> KotlinIR {
     let mut cases_statements = vec![];
+    let position_type = TypeIDASTNode::Integer {
+        id: "u64".to_string(),
+        size: 4,
+        signed: false,
+    };
 
     for case in &node.items {
         let body = match case {
-            EnumItemASTNode::Empty { .. } => KotlinIR::Block { body: None },
+            EnumItemASTNode::Empty {
+                doc_comments: _,
+                position,
+                id: _,
+            } => KotlinIR::Block {
+                body: Some(Box::new(KotlinIR::Statements {
+                    items: vec![generate_write(&position_type, &format!("{position}UL"))],
+                })),
+            },
             EnumItemASTNode::Tuple {
                 doc_comments: _,
-                position: _,
+                position,
                 id: _,
                 values,
             } => {
-                let mut write_body = vec![];
+                let mut write_body = vec![generate_write(&position_type, &format!("{position}UL"))];
 
                 for value in values.iter() {
                     let field_id = format!("p{}", value.position);
@@ -593,11 +603,11 @@ fn generate_enum_write_to_buffers_method(node: &EnumASTNode) -> KotlinIR {
             }
             EnumItemASTNode::Struct {
                 doc_comments: _,
-                position: _,
+                position,
                 id: _,
                 fields,
             } => {
-                let mut write_body = vec![];
+                let mut write_body = vec![generate_write(&position_type, &format!("{position}UL"))];
 
                 for field in fields {
                     let field_id = field.name.to_case(Case::Camel);
