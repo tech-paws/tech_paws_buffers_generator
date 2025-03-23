@@ -1,5 +1,7 @@
+use convert_case::{Case, Casing};
+
 use crate::{
-    ast::{self, ASTNode, FnASTNode, StructASTNode, StructFieldASTNode, TypeIDASTNode},
+    ast::{self, FnASTNode, StructASTNode, StructFieldASTNode, TraitASTNode, TypeIDASTNode},
     lexer::Literal,
     rust_generator::generate_write,
     writer::Writer,
@@ -7,31 +9,36 @@ use crate::{
 
 use super::{struct_buffers::generate_struct_buffers, struct_models::generate_struct_model};
 
-pub fn generate_rpc_method(node: &FnASTNode) -> String {
+pub fn generate_rpc_method(trait_node: &TraitASTNode, node: &FnASTNode) -> String {
     if node.is_signal {
-        generate_stream_rpc_method(node)
+        generate_signal_rpc_method(trait_node, node)
     } else if node.is_async {
         panic!("async is not supported");
     } else {
-        generate_sync_rpc_method(node)
+        generate_sync_rpc_method(trait_node, node)
     }
 }
 
-pub fn generate_register_fn(ast: &[ASTNode]) -> String {
+pub fn generate_register_fn(trait_node: &TraitASTNode) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln("pub fn register_rpc(runtime: &mut RpcRuntime) {");
+    writer.writeln(&format!(
+        "pub fn register_{}<R: {}>(runtime: &mut RpcRuntime) {{",
+        trait_node.id.to_case(Case::Snake),
+        trait_node.id,
+    ));
 
-    let id = ast::find_directive_value(ast, "id").expect("id is required");
-    let id = match id {
-        ast::ConstValueASTNode::Literal {
-            literal,
-            type_id: _,
-        } => match literal {
-            Literal::StringLiteral(value) => value,
-            _ => panic!("id should be a string literal"),
-        },
-    };
+    let id = ast::find_directive_value(&trait_node.directives, "id")
+        .map(|id| match id {
+            ast::ConstValueASTNode::Literal {
+                literal,
+                type_id: _,
+            } => match literal {
+                Literal::StringLiteral(value) => value.clone(),
+                _ => panic!("id should be a string literal"),
+            },
+        })
+        .unwrap_or(trait_node.uuid.clone());
 
     writer.push_tab();
     writer.writeln(&format!(
@@ -40,9 +47,7 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
     ));
     writer.writeln("runtime.memory.add_scope(scope_id);");
 
-    let fn_nodes = ast::find_fn_nodes(ast);
-
-    for node in fn_nodes.iter() {
+    for node in &trait_node.methods {
         let register_method = if node.is_signal {
             "register_signal_rpc_method"
         } else if node.is_async {
@@ -72,7 +77,11 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
             "rpc_method_address: RpcMethodAddress({}),",
             node.position
         ));
-        writer.writeln(&format!("handler: {}_rpc_handler,", node.id));
+        writer.writeln(&format!(
+            "handler: {}_{}_rpc_handler::<R>,",
+            trait_node.id.to_case(Case::Snake),
+            node.id
+        ));
         writer.pop_tab();
         writer.writeln("},");
         writer.writeln(&format!("{buffer_size},"));
@@ -86,7 +95,7 @@ pub fn generate_register_fn(ast: &[ASTNode]) -> String {
     writer.show().to_string()
 }
 
-fn generate_sync_rpc_method(node: &FnASTNode) -> String {
+fn generate_sync_rpc_method(trait_node: &TraitASTNode, node: &FnASTNode) -> String {
     let mut writer = Writer::default();
 
     let args_struct_id = format!("__{}_rpc_args__", node.id);
@@ -115,7 +124,12 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
         writer.writeln(&generate_struct_buffers(&args_struct));
     }
 
-    writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
+    writer.writeln(&format!(
+        "pub fn {}_{}_rpc_handler<R: {}>(",
+        trait_node.id.to_case(Case::Snake),
+        node.id,
+        trait_node.id,
+    ));
     writer.push_tab();
     writer.writeln("scope_id: BuffersScopeId,");
     writer.writeln("memory: &mut RpcRuntimeMemory,");
@@ -145,7 +159,7 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
         writer.write("let result = ");
     }
 
-    writer.write(&node.id);
+    writer.write(&format!("R::{}", node.id));
 
     if node.args.is_empty() {
         writer.write("();");
@@ -186,10 +200,16 @@ fn generate_sync_rpc_method(node: &FnASTNode) -> String {
     writer.show().to_string()
 }
 
-fn generate_stream_rpc_method(node: &FnASTNode) -> String {
+fn generate_signal_rpc_method(trait_node: &TraitASTNode, node: &FnASTNode) -> String {
     let mut writer = Writer::default();
 
-    writer.writeln(&format!("pub fn {}_rpc_handler(", node.id));
+    writer.writeln(&format!(
+        "pub fn {}_{}_rpc_handler<R: {}>(",
+        trait_node.id.to_case(Case::Snake),
+        node.id,
+        trait_node.id,
+    ));
+
     writer.push_tab();
     writer.writeln("scope_id: BuffersScopeId,");
     writer.writeln("memory: &mut RpcRuntimeMemory,");
@@ -201,7 +221,7 @@ fn generate_stream_rpc_method(node: &FnASTNode) -> String {
     writer.write_tabs();
 
     writer.write("let result = ");
-    writer.write(&node.id);
+    writer.write(&format!("R::{}", node.id));
 
     if node.args.is_empty() {
         writer.write("();");

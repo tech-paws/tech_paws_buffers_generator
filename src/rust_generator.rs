@@ -19,8 +19,9 @@ pub fn generate(ast: &[ASTNode]) -> String {
     for node in ast {
         if let ASTNode::DocComments { comments } = node {
             for comment in comments.iter() {
-                writer.writeln(&format!("///{}", comment));
+                writer.writeln(&format!("//!{}", comment));
             }
+
             has_doc_comments = true;
         }
     }
@@ -105,6 +106,7 @@ pub fn generate_models(ast: &[ASTNode]) -> String {
             ASTNode::Directive(_) => (),
             ASTNode::Const(_) => (),
             ASTNode::DocComments { .. } => (),
+            ASTNode::Trait(_) => (),
         }
     }
 
@@ -128,6 +130,7 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
             ASTNode::Directive(_) => (),
             ASTNode::Const(_) => (),
             ASTNode::DocComments { .. } => (),
+            ASTNode::Trait(_) => (),
         }
     }
 
@@ -142,24 +145,16 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
 
 pub fn generate_rpc(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
-    let mut has_rpc_methods = false;
 
     for node in ast {
-        if let ASTNode::Fn(_) = node {
-            has_rpc_methods = true;
+        if let ASTNode::Trait(node) = node {
+            writer.writeln(&generate_register_fn(node));
+
+            for method in &node.methods {
+                writer.writeln(&generate_rpc_method(node, method));
+            }
+
             break;
-        }
-    }
-
-    if !has_rpc_methods {
-        return String::new();
-    }
-
-    writer.writeln(&generate_register_fn(ast));
-
-    for node in ast {
-        if let ASTNode::Fn(node) = node {
-            writer.writeln(&generate_rpc_method(node));
         }
     }
 
@@ -307,7 +302,9 @@ pub fn generate_default_const(type_id: &TypeIDASTNode) -> String {
 mod tests {
     use std::fs;
 
-    use crate::{lexer::Lexer, parser::parse};
+    use serial_test::serial;
+
+    use crate::{lexer::Lexer, parser::{init_mock_uuid, parse}};
 
     use super::*;
 
@@ -388,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn generate_rpc_sync_methods() {
         let src = fs::read_to_string("test_resources/rpc_sync_methods.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/rpc_sync_methods.rs").unwrap();
@@ -399,9 +397,12 @@ mod tests {
     }
 
     #[test]
-    fn generate_rpc_stream_methods() {
-        let src = fs::read_to_string("test_resources/rpc_stream_methods.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/rust/rpc_stream_methods.rs").unwrap();
+    #[serial]
+    fn generate_rpc_signal_methods() {
+        init_mock_uuid();
+
+        let src = fs::read_to_string("test_resources/rpc_signal_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/rpc_signal_methods.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
@@ -410,6 +411,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn generate_doc_comments() {
         let src = fs::read_to_string("test_resources/doc_comments.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/doc_comments.rs").unwrap();

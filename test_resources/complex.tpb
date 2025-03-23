@@ -1,5 +1,3 @@
-#[namespace = "test"]
-
 // My Fancy Enum
 enum MyEnum {
     #[1] Idle,
@@ -26,4 +24,6 @@ struct ViewData {
     #[10] touch_status: TouchStatus,
 }
 
-fn say_hello(name: String) -> String;
+trait TestRpc {
+    fn say_hello(name: String) -> String;
+}

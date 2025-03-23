@@ -1,4 +1,3 @@
-#[namespace = "test"]
 #[dart(file_name = "test.dart", rpc_prefix = "Prefix")]
 
 #[memory(emplace, copy)]
@@ -17,8 +16,17 @@ struct Regular {
     value: i32,
 }
 
-#[memory(emplace, copy)]
-fn hello_world();
+#[derive(MyRpc)]
+trait TestRpc {
+    #[memory(emplace, copy)]
+    fn hello_world();
 
-#[memory(emplace)]
-signal test -> Vec<Variant>;
+    #[memory(emplace)]
+    signal test -> Vec<Variant>;
+}
+
+trait RegularRpc {
+    fn hello_world();
+
+    signal test -> Vec<Variant>;
+}

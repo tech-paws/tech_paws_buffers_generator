@@ -1,11 +1,11 @@
-pub fn register_rpc(runtime: &mut RpcRuntime) {
+pub fn register_test_rpc<R: TestRpc>(runtime: &mut RpcRuntime) {
     let scope_id = BuffersScopeId(uuid!("4de616f8-12c5-4d2c-8d48-9c5fb038991f"));
     runtime.memory.add_scope(scope_id);
     runtime.register_rpc_method(
         RpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(0),
-            handler: print_hello_world_rpc_handler,
+            handler: test_rpc_print_hello_world_rpc_handler::<R>,
         },
         RpcMethodPayloadSize::Zero,
     );
@@ -13,7 +13,7 @@ pub fn register_rpc(runtime: &mut RpcRuntime) {
         RpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(1),
-            handler: hello_world_rpc_handler,
+            handler: test_rpc_hello_world_rpc_handler::<R>,
         },
         RpcMethodPayloadSize::Medium,
     );
@@ -21,7 +21,7 @@ pub fn register_rpc(runtime: &mut RpcRuntime) {
         RpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(2),
-            handler: say_hello_rpc_handler,
+            handler: test_rpc_say_hello_rpc_handler::<R>,
         },
         RpcMethodPayloadSize::Medium,
     );
@@ -29,26 +29,26 @@ pub fn register_rpc(runtime: &mut RpcRuntime) {
         RpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(3),
-            handler: sum_rpc_handler,
+            handler: test_rpc_sum_rpc_handler::<R>,
         },
         RpcMethodPayloadSize::Medium,
     );
 }
 
-pub fn print_hello_world_rpc_handler(
+pub fn test_rpc_print_hello_world_rpc_handler<R: TestRpc>(
     scope_id: BuffersScopeId,
     memory: &mut RpcRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
 ) {
-    print_hello_world();
+    R::print_hello_world();
 }
 
-pub fn hello_world_rpc_handler(
+pub fn test_rpc_hello_world_rpc_handler<R: TestRpc>(
     scope_id: BuffersScopeId,
     memory: &mut RpcRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
 ) {
-    let result = hello_world();
+    let result = R::hello_world();
 
     memory.get_scope_mut(scope_id).rpc_buffer_write(
         rpc_method_address,
@@ -86,7 +86,7 @@ impl BuffersModel for __say_hello_rpc_args__ {
     }
 }
 
-pub fn say_hello_rpc_handler(
+pub fn test_rpc_say_hello_rpc_handler<R: TestRpc>(
     scope_id: BuffersScopeId,
     memory: &mut RpcRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
@@ -97,7 +97,7 @@ pub fn say_hello_rpc_handler(
         |bytes_reader| __say_hello_rpc_args__::read_from_buffers(bytes_reader),
     );
 
-    let result = say_hello(
+    let result = R::say_hello(
         args.first_name,
         args.last_name,
     );
@@ -142,7 +142,7 @@ impl BuffersModel for __sum_rpc_args__ {
     }
 }
 
-pub fn sum_rpc_handler(
+pub fn test_rpc_sum_rpc_handler<R: TestRpc>(
     scope_id: BuffersScopeId,
     memory: &mut RpcRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
@@ -153,7 +153,7 @@ pub fn sum_rpc_handler(
         |bytes_reader| __sum_rpc_args__::read_from_buffers(bytes_reader),
     );
 
-    let result = sum(
+    let result = R::sum(
         args.a,
         args.b,
         args.c,

@@ -4,6 +4,7 @@ use crate::lexer::Literal;
 pub enum ASTNode {
     Enum(EnumASTNode),
     Struct(StructASTNode),
+    Trait(TraitASTNode),
     Fn(FnASTNode),
     Directive(DirectiveASTNode),
     Const(ConstBlockASTNode),
@@ -71,6 +72,15 @@ pub struct StructASTNode {
 }
 
 #[derive(Debug)]
+pub struct TraitASTNode {
+    pub id: String,
+    pub uuid: String,
+    pub doc_comments: Vec<String>,
+    pub directives: Vec<DirectiveASTNode>,
+    pub methods: Vec<FnASTNode>,
+}
+
+#[derive(Debug, Clone)]
 pub struct FnASTNode {
     pub doc_comments: Vec<String>,
     pub directives: Vec<DirectiveASTNode>,
@@ -298,9 +308,27 @@ pub fn find_fn_nodes(ast: &[ASTNode]) -> Vec<&FnASTNode> {
     res
 }
 
-pub fn find_directive_value(ast: &[ASTNode], target_id: &str) -> Option<ConstValueASTNode> {
+pub fn find_directive_value_in_ast_tree(
+    ast: &[ASTNode],
+    target_id: &str,
+) -> Option<ConstValueASTNode> {
     for node in ast {
         if let ASTNode::Directive(DirectiveASTNode::Value { id, value }) = node {
+            if target_id == id {
+                return Some(value.clone());
+            }
+        }
+    }
+
+    None
+}
+
+pub fn find_directive_value(
+    directives: &[DirectiveASTNode],
+    target_id: &str,
+) -> Option<ConstValueASTNode> {
+    for directive in directives {
+        if let DirectiveASTNode::Value { id, value } = directive {
             if target_id == id {
                 return Some(value.clone());
             }

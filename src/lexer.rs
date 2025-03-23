@@ -8,6 +8,7 @@ pub struct TokenWithLineAndPos {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Struct,
+    Trait,
     Enum,
     Fn,
     Signal,
@@ -16,7 +17,7 @@ pub enum Token {
     ID { name: String },
     Literal(Literal),
     Symbol(char),
-    DocComment { value: String },
+    DocComment { value: String, top_level: bool },
     EOF,
 }
 
@@ -111,7 +112,10 @@ impl Lexer {
                         let ch = string_reader.next();
 
                         if ch == Some('/') {
-                            let token = lex_doc_comment(&mut string_reader);
+                            let token = lex_doc_comment(&mut string_reader, false);
+                            tokens.push(token);
+                        } else if ch == Some('!') {
+                            let token = lex_doc_comment(&mut string_reader, true);
                             tokens.push(token);
                         } else {
                             lex_single_line_comment(&mut string_reader);
@@ -235,7 +239,7 @@ fn lex_single_line_comment(string_reader: &mut StringReader) {
     }
 }
 
-fn lex_doc_comment(string_reader: &mut StringReader) -> TokenWithLineAndPos {
+fn lex_doc_comment(string_reader: &mut StringReader, top_level: bool) -> TokenWithLineAndPos {
     string_reader.next();
 
     let mut comment = String::new();
@@ -255,7 +259,10 @@ fn lex_doc_comment(string_reader: &mut StringReader) -> TokenWithLineAndPos {
     TokenWithLineAndPos {
         line,
         pos,
-        token: Token::DocComment { value: comment },
+        token: Token::DocComment {
+            value: comment,
+            top_level,
+        },
     }
 }
 
@@ -294,6 +301,7 @@ fn lex_id(string_reader: &mut StringReader) -> TokenWithLineAndPos {
     let token = match name.as_str() {
         "struct" => Token::Struct,
         "enum" => Token::Enum,
+        "trait" => Token::Trait,
         "fn" => Token::Fn,
         "signal" => Token::Signal,
         "async" => Token::Async,
@@ -613,12 +621,14 @@ mod tests {
 
     #[test]
     fn lex_doc_comments() {
-        let mut lexer = Lexer::tokenize("/// Some documentation here\n///   Some Tab");
+        let mut lexer =
+            Lexer::tokenize("/// Some documentation here\n///   Some Tab\n//! Top level");
         let token = lexer.current_token();
         assert_eq!(
             token.clone(),
             Token::DocComment {
                 value: String::from(" Some documentation here"),
+                top_level: false,
             }
         );
         let token = lexer.next_token();
@@ -626,6 +636,15 @@ mod tests {
             token.clone(),
             Token::DocComment {
                 value: String::from("   Some Tab"),
+                top_level: false,
+            }
+        );
+        let token = lexer.next_token();
+        assert_eq!(
+            token.clone(),
+            Token::DocComment {
+                value: String::from(" Top level"),
+                top_level: true,
             }
         );
     }

@@ -1,11 +1,11 @@
-pub fn register_rpc(runtime: &mut RpcRuntime) {
-    let scope_id = BuffersScopeId(uuid!("723ca727-6a66-43a7-bfcc-b8ad94eac9be"));
+pub fn register_test_rpc<R: TestRpc>(runtime: &mut RpcRuntime) {
+    let scope_id = BuffersScopeId(uuid!("11111111-1111-1111-1111-111111111111"));
     runtime.memory.add_scope(scope_id);
     runtime.register_signal_rpc_method(
         RpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(0),
-            handler: counter_rpc_handler,
+            handler: test_rpc_counter_rpc_handler::<R>,
         },
         RpcMethodPayloadSize::Medium,
     );
@@ -13,7 +13,7 @@ pub fn register_rpc(runtime: &mut RpcRuntime) {
         RpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(1),
-            handler: theme_rpc_handler,
+            handler: test_rpc_theme_rpc_handler::<R>,
         },
         RpcMethodPayloadSize::Medium,
     );
@@ -21,18 +21,18 @@ pub fn register_rpc(runtime: &mut RpcRuntime) {
         RpcMethod {
             scope_id,
             rpc_method_address: RpcMethodAddress(2),
-            handler: trigger_rpc_handler,
+            handler: test_rpc_trigger_rpc_handler::<R>,
         },
         RpcMethodPayloadSize::Zero,
     );
 }
 
-pub fn counter_rpc_handler(
+pub fn test_rpc_counter_rpc_handler<R: TestRpc>(
     scope_id: BuffersScopeId,
     memory: &mut RpcRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
 ) {
-    let result = counter();
+    let result = R::counter();
 
     if let SignalRpcResult::Data(result) = result {
         memory.get_scope_mut(scope_id).rpc_buffer_write(
@@ -46,12 +46,12 @@ pub fn counter_rpc_handler(
     }
 }
 
-pub fn theme_rpc_handler(
+pub fn test_rpc_theme_rpc_handler<R: TestRpc>(
     scope_id: BuffersScopeId,
     memory: &mut RpcRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
 ) {
-    let result = theme();
+    let result = R::theme();
 
     if let SignalRpcResult::Data(result) = result {
         memory.get_scope_mut(scope_id).rpc_buffer_write(
@@ -65,12 +65,12 @@ pub fn theme_rpc_handler(
     }
 }
 
-pub fn trigger_rpc_handler(
+pub fn test_rpc_trigger_rpc_handler<R: TestRpc>(
     scope_id: BuffersScopeId,
     memory: &mut RpcRuntimeMemory,
     rpc_method_address: RpcMethodAddress,
 ) {
-    let result = trigger();
+    let result = R::trigger();
 
     if result.has_new_data() {
         memory.get_scope_mut(scope_id).rpc_buffer_write(

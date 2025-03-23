@@ -1,7 +1,10 @@
+use uuid::Uuid;
+
 use crate::ast::*;
 use crate::lexer::{Lexer, Literal, Token};
+use std::sync::atomic::{AtomicU8, Ordering};
 
-static TOP_LEVEL_DIRECTIVES: [&str; 6] = ["id", "namespace", "dart", "rust", "swift", "kotlin"];
+static TOP_LEVEL_DIRECTIVES: [&str; 5] = ["namespace", "dart", "rust", "swift", "kotlin"];
 
 macro_rules! parse_error {
     ($lexer:expr, $($arg:tt)*) => ({
@@ -15,6 +18,35 @@ macro_rules! parse_error {
 struct ParseContext {
     doc_comments: Vec<String>,
     directives: Vec<DirectiveASTNode>,
+}
+
+#[cfg(test)]
+static TEST_UUID_COUNTER: AtomicU8 = AtomicU8::new(0);
+
+#[cfg(test)]
+pub fn generate_uuid() -> String {
+    TEST_UUID_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+    let c = TEST_UUID_COUNTER.load(Ordering::SeqCst).to_string();
+
+    format!(
+        "{}-{}-{}-{}-{}",
+        c.repeat(8),
+        c.repeat(4),
+        c.repeat(4),
+        c.repeat(4),
+        c.repeat(12)
+    )
+}
+
+#[cfg(test)]
+pub fn init_mock_uuid() {
+    TEST_UUID_COUNTER.store(0, Ordering::SeqCst)
+}
+
+#[cfg(not(test))]
+pub fn generate_uuid() -> String {
+    Uuid::new_v4().to_string()
 }
 
 pub fn parse(lexer: &mut Lexer) -> Vec<ASTNode> {
@@ -34,15 +66,18 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
     match lexer.current_token().clone() {
         Token::Struct => parse_struct(&mut context, lexer),
         Token::Enum => parse_enum(&mut context, lexer),
-        Token::Async => parse_async(&mut context, lexer),
-        Token::Fn => parse_fn(&mut context, lexer, false),
-        Token::Signal => parse_signal(&mut context, lexer, false),
+        Token::Trait => parse_trait(&mut context, lexer),
         Token::Const => ASTNode::Const(parse_const(lexer)),
-        Token::DocComment { .. } => {
+        Token::DocComment {
+            value: _,
+            top_level,
+        } => {
             context.doc_comments = parse_doc_comments(lexer);
 
             match lexer.current_token().clone() {
-                Token::Struct | Token::Enum | Token::Fn | Token::Signal => {
+                Token::Trait | Token::Struct | Token::Enum | Token::Fn | Token::Signal
+                    if !top_level =>
+                {
                     parse_with_context(Some(context), lexer)
                 }
                 _ => ASTNode::DocComments {
@@ -68,7 +103,7 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
             }
 
             match lexer.current_token().clone() {
-                Token::Struct | Token::Enum | Token::Fn | Token::Signal => {
+                Token::Trait | Token::Struct | Token::Enum | Token::Fn | Token::Signal => {
                     context.directives = directives;
                     parse_with_context(Some(context), lexer)
                 }
@@ -85,8 +120,25 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
 
 pub fn parse_doc_comments(lexer: &mut Lexer) -> Vec<String> {
     let mut comments = vec![];
+    let is_top_level = if let Token::DocComment {
+        value: _,
+        top_level,
+    } = lexer.current_token()
+    {
+        *top_level
+    } else {
+        parse_error!(
+            lexer,
+            "Expected 'doc comment' but got {:?}",
+            lexer.current_token()
+        );
+    };
 
-    while let Token::DocComment { value } = lexer.current_token() {
+    while let Token::DocComment { value, top_level } = lexer.current_token() {
+        if is_top_level != *top_level {
+            break;
+        }
+
         comments.push(value.clone());
         lexer.next_token();
     }
@@ -560,21 +612,89 @@ pub fn parse_type_id(lexer: &mut Lexer) -> TypeIDASTNode {
     }
 }
 
-fn parse_async(context: &mut ParseContext, lexer: &mut Lexer) -> ASTNode {
+fn parse_trait(context: &mut ParseContext, lexer: &mut Lexer) -> ASTNode {
+    if *lexer.current_token() != Token::Trait {
+        parse_error!(
+            lexer,
+            "Expected 'trait' but got {:?}",
+            lexer.current_token()
+        );
+    }
+
+    let name = if let Token::ID { name } = lexer.next_token() {
+        name.clone()
+    } else {
+        parse_error!(
+            lexer,
+            "Expected string value, but got {:?}",
+            lexer.current_token()
+        );
+    };
+
+    if *lexer.next_token() != Token::Symbol('{') {
+        parse_error!(lexer, "Expected '{{', but got {:?}", lexer.current_token());
+    }
+
+    let methods = parse_trait_methods(lexer);
+
+    if *lexer.current_token() != Token::Symbol('}') {
+        parse_error!(lexer, "Expected '}}', but got {:?}", lexer.current_token());
+    }
+
     lexer.next_token();
 
-    match lexer.current_token() {
-        Token::Fn => parse_fn(context, lexer, true),
-        Token::Signal => parse_signal(context, lexer, true),
-        _ => parse_error!(
-            lexer,
-            "Expected 'fn' or stream' but got {:?}",
-            lexer.current_token()
-        ),
-    }
+    ASTNode::Trait(TraitASTNode {
+        id: name,
+        uuid: generate_uuid(),
+        doc_comments: context.doc_comments.clone(),
+        directives: context.directives.clone(),
+        methods,
+    })
 }
 
-fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> ASTNode {
+fn parse_trait_methods(lexer: &mut Lexer) -> Vec<FnASTNode> {
+    let mut methods = vec![];
+    lexer.next_token();
+
+    loop {
+        let doc_comments = if let Token::DocComment { .. } = lexer.current_token() {
+            parse_doc_comments(lexer)
+        } else {
+            vec![]
+        };
+
+        let mut directives = vec![];
+
+        while let Token::Symbol('#') = lexer.current_token() {
+            let directive = parse_directive(lexer);
+            directives.push(directive);
+        }
+
+        let context = &mut ParseContext {
+            doc_comments,
+            directives,
+        };
+
+        let is_async = if *lexer.current_token() == Token::Async {
+            lexer.next_token();
+            true
+        } else {
+            false
+        };
+
+        if *lexer.current_token() == Token::Fn {
+            methods.push(parse_fn(context, lexer, is_async));
+        } else if *lexer.current_token() == Token::Signal {
+            methods.push(parse_signal(context, lexer, is_async));
+        } else {
+            break;
+        }
+    }
+
+    methods
+}
+
+fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> FnASTNode {
     if *lexer.current_token() != Token::Fn {
         parse_error!(lexer, "Expected 'fn' but got {:?}", lexer.current_token());
     }
@@ -599,7 +719,7 @@ fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> AS
     if *lexer.next_token() == Token::Symbol(';') {
         lexer.next_token();
 
-        return ASTNode::Fn(FnASTNode {
+        return FnASTNode {
             doc_comments: context.doc_comments.clone(),
             directives: context.directives.clone(),
             id,
@@ -608,7 +728,7 @@ fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> AS
             is_signal: false,
             is_async,
             return_type_id: None,
-        });
+        };
     }
 
     if *lexer.current_token() != Token::Symbol('-') {
@@ -627,7 +747,7 @@ fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> AS
     }
     lexer.next_token();
 
-    ASTNode::Fn(FnASTNode {
+    FnASTNode {
         doc_comments: context.doc_comments.clone(),
         directives: context.directives.clone(),
         id,
@@ -636,10 +756,10 @@ fn parse_fn(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> AS
         position: lexer.next_fn_poisition(),
         is_signal: false,
         is_async,
-    })
+    }
 }
 
-fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> ASTNode {
+fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -> FnASTNode {
     if *lexer.current_token() != Token::Signal {
         parse_error!(
             lexer,
@@ -657,7 +777,7 @@ fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -
     if *lexer.next_token() == Token::Symbol(';') {
         lexer.next_token();
 
-        return ASTNode::Fn(FnASTNode {
+        return FnASTNode {
             doc_comments: context.doc_comments.clone(),
             directives: context.directives.clone(),
             id,
@@ -666,7 +786,7 @@ fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -
             position: lexer.next_fn_poisition(),
             is_async,
             return_type_id: None,
-        });
+        };
     }
 
     if *lexer.current_token() != Token::Symbol('-') {
@@ -685,7 +805,7 @@ fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -
     }
     lexer.next_token();
 
-    ASTNode::Fn(FnASTNode {
+    FnASTNode {
         doc_comments: context.doc_comments.clone(),
         directives: context.directives.clone(),
         id,
@@ -694,7 +814,7 @@ fn parse_signal(context: &mut ParseContext, lexer: &mut Lexer, is_async: bool) -
         position: lexer.next_fn_poisition(),
         is_signal: true,
         is_async,
-    })
+    }
 }
 
 pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
@@ -888,6 +1008,8 @@ fn parse_group_directive(id: String, lexer: &mut Lexer) -> DirectiveASTNode {
 #[cfg(test)]
 mod tests {
     use std::fs;
+
+    use serial_test::serial;
 
     use crate::writer::Writer;
 
@@ -1141,6 +1263,45 @@ mod tests {
                     writer.writeln_tab(tab + 1, "]");
                     writer.writeln_tab(tab, "}");
                 }
+                ASTNode::Trait(node) => {
+                    writer.writeln_tab(tab, "Trait {");
+
+                    writer.writeln_tab(tab + 1, "doc_comments: [");
+
+                    for comment in &node.doc_comments {
+                        writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
+                    }
+
+                    writer.writeln_tab(tab + 1, "],");
+
+                    writer.writeln_tab(tab + 1, "directives: [");
+
+                    let nodes: Vec<ASTNode> = node
+                        .directives
+                        .iter()
+                        .map(|directive| ASTNode::Directive(directive.clone()))
+                        .collect();
+
+                    writer.write(&stringify_ast_impl(tab + 2, &nodes));
+
+                    writer.writeln_tab(tab + 1, "],");
+
+                    writer.writeln_tab(tab + 1, &format!("id: \"{}\",", node.id));
+                    writer.writeln_tab(tab + 1, &format!("uuid: \"{}\",", node.uuid));
+
+                    writer.writeln_tab(tab + 1, "methods: [");
+
+                    let methods: Vec<ASTNode> = node
+                        .methods
+                        .iter()
+                        .map(|method| ASTNode::Fn(method.clone()))
+                        .collect();
+
+                    writer.write(&stringify_ast_impl(tab + 2, &methods));
+
+                    writer.writeln_tab(tab + 1, "]");
+                    writer.writeln_tab(tab, "}");
+                }
             }
         }
 
@@ -1185,7 +1346,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn parse_rpc_methods_test() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/rpc_methods.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/rpc_methods.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
@@ -1195,7 +1359,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn parse_complex_test() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/complex.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/complex.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
@@ -1205,7 +1372,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn parse_directive_test() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/directive.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/directive.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);
@@ -1225,7 +1395,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn parse_doc_comments_test() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/doc_comments.tpb").unwrap();
         let target_ast = fs::read_to_string("test_resources/doc_comments.ast").unwrap();
         let mut lexer = Lexer::tokenize(&src);

@@ -1,19 +1,13 @@
 // GENERATED, DO NOT EDIT
 
-/// Top level doc comment
-/// Some description
+//! Top level doc comment
+//! Some description
 
 #![allow(warnings)]
 #![allow(clippy)]
 #![allow(unknown_lints)]
 
 use tech_paws_buffers::memory::{BytesReader, BytesWriter, BuffersModel};
-use tech_paws_buffers::runtime_memory::{
-    RpcMethodAddress, RpcRuntimeMemory, RpcMethodBuffer,
-    RpcMethodPayloadSize, BuffersScopeId,
-};
-use tech_paws_buffers::{RpcMethodHandler, RpcRuntime, RpcMethod, SignalRpcResult};
-use uuid::uuid;
 
 /// Some doc comment
 /// Another doc comment
@@ -172,92 +166,5 @@ impl BuffersModel for ViewData {
             bytes_reader.read_f32();
             bytes_reader.read_f32();
         }
-    }
-}
-
-pub fn register_rpc(runtime: &mut RpcRuntime) {
-    let scope_id = BuffersScopeId(uuid!("ee3311dc-f0c2-4757-8604-484e7809178f"));
-    runtime.memory.add_scope(scope_id);
-    runtime.register_rpc_method(
-        RpcMethod {
-            scope_id,
-            rpc_method_address: RpcMethodAddress(0),
-            handler: say_hello_rpc_handler,
-        },
-        RpcMethodPayloadSize::Medium,
-    );
-    runtime.register_signal_rpc_method(
-        RpcMethod {
-            scope_id,
-            rpc_method_address: RpcMethodAddress(1),
-            handler: view_data_rpc_handler,
-        },
-        RpcMethodPayloadSize::Medium,
-    );
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct __say_hello_rpc_args__ {
-    pub name: String,
-}
-
-impl BuffersModel for __say_hello_rpc_args__ {
-    fn read_from_buffers(bytes_reader: &mut BytesReader) -> Self {
-        Self {
-            name: String::read_from_buffers(bytes_reader),
-        }
-    }
-
-    fn write_to_buffers(&self, bytes_writer: &mut BytesWriter) {
-        self.name.write_to_buffers(bytes_writer);
-    }
-
-    fn skip_in_buffers(bytes_reader: &mut BytesReader, count: u64) {
-        for _ in 0..count {
-            String::read_from_buffers(bytes_reader);
-        }
-    }
-}
-
-pub fn say_hello_rpc_handler(
-    scope_id: BuffersScopeId,
-    memory: &mut RpcRuntimeMemory,
-    rpc_method_address: RpcMethodAddress,
-) {
-    let args = memory.get_scope_mut(scope_id).rpc_buffer_read(
-        rpc_method_address,
-        RpcMethodBuffer::Server,
-        |bytes_reader| __say_hello_rpc_args__::read_from_buffers(bytes_reader),
-    );
-
-    let result = say_hello(
-        args.name,
-    );
-
-    memory.get_scope_mut(scope_id).rpc_buffer_write(
-        rpc_method_address,
-        RpcMethodBuffer::Client,
-        |bytes_writer| {
-            result.write_to_buffers(bytes_writer);
-        },
-    );
-}
-
-pub fn view_data_rpc_handler(
-    scope_id: BuffersScopeId,
-    memory: &mut RpcRuntimeMemory,
-    rpc_method_address: RpcMethodAddress,
-) {
-    let result = view_data();
-
-    if let SignalRpcResult::Data(result) = result {
-        memory.get_scope_mut(scope_id).rpc_buffer_write(
-            rpc_method_address,
-            RpcMethodBuffer::Client,
-            |bytes_writer| {
-                bytes_writer.write_u8(0xFF);
-                result.write_to_buffers(bytes_writer);
-            },
-        );
     }
 }

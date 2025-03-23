@@ -15,7 +15,7 @@ use std::{
     path,
 };
 
-use clap::{clap_derive::ArgEnum, Parser, Subcommand};
+use clap::{clap_derive::ValueEnum, Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -47,7 +47,7 @@ enum Commands {
         #[clap(short, long, value_parser)]
         output: String,
 
-        #[clap(short, long, arg_enum)]
+        #[clap(short, long, value_enum)]
         lang: Lang,
     },
     Yaml {
@@ -57,7 +57,7 @@ enum Commands {
     },
 }
 
-#[derive(ArgEnum, Clone, Debug)]
+#[derive(ValueEnum, Clone, Debug)]
 enum Lang {
     Rust,
     Swift,

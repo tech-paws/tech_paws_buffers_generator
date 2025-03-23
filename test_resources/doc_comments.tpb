@@ -1,8 +1,5 @@
-/// Top level doc comment
-/// Some description
-
-#[id = "ee3311dc-f0c2-4757-8604-484e7809178f"]
-#[namespace = "test"]
+//! Top level doc comment
+//! Some description
 
 /// Some doc comment
 /// Another doc comment
@@ -44,12 +41,16 @@ struct ViewData {
     #[5] touch_start_y: f32,
 }
 
-/// Say hello returns hello [name]! string.
-///
-/// # Panic
-///
-/// Don't worry, this function doesn't panic!!
-fn say_hello(name: String) -> String;
+/// This is a test rpc
+/// Use it only for tests
+trait TestRpc {
+    /// Say hello returns hello [name]! string.
+    ///
+    /// # Panic
+    ///
+    /// Don't worry, this function doesn't panic!!
+    fn say_hello(name: String) -> String;
 
-/// Get up to date view data frame.
-signal view_data -> ViewData;
+    /// Get up to date view data frame.
+    signal view_data -> ViewData;
+}

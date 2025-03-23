@@ -4,14 +4,6 @@ DocComment {
     " Some description"
   ]
 }
-DirectiveASTNode::Value {
-  id: "id"
-  value: Literal { literal: StringLiteral("ee3311dc-f0c2-4757-8604-484e7809178f"), type_id: Other { id: "String" } }
-}
-DirectiveASTNode::Value {
-  id: "namespace"
-  value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
-}
 Enum {
   doc_comments: [
     " Some doc comment"
@@ -63,36 +55,48 @@ Struct {
     StructFieldASTNode { doc_comments: [" Touch Start Y", " It is starting position"], position: 5, name: "touch_start_y", type_id: Number { id: "f32", size: 4 } }
   ]
 }
-Fn {
+Trait {
   doc_comments: [
-    " Say hello returns hello [name]! string."
-    ""
-    " # Panic"
-    ""
-    " Don't worry, this function doesn't panic!!"
+    " This is a test rpc"
+    " Use it only for tests"
   ],
   directives: [
   ],
-  id: "say_hello",
-  position: 0,
-  return_type_id: Some(Other { id: "String" }),
-  is_signal: false,
-  is_async: false,
-  args: [
-    FnArgASTNode { id: "name", type_id: Other { id: "String" } }
-  ]
-}
-Fn {
-  doc_comments: [
-    " Get up to date view data frame."
-  ],
-  directives: [
-  ],
-  id: "view_data",
-  position: 1,
-  return_type_id: Some(Other { id: "ViewData" }),
-  is_signal: true,
-  is_async: false,
-  args: [
+  id: "TestRpc",
+  uuid: "11111111-1111-1111-1111-111111111111",
+  methods: [
+    Fn {
+      doc_comments: [
+        " Say hello returns hello [name]! string."
+        ""
+        " # Panic"
+        ""
+        " Don't worry, this function doesn't panic!!"
+      ],
+      directives: [
+      ],
+      id: "say_hello",
+      position: 0,
+      return_type_id: Some(Other { id: "String" }),
+      is_signal: false,
+      is_async: false,
+      args: [
+        FnArgASTNode { id: "name", type_id: Other { id: "String" } }
+      ]
+    }
+    Fn {
+      doc_comments: [
+        " Get up to date view data frame."
+      ],
+      directives: [
+      ],
+      id: "view_data",
+      position: 1,
+      return_type_id: Some(Other { id: "ViewData" }),
+      is_signal: true,
+      is_async: false,
+      args: [
+      ]
+    }
   ]
 }

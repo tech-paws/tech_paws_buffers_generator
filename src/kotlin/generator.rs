@@ -74,7 +74,7 @@ pub fn generate_models(ast: &[ASTNode]) -> Vec<KotlinIR> {
 pub fn generate_rpc(ast: &[ASTNode]) -> Vec<KotlinIR> {
     let mut statements = vec![];
 
-    let namespace = ast::find_directive_value(ast, "namespace").expect("namespace is required");
+    let namespace = ast::find_directive_value_in_ast_tree(ast, "namespace").expect("namespace is required");
     let namespace = match namespace {
         ast::ConstValueASTNode::Literal {
             literal,
@@ -85,7 +85,7 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<KotlinIR> {
         },
     };
 
-    let scope_id = ast::find_directive_value(ast, "id").expect("id is required");
+    let scope_id = ast::find_directive_value_in_ast_tree(ast, "id").expect("id is required");
     let scope_id = match scope_id {
         ast::ConstValueASTNode::Literal {
             literal,

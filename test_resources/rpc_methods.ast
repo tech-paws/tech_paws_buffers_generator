@@ -1,172 +1,178 @@
-DirectiveASTNode::Value {
-  id: "id"
-  value: Literal { literal: StringLiteral("4de616f8-12c5-4d2c-8d48-9c5fb038991f"), type_id: Other { id: "String" } }
-}
-DirectiveASTNode::Value {
-  id: "namespace"
-  value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
-}
-Fn {
+Trait {
   doc_comments: [
   ],
   directives: [
+    DirectiveASTNode::Value {
+      id: "id"
+      value: Literal { literal: StringLiteral("4de616f8-12c5-4d2c-8d48-9c5fb038991f"), type_id: Other { id: "String" } }
+    }
   ],
-  id: "print_hello_world",
-  position: 0,
-  return_type_id: None,
-  is_signal: false,
-  is_async: false,
-  args: [
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "hello_world",
-  position: 1,
-  return_type_id: Some(Other { id: "String" }),
-  is_signal: false,
-  is_async: false,
-  args: [
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "say_hello",
-  position: 2,
-  return_type_id: Some(Other { id: "String" }),
-  is_signal: false,
-  is_async: false,
-  args: [
-    FnArgASTNode { id: "name", type_id: Other { id: "String" } }
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "sum",
-  position: 3,
-  return_type_id: None,
-  is_signal: false,
-  is_async: false,
-  args: [
-    FnArgASTNode { id: "a", type_id: Integer { id: "i32", size: 4, signed: true } }
-    FnArgASTNode { id: "b", type_id: Number { id: "f32", size: 4 } }
-    FnArgASTNode { id: "c", type_id: Number { id: "f64", size: 8 } }
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "print_hello_world_async",
-  position: 4,
-  return_type_id: None,
-  is_signal: false,
-  is_async: true,
-  args: [
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "hello_world_async",
-  position: 5,
-  return_type_id: Some(Other { id: "String" }),
-  is_signal: false,
-  is_async: true,
-  args: [
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "say_hello_async",
-  position: 6,
-  return_type_id: Some(Other { id: "String" }),
-  is_signal: false,
-  is_async: true,
-  args: [
-    FnArgASTNode { id: "name", type_id: Other { id: "String" } }
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "sum_async",
-  position: 7,
-  return_type_id: Some(Number { id: "f64", size: 8 }),
-  is_signal: false,
-  is_async: true,
-  args: [
-    FnArgASTNode { id: "a", type_id: Integer { id: "i32", size: 4, signed: true } }
-    FnArgASTNode { id: "b", type_id: Number { id: "f32", size: 4 } }
-    FnArgASTNode { id: "c", type_id: Number { id: "f64", size: 8 } }
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "trigger",
-  position: 8,
-  return_type_id: None,
-  is_signal: true,
-  is_async: false,
-  args: [
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "theme",
-  position: 9,
-  return_type_id: Some(Other { id: "Theme" }),
-  is_signal: true,
-  is_async: false,
-  args: [
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "trigger_async",
-  position: 10,
-  return_type_id: None,
-  is_signal: true,
-  is_async: true,
-  args: [
-  ]
-}
-Fn {
-  doc_comments: [
-  ],
-  directives: [
-  ],
-  id: "theme_async",
-  position: 11,
-  return_type_id: Some(Other { id: "Theme" }),
-  is_signal: true,
-  is_async: true,
-  args: [
+  id: "TestRpc",
+  uuid: "11111111-1111-1111-1111-111111111111",
+  methods: [
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "print_hello_world",
+      position: 0,
+      return_type_id: None,
+      is_signal: false,
+      is_async: false,
+      args: [
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "hello_world",
+      position: 1,
+      return_type_id: Some(Other { id: "String" }),
+      is_signal: false,
+      is_async: false,
+      args: [
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "say_hello",
+      position: 2,
+      return_type_id: Some(Other { id: "String" }),
+      is_signal: false,
+      is_async: false,
+      args: [
+        FnArgASTNode { id: "name", type_id: Other { id: "String" } }
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "sum",
+      position: 3,
+      return_type_id: None,
+      is_signal: false,
+      is_async: false,
+      args: [
+        FnArgASTNode { id: "a", type_id: Integer { id: "i32", size: 4, signed: true } }
+        FnArgASTNode { id: "b", type_id: Number { id: "f32", size: 4 } }
+        FnArgASTNode { id: "c", type_id: Number { id: "f64", size: 8 } }
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "print_hello_world_async",
+      position: 4,
+      return_type_id: None,
+      is_signal: false,
+      is_async: true,
+      args: [
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "hello_world_async",
+      position: 5,
+      return_type_id: Some(Other { id: "String" }),
+      is_signal: false,
+      is_async: true,
+      args: [
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "say_hello_async",
+      position: 6,
+      return_type_id: Some(Other { id: "String" }),
+      is_signal: false,
+      is_async: true,
+      args: [
+        FnArgASTNode { id: "name", type_id: Other { id: "String" } }
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "sum_async",
+      position: 7,
+      return_type_id: Some(Number { id: "f64", size: 8 }),
+      is_signal: false,
+      is_async: true,
+      args: [
+        FnArgASTNode { id: "a", type_id: Integer { id: "i32", size: 4, signed: true } }
+        FnArgASTNode { id: "b", type_id: Number { id: "f32", size: 4 } }
+        FnArgASTNode { id: "c", type_id: Number { id: "f64", size: 8 } }
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "trigger",
+      position: 8,
+      return_type_id: None,
+      is_signal: true,
+      is_async: false,
+      args: [
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "theme",
+      position: 9,
+      return_type_id: Some(Other { id: "Theme" }),
+      is_signal: true,
+      is_async: false,
+      args: [
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "trigger_async",
+      position: 10,
+      return_type_id: None,
+      is_signal: true,
+      is_async: true,
+      args: [
+      ]
+    }
+    Fn {
+      doc_comments: [
+      ],
+      directives: [
+      ],
+      id: "theme_async",
+      position: 11,
+      return_type_id: Some(Other { id: "Theme" }),
+      is_signal: true,
+      is_async: true,
+      args: [
+      ]
+    }
   ]
 }
