@@ -7,7 +7,7 @@ use crate::lexer::{Lexer, Literal, Token};
 #[cfg(test)]
 use std::sync::atomic::{AtomicU8, Ordering};
 
-static TOP_LEVEL_DIRECTIVES: [&str; 5] = ["namespace", "dart", "rust", "swift", "kotlin"];
+static TOP_LEVEL_DIRECTIVES: [&str; 4] = ["dart", "rust", "swift", "kotlin"];
 
 macro_rules! parse_error {
     ($lexer:expr, $($arg:tt)*) => ({
@@ -89,16 +89,25 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
             }
         }
         Token::Symbol('#') => {
-            let mut directives = vec![];
+            let mut directives: Vec<DirectiveASTNode> = vec![];
 
             while let Token::Symbol('#') = lexer.current_token() {
                 let directive = parse_directive(lexer);
 
                 if TOP_LEVEL_DIRECTIVES.contains(&directive.id()) {
                     if !directives.is_empty() {
-                        parse_error!(lexer, "Invalid directive: {}", directive.id());
+                        parse_error!(
+                            lexer,
+                            "Invalid top level directives: {}",
+                            directives
+                                .iter()
+                                .map(|directive| directive.id())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
                     }
 
+                    // If top level directive, just return Directive AST
                     return ASTNode::Directive(directive);
                 } else {
                     directives.push(directive);
@@ -112,7 +121,7 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
                 }
                 _ => parse_error!(
                     lexer,
-                    "Invalid directive: {}",
+                    "Invalid directive: {:?}",
                     directives.first().unwrap().id()
                 ),
             }

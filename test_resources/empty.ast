@@ -1,7 +1,3 @@
-DirectiveASTNode::Value {
-  id: "namespace"
-  value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
-}
 DirectiveASTNode::Group {
   group_id: "kotlin",
   args: [
