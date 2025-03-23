@@ -12,6 +12,23 @@ pub fn generate(ast: &[ASTNode]) -> String {
 
     writer.writeln("// GENERATED, DO NOT EDIT");
     writer.writeln("");
+
+    let mut has_doc_comments = false;
+
+    // Top level doc comments
+    for node in ast {
+        if let ASTNode::DocComments { comments } = node {
+            for comment in comments.iter() {
+                writer.writeln(&format!("///{}", comment));
+            }
+            has_doc_comments = true;
+        }
+    }
+
+    if has_doc_comments {
+        writer.writeln("");
+    }
+
     writer.writeln("#![allow(warnings)]");
     writer.writeln("#![allow(clippy)]");
     writer.writeln("#![allow(unknown_lints)]");
@@ -388,6 +405,17 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_doc_comments() {
+        let src = fs::read_to_string("test_resources/doc_comments.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/doc_comments.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }

@@ -1,5 +1,5 @@
 use crate::{
-    ast::{EnumASTNode, EnumItemASTNode, TupleFieldASTNode},
+    ast::{self, EnumASTNode, EnumItemASTNode, TupleFieldASTNode},
     rust_generator::{generate_default_const, generate_type_id},
     writer::Writer,
 };
@@ -8,8 +8,36 @@ use super::struct_models::generate_struct_parameters;
 
 pub fn generate_enum_model(node: &EnumASTNode) -> String {
     let mut writer = Writer::default();
+    let mut derives = vec![
+        "Debug".to_string(),
+        "Clone".to_string(),
+        "PartialEq".to_string(),
+    ];
 
-    writer.writeln("#[derive(Debug, Clone, PartialEq)]");
+    for directive in &node.directives {
+        match directive {
+            ast::DirectiveASTNode::Value { .. } => {
+                continue;
+            }
+            ast::DirectiveASTNode::Group { group_id, values } => {
+                if group_id != "derive" {
+                    continue;
+                }
+
+                for value in values {
+                    if !derives.contains(&value.id) {
+                        derives.push(value.id.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    for comment in &node.doc_comments {
+        writer.writeln(&format!("///{}", comment));
+    }
+
+    writer.writeln(&format!("#[derive({})]", derives.join(", ")));
     writer.writeln(&format!("pub enum {} {{", node.id));
 
     for item in node.items.iter() {
@@ -103,10 +131,27 @@ pub fn generate_enum_model(node: &EnumASTNode) -> String {
 
 pub(crate) fn generate_tuple_parameters(tab: usize, params: &[TupleFieldASTNode]) -> String {
     let mut writer = Writer::default();
+    let mut has_doc_comments = false;
 
     for param in params {
+        if !param.doc_comments.is_empty() {
+            has_doc_comments = true;
+            break;
+        }
+    }
+
+    for (idx, param) in params.iter().enumerate() {
         let type_id = generate_type_id(&param.type_id);
+
+        for comment in &param.doc_comments {
+            writer.writeln_tab(tab, &format!("///{}", comment));
+        }
+
         writer.writeln_tab(tab, &format!("{},", type_id));
+
+        if has_doc_comments && idx < params.len() - 1 {
+            writer.new_line();
+        }
     }
 
     writer.show().to_string()

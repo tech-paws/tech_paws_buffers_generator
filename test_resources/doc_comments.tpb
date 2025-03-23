@@ -1,6 +1,7 @@
 /// Top level doc comment
 /// Some description
 
+#[id = "ee3311dc-f0c2-4757-8604-484e7809178f"]
 #[namespace = "test"]
 
 /// Some doc comment

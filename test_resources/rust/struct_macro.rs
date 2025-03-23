@@ -27,3 +27,23 @@ impl Default for Position2f {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Copy, Queryable)]
+pub enum MyEnum {
+    Option1(
+        u64,
+    ),
+    Option2 {
+        name: String,
+    },
+    Option3,
+    Option4,
+}
+
+impl Default for MyEnum {
+    fn default() -> Self {
+        Self::Option1(
+            0,
+        )
+    }
+}

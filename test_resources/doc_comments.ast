@@ -5,6 +5,10 @@ DocComment {
   ]
 }
 DirectiveASTNode::Value {
+  id: "id"
+  value: Literal { literal: StringLiteral("ee3311dc-f0c2-4757-8604-484e7809178f"), type_id: Other { id: "String" } }
+}
+DirectiveASTNode::Value {
   id: "namespace"
   value: Literal { literal: StringLiteral("test"), type_id: Other { id: "String" } }
 }

@@ -31,6 +31,10 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> St
         }
     }
 
+    for comment in &node.doc_comments {
+        writer.writeln(&format!("///{}", comment));
+    }
+
     writer.writeln(&format!("#[derive({})]", derives.join(", ")));
 
     if node.fields.is_empty() {
@@ -89,14 +93,30 @@ pub fn generate_struct_parameters(
     params: &[StructFieldASTNode],
 ) -> String {
     let mut writer = Writer::default();
+    let mut has_doc_comments = false;
 
     for param in params {
+        if !param.doc_comments.is_empty() {
+            has_doc_comments = true;
+            break;
+        }
+    }
+
+    for (idx, param) in params.iter().enumerate() {
         let type_id = generate_type_id(&param.type_id);
+
+        for comment in &param.doc_comments {
+            writer.writeln_tab(tab, &format!("///{}", comment));
+        }
 
         if is_pub {
             writer.writeln_tab(tab, &format!("pub {}: {},", param.name, type_id));
         } else {
             writer.writeln_tab(tab, &format!("{}: {},", param.name, type_id));
+        }
+
+        if has_doc_comments && idx < params.len() - 1 {
+            writer.new_line();
         }
     }
 
