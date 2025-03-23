@@ -1,5 +1,5 @@
-object ExamplesStreamRpc {
-    private const val SCOPE_ID = "723ca727-6a66-43a7-bfcc-b8ad94eac9be"
+object TestRpc {
+    private const val SCOPE_ID = "11111111-1111-1111-1111-111111111111"
 
     var counterCurrent: Int = 0
         private set

@@ -16,8 +16,8 @@ pub fn generate(ast: &[ASTNode]) -> String {
     ir.append(&mut generate_consts(ast));
     ir.append(&mut generate_models(ast));
 
-    if ast::contains_fn_nodes(ast) {
-        ir.append(&mut generate_rpc(ast));
+    if ast::contains_trait_nodes(ast) {
+        ir.append(&mut generate_traits(ast));
     }
 
     let mut writer = Writer::default();
@@ -51,7 +51,7 @@ pub fn generate(ast: &[ASTNode]) -> String {
     };
     writer.writeln(&format!("package {}", package));
 
-    let has_rpc = ast::contains_fn_nodes(ast);
+    let has_rpc = ast::contains_trait_nodes(ast);
     let has_buffers = ast::contains_buffers_nodes(ast);
     let has_consts = ast::contains_consts_nodes(ast);
     let has_signals = ast::contains_signal_fn_nodes(ast);
@@ -98,8 +98,10 @@ pub fn generate(ast: &[ASTNode]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use super::*;
-    use crate::{lexer::Lexer, parser::parse};
+    use crate::{lexer::Lexer, parser::{init_mock_uuid, parse}};
     use std::fs;
 
     #[test]
@@ -116,7 +118,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn generate_import_all_file() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/import_all.tpb").unwrap();
         let target = fs::read_to_string("test_resources/kotlin/import_all.kt").unwrap();
         let mut lexer = Lexer::tokenize(&src);
@@ -142,7 +147,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn generate_import_fns_file() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/import_fns.tpb").unwrap();
         let target = fs::read_to_string("test_resources/kotlin/import_fns.kt").unwrap();
         let mut lexer = Lexer::tokenize(&src);
@@ -155,7 +163,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn generate_import_signals_file() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/import_signals.tpb").unwrap();
         let target = fs::read_to_string("test_resources/kotlin/import_signals.kt").unwrap();
         let mut lexer = Lexer::tokenize(&src);

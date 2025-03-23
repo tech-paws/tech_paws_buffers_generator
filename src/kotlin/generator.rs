@@ -3,7 +3,7 @@ use convert_case::{Case, Casing};
 use crate::{
     ast::{
         self, ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode,
-        FnASTNode, StructASTNode, TypeIDASTNode,
+        FnASTNode, StructASTNode, TraitASTNode, TypeIDASTNode,
     },
     lexer::Literal,
 };
@@ -27,7 +27,9 @@ pub fn generate_const_block(const_node: &ConstBlockASTNode) -> KotlinIR {
 
     for item in &const_node.items {
         match &item {
-            ConstItemASTNode::Value { id, type_id, value, .. } => {
+            ConstItemASTNode::Value {
+                id, type_id, value, ..
+            } => {
                 body.push(KotlinIR::Declaration {
                     separator: None,
                     body: Box::new(KotlinIR::ValDeclaration {
@@ -71,30 +73,10 @@ pub fn generate_models(ast: &[ASTNode]) -> Vec<KotlinIR> {
     ir
 }
 
-pub fn generate_rpc(ast: &[ASTNode]) -> Vec<KotlinIR> {
+pub fn generate_rpc(node: &TraitASTNode) -> KotlinIR {
     let mut statements = vec![];
 
-    let namespace = ast::find_directive_value_in_ast_tree(ast, "namespace").expect("namespace is required");
-    let namespace = match namespace {
-        ast::ConstValueASTNode::Literal {
-            literal,
-            type_id: _,
-        } => match literal {
-            Literal::StringLiteral(value) => value,
-            _ => panic!("namespace should be a string literal"),
-        },
-    };
-
-    let scope_id = ast::find_directive_value_in_ast_tree(ast, "id").expect("id is required");
-    let scope_id = match scope_id {
-        ast::ConstValueASTNode::Literal {
-            literal,
-            type_id: _,
-        } => match literal {
-            Literal::StringLiteral(value) => value,
-            _ => panic!("id should be a string literal"),
-        },
-    };
+    let scope_id = ast::get_rpc_scope_id(node);
 
     statements.push(KotlinIR::TopLevelDeclarations {
         items: vec![KotlinIR::ValDeclaration {
@@ -109,43 +91,40 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<KotlinIR> {
 
     let mut signal_flows = vec![];
 
-    for node in ast {
-        match node {
-            ASTNode::Fn(node) if node.is_signal => {
-                let current_id = if node.return_type_id.is_some() {
-                    format!("{}Current", node.id.to_case(Case::Camel))
-                } else {
-                    "Unit".to_string()
-                };
+    for method in &node.methods {
+        if method.is_signal {
+            let current_id = if method.return_type_id.is_some() {
+                format!("{}Current", method.id.to_case(Case::Camel))
+            } else {
+                "Unit".to_string()
+            };
 
-                let flow_id = format!("{}Flow", node.id.to_case(Case::Camel));
+            let flow_id = format!("{}Flow", method.id.to_case(Case::Camel));
 
-                if let Some(return_type_id) = &node.return_type_id {
-                    signal_flows.push(KotlinIR::VarDeclaration {
-                        id: current_id.clone(),
-                        is_const: false,
-                        is_private: false,
-                        is_private_set: true,
-                        type_id: Some(Box::new(KotlinIR::TypeId(return_type_id.clone()))),
-                        value: Some(Box::new(KotlinIR::Id(generate_default_const_value(
-                            return_type_id,
-                        )))),
-                    });
-                }
-
-                signal_flows.push(KotlinIR::ValDeclaration {
-                    id: flow_id.clone(),
+            if let Some(return_type_id) = &method.return_type_id {
+                signal_flows.push(KotlinIR::VarDeclaration {
+                    id: current_id.clone(),
                     is_const: false,
-                    is_private: true,
-                    is_private_set: false,
-                    type_id: None,
-                    value: Some(Box::new(KotlinIR::Call {
-                        id: "MutableStateFlow".to_string(),
-                        arguments: Some(Box::new(KotlinIR::Id(current_id.clone()))),
-                    })),
+                    is_private: false,
+                    is_private_set: true,
+                    type_id: Some(Box::new(KotlinIR::TypeId(return_type_id.clone()))),
+                    value: Some(Box::new(KotlinIR::Id(generate_default_const_value(
+                        return_type_id,
+                    )))),
                 });
             }
-            _ => (),
+
+            signal_flows.push(KotlinIR::ValDeclaration {
+                id: flow_id.clone(),
+                is_const: false,
+                is_private: true,
+                is_private_set: false,
+                type_id: None,
+                value: Some(Box::new(KotlinIR::Call {
+                    id: "MutableStateFlow".to_string(),
+                    arguments: Some(Box::new(KotlinIR::Id(current_id.clone()))),
+                })),
+            });
         }
     }
 
@@ -154,115 +133,118 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<KotlinIR> {
             items: signal_flows,
         });
 
-        for node in ast {
-            match node {
-                ASTNode::Fn(node) if node.is_signal => {
-                    statements.push(KotlinIR::TopLevelDeclarations {
-                        items: vec![KotlinIR::ValGetterDeclaration {
-                            id: node.id.to_case(Case::Camel),
-                            is_private: false,
-                            is_private_set: false,
-                            type_id: Some(Box::new(KotlinIR::Id(format!(
-                                "StateFlow<{}>",
-                                node.return_type_id
-                                    .as_ref()
-                                    .map_or("Unit".to_string(), generate_type_id)
-                            )))),
-                            value: Some(Box::new(KotlinIR::Id(format!(
-                                "{}Flow",
-                                node.id.to_case(Case::Camel)
-                            )))),
-                        }],
-                    });
-                }
-                _ => (),
+        for method in &node.methods {
+            if method.is_signal {
+                statements.push(KotlinIR::TopLevelDeclarations {
+                    items: vec![KotlinIR::ValGetterDeclaration {
+                        id: method.id.to_case(Case::Camel),
+                        is_private: false,
+                        is_private_set: false,
+                        type_id: Some(Box::new(KotlinIR::Id(format!(
+                            "StateFlow<{}>",
+                            method
+                                .return_type_id
+                                .as_ref()
+                                .map_or("Unit".to_string(), generate_type_id)
+                        )))),
+                        value: Some(Box::new(KotlinIR::Id(format!(
+                            "{}Flow",
+                            method.id.to_case(Case::Camel)
+                        )))),
+                    }],
+                });
             }
         }
 
-        statements.push(generate_consume_streams_method(ast));
+        statements.push(generate_consume_streams_method(node));
     }
 
-    for node in ast {
-        match node {
-            ASTNode::Fn(node) if !node.is_signal => statements.push(generate_sync_rpc_method(node)),
-            _ => (),
+    for method in &node.methods {
+        if !method.is_signal {
+            statements.push(generate_sync_rpc_method(method));
         }
     }
 
-    if ast::contains_fn_nodes(ast) {
-        vec![KotlinIR::Object {
-            id: format!("{}Rpc", namespace.to_case(Case::Pascal)),
-            is_data_object: false,
-            body: statements,
-            extends: vec![],
-        }]
-    } else {
-        vec![]
+    KotlinIR::Object {
+        id: node.id.clone(),
+        is_data_object: false,
+        body: statements,
+        extends: vec![],
     }
 }
 
-fn generate_consume_streams_method(ast: &[ASTNode]) -> KotlinIR {
-    let mut statements = vec![];
+pub fn generate_traits(ast: &[ASTNode]) -> Vec<KotlinIR> {
+    let mut ir = vec![];
 
     for node in ast {
         match node {
-            ASTNode::Fn(node) if node.is_signal => {
-                let mut consume_result_body_statements = vec![];
+            ASTNode::Trait(node) => ir.push(generate_rpc(node)),
+            _ => (),
+        }
+    }
 
-                if let Some(type_id) = &node.return_type_id {
-                    consume_result_body_statements.push(KotlinIR::ValDeclaration {
-                        id: "value".to_string(),
-                        is_const: false,
-                        is_private: false,
-                        is_private_set: false,
-                        type_id: None,
-                        value: Some(Box::new(generate_read(type_id))),
-                    });
-                }
+    ir
+}
 
-                let value_id = if node.return_type_id.is_some() {
-                    "value"
-                } else {
-                    "Unit"
-                };
+fn generate_consume_streams_method(node: &TraitASTNode) -> KotlinIR {
+    let mut statements = vec![];
 
-                if node.return_type_id.is_some() {
-                    consume_result_body_statements.push(KotlinIR::Assign {
-                        id: format!("{}Current", node.id.to_case(Case::Camel)),
-                        value: Box::new(KotlinIR::Id("value".to_string())),
-                    });
-                }
+    for method in &node.methods {
+        if method.is_signal {
+            let mut consume_result_body_statements = vec![];
 
-                consume_result_body_statements.push(KotlinIR::Call {
-                    id: format!("{}Flow.tryEmit", node.id.to_case(Case::Camel)),
-                    arguments: Some(Box::new(KotlinIR::Id(value_id.to_string()))),
-                });
-
-                statements.push(KotlinIR::TrailingBlock {
-                    arguments: Some(Box::new(KotlinIR::Id("reader".to_string()))),
-                    call: Box::new(KotlinIR::Call {
-                        id: "runtime.consumeResult".to_string(),
-                        arguments: Some(Box::new(KotlinIR::List {
-                            items: vec![
-                                KotlinIR::Assign {
-                                    id: "scopeId".to_string(),
-                                    value: Box::new(KotlinIR::Id("SCOPE_ID".to_string())),
-                                },
-                                KotlinIR::Assign {
-                                    id: "methodId".to_string(),
-                                    value: Box::new(KotlinIR::Id(format!("{}U", node.position))),
-                                },
-                            ],
-                            separator: ",",
-                            new_line: true,
-                        })),
-                    }),
-                    body: Box::new(KotlinIR::Statements {
-                        items: consume_result_body_statements,
-                    }),
+            if let Some(type_id) = &method.return_type_id {
+                consume_result_body_statements.push(KotlinIR::ValDeclaration {
+                    id: "value".to_string(),
+                    is_const: false,
+                    is_private: false,
+                    is_private_set: false,
+                    type_id: None,
+                    value: Some(Box::new(generate_read(type_id))),
                 });
             }
-            _ => (),
+
+            let value_id = if method.return_type_id.is_some() {
+                "value"
+            } else {
+                "Unit"
+            };
+
+            if method.return_type_id.is_some() {
+                consume_result_body_statements.push(KotlinIR::Assign {
+                    id: format!("{}Current", method.id.to_case(Case::Camel)),
+                    value: Box::new(KotlinIR::Id("value".to_string())),
+                });
+            }
+
+            consume_result_body_statements.push(KotlinIR::Call {
+                id: format!("{}Flow.tryEmit", method.id.to_case(Case::Camel)),
+                arguments: Some(Box::new(KotlinIR::Id(value_id.to_string()))),
+            });
+
+            statements.push(KotlinIR::TrailingBlock {
+                arguments: Some(Box::new(KotlinIR::Id("reader".to_string()))),
+                call: Box::new(KotlinIR::Call {
+                    id: "runtime.consumeResult".to_string(),
+                    arguments: Some(Box::new(KotlinIR::List {
+                        items: vec![
+                            KotlinIR::Assign {
+                                id: "scopeId".to_string(),
+                                value: Box::new(KotlinIR::Id("SCOPE_ID".to_string())),
+                            },
+                            KotlinIR::Assign {
+                                id: "methodId".to_string(),
+                                value: Box::new(KotlinIR::Id(format!("{}U", method.position))),
+                            },
+                        ],
+                        separator: ",",
+                        new_line: true,
+                    })),
+                }),
+                body: Box::new(KotlinIR::Statements {
+                    items: consume_result_body_statements,
+                }),
+            });
         }
     }
 
@@ -1111,8 +1093,10 @@ fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> KotlinIR {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use super::*;
-    use crate::{kotlin::ir::stringify_ir, lexer::Lexer, parser::parse};
+    use crate::{kotlin::ir::stringify_ir, lexer::Lexer, parser::{init_mock_uuid, parse}};
     use std::fs;
 
     #[test]
@@ -1290,12 +1274,15 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn generate_rpc_sync_methods_test() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/rpc_sync_methods.tpb").unwrap();
         let target = fs::read_to_string("test_resources/kotlin/rpc_sync_methods.kt").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
+        let actual = generate_traits(&ast);
 
         println!("{:?}", actual);
         println!("{}", stringify_ir(&actual));
@@ -1304,12 +1291,15 @@ mod tests {
     }
 
     #[test]
-    fn generate_rpc_stream_methods_test() {
-        let src = fs::read_to_string("test_resources/rpc_stream_methods.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/kotlin/rpc_stream_methods.kt").unwrap();
+    #[serial]
+    fn generate_rpc_signal_methods_test() {
+        init_mock_uuid();
+
+        let src = fs::read_to_string("test_resources/rpc_signal_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/kotlin/rpc_signal_methods.kt").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
+        let actual = generate_traits(&ast);
 
         println!("{:?}", actual);
         println!("{}", stringify_ir(&actual));

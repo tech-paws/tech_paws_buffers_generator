@@ -10,7 +10,7 @@ package com.tech_paws.buffers_generated
 import com.tech_paws.buffers.*
 
 object TestRpc {
-    private const val SCOPE_ID = "7bc4e8da-3363-432e-aae5-fcf5bec941dd"
+    private const val SCOPE_ID = "11111111-1111-1111-1111-111111111111"
 
     fun testFn() {
         TechPawsBuffersRpcRuntime.rpc(

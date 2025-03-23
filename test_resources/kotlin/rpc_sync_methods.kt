@@ -1,4 +1,4 @@
-object ExamplesSyncRpc {
+object TestRpc {
     private const val SCOPE_ID = "4de616f8-12c5-4d2c-8d48-9c5fb038991f"
 
     fun printHelloWorld() {

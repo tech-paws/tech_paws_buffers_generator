@@ -286,9 +286,11 @@ pub fn contains_trait_nodes(ast: &[ASTNode]) -> bool {
 
 pub fn contains_signal_fn_nodes(ast: &[ASTNode]) -> bool {
     for node in ast {
-        if let ASTNode::Fn(node) = node {
-            if node.is_signal {
-                return true;
+        if let ASTNode::Trait(node) = node {
+            for method in &node.methods {
+                if method.is_signal {
+                    return true;
+                }
             }
         }
     }
@@ -333,6 +335,20 @@ pub fn find_directive_value_in_ast_tree(
     }
 
     None
+}
+
+pub fn get_rpc_scope_id(node: &TraitASTNode) -> String {
+    find_directive_value(&node.directives, "id")
+        .map(|id| match id {
+            ConstValueASTNode::Literal {
+                literal,
+                type_id: _,
+            } => match literal {
+                Literal::StringLiteral(value) => value.clone(),
+                _ => panic!("id should be a string literal"),
+            },
+        })
+        .unwrap_or(node.uuid.clone())
 }
 
 pub fn find_directive_value(

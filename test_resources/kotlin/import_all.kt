@@ -46,7 +46,7 @@ data class Test(
 }
 
 object TestRpc {
-    private const val SCOPE_ID = "7bc4e8da-3363-432e-aae5-fcf5bec941dd"
+    private const val SCOPE_ID = "11111111-1111-1111-1111-111111111111"
 
     var testCurrent: String = ""
         private set

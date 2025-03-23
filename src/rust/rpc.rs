@@ -98,17 +98,7 @@ pub fn generate_register_fn(trait_node: &TraitASTNode) -> String {
         trait_node.id,
     ));
 
-    let id = ast::find_directive_value(&trait_node.directives, "id")
-        .map(|id| match id {
-            ast::ConstValueASTNode::Literal {
-                literal,
-                type_id: _,
-            } => match literal {
-                Literal::StringLiteral(value) => value.clone(),
-                _ => panic!("id should be a string literal"),
-            },
-        })
-        .unwrap_or(trait_node.uuid.clone());
+    let id = ast::get_rpc_scope_id(trait_node);
 
     writer.push_tab();
     writer.writeln(&format!(
