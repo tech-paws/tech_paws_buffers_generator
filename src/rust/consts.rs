@@ -23,7 +23,7 @@ pub fn generate_const_block(tab: usize, const_node: &ConstBlockASTNode) -> Strin
     let mut is_value = false;
     let mut last_item_has_doc_comments = false;
 
-    for (idx, item) in const_node.items.iter().enumerate() {
+    for item in const_node.items.iter() {
         match &item {
             ConstItemASTNode::Value {
                 id,

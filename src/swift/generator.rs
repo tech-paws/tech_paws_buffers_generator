@@ -2,12 +2,9 @@ use convert_case::{Case, Casing};
 
 use super::ir::{generate_default_const_value, generate_type_id, SwiftIR};
 
-use crate::{
-    ast::{
-        self, ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode,
-        FnASTNode, StructASTNode, TypeIDASTNode,
-    },
-    lexer::Literal,
+use crate::ast::{
+    self, ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode, FnASTNode,
+    StructASTNode, TraitASTNode, TypeIDASTNode,
 };
 
 pub fn generate_consts(ast: &[ASTNode]) -> Vec<SwiftIR> {
@@ -27,7 +24,9 @@ fn generate_const_block(const_node: &ConstBlockASTNode) -> SwiftIR {
 
     for item in &const_node.items {
         match &item {
-            ConstItemASTNode::Value { id, type_id, value, .. } => {
+            ConstItemASTNode::Value {
+                id, type_id, value, ..
+            } => {
                 body.push(SwiftIR::StructConstField {
                     id: id.clone(),
                     type_id: type_id.clone(),
@@ -61,30 +60,22 @@ pub fn generate_models(ast: &[ASTNode]) -> Vec<SwiftIR> {
     ir
 }
 
-pub fn generate_rpc(ast: &[ASTNode]) -> Vec<SwiftIR> {
+pub fn generate_traits(ast: &[ASTNode]) -> Vec<SwiftIR> {
+    let mut ir = vec![];
+
+    for node in ast {
+        if let ASTNode::Trait(node) = node {
+            ir.push(generate_rpc(node));
+        }
+    }
+
+    ir
+}
+
+pub fn generate_rpc(node: &TraitASTNode) -> SwiftIR {
     let mut statements = vec![];
 
-    let namespace = ast::find_directive_value_in_ast_tree(ast, "namespace").expect("namespace is required");
-    let namespace = match namespace {
-        ast::ConstValueASTNode::Literal {
-            literal,
-            type_id: _,
-        } => match literal {
-            Literal::StringLiteral(value) => value,
-            _ => panic!("namespace should be a string literal"),
-        },
-    };
-
-    let scope_id = ast::find_directive_value_in_ast_tree(ast, "id").expect("id is required");
-    let scope_id = match scope_id {
-        ast::ConstValueASTNode::Literal {
-            literal,
-            type_id: _,
-        } => match literal {
-            Literal::StringLiteral(value) => value,
-            _ => panic!("id should be a string literal"),
-        },
-    };
+    let scope_id = ast::get_rpc_scope_id(node);
 
     statements.push(SwiftIR::TopLevelDeclarations {
         items: vec![SwiftIR::StaticVarDeclaration {
@@ -99,40 +90,38 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<SwiftIR> {
 
     let mut stream_subjects = vec![];
 
-    for node in ast {
-        match node {
-            ASTNode::Fn(node) if node.is_signal => {
-                if let Some(return_type_id) = &node.return_type_id {
-                    stream_subjects.push(SwiftIR::StaticVarDeclaration {
-                        id: format!("{}Current", node.id.to_case(Case::Camel)),
-                        is_const: false,
-                        is_private: true,
-                        is_private_set: true,
-                        type_id: Some(Box::new(SwiftIR::TypeId(return_type_id.clone()))),
-                        value: Some(Box::new(SwiftIR::Id(generate_default_const_value(
-                            return_type_id,
-                        )))),
-                    });
-                }
-
+    for method in &node.methods {
+        if method.is_signal {
+            if let Some(return_type_id) = &method.return_type_id {
                 stream_subjects.push(SwiftIR::StaticVarDeclaration {
-                    id: format!("{}Subject", node.id.to_case(Case::Camel)),
-                    is_const: true,
+                    id: format!("{}Current", method.id.to_case(Case::Camel)),
+                    is_const: false,
                     is_private: true,
-                    is_private_set: false,
-                    type_id: None,
-                    value: Some(Box::new(SwiftIR::Call {
-                        id: format!(
-                            "PassthroughSubject<{}, Never>",
-                            node.return_type_id
-                                .as_ref()
-                                .map_or("Void".to_string(), generate_type_id)
-                        ),
-                        arguments: None,
-                    })),
+                    is_private_set: true,
+                    type_id: Some(Box::new(SwiftIR::TypeId(return_type_id.clone()))),
+                    value: Some(Box::new(SwiftIR::Id(generate_default_const_value(
+                        return_type_id,
+                    )))),
                 });
             }
-            _ => (),
+
+            stream_subjects.push(SwiftIR::StaticVarDeclaration {
+                id: format!("{}Subject", method.id.to_case(Case::Camel)),
+                is_const: true,
+                is_private: true,
+                is_private_set: false,
+                type_id: None,
+                value: Some(Box::new(SwiftIR::Call {
+                    id: format!(
+                        "PassthroughSubject<{}, Never>",
+                        method
+                            .return_type_id
+                            .as_ref()
+                            .map_or("Void".to_string(), generate_type_id)
+                    ),
+                    arguments: None,
+                })),
+            });
         }
     }
 
@@ -141,137 +130,127 @@ pub fn generate_rpc(ast: &[ASTNode]) -> Vec<SwiftIR> {
             items: stream_subjects,
         });
 
-        for node in ast {
-            match node {
-                ASTNode::Fn(node) if node.is_signal => {
-                    statements.push(SwiftIR::TopLevelDeclarations {
-                        items: vec![SwiftIR::StaticVarDeclaration {
-                            id: node.id.to_case(Case::Camel),
-                            is_const: false,
-                            is_private: false,
-                            is_private_set: false,
-                            type_id: Some(Box::new(SwiftIR::NamedBlock {
-                                id: format!(
-                                    "AnyPublisher<{}, Never>",
-                                    node.return_type_id
-                                        .as_ref()
-                                        .map_or("Void".to_string(), generate_type_id)
-                                ),
-                                body: Box::new(SwiftIR::Statements {
-                                    items: vec![SwiftIR::ReturnStatement {
-                                        body: Box::new(SwiftIR::ChainCalls {
-                                            items: vec![
-                                                SwiftIR::Id(format!(
-                                                    "{}Subject",
-                                                    node.id.to_case(Case::Camel)
+        for method in &node.methods {
+            if method.is_signal {
+                statements.push(SwiftIR::TopLevelDeclarations {
+                    items: vec![SwiftIR::StaticVarDeclaration {
+                        id: method.id.to_case(Case::Camel),
+                        is_const: false,
+                        is_private: false,
+                        is_private_set: false,
+                        type_id: Some(Box::new(SwiftIR::NamedBlock {
+                            id: format!(
+                                "AnyPublisher<{}, Never>",
+                                method
+                                    .return_type_id
+                                    .as_ref()
+                                    .map_or("Void".to_string(), generate_type_id)
+                            ),
+                            body: Box::new(SwiftIR::Statements {
+                                items: vec![SwiftIR::ReturnStatement {
+                                    body: Box::new(SwiftIR::ChainCalls {
+                                        items: vec![
+                                            SwiftIR::Id(format!(
+                                                "{}Subject",
+                                                method.id.to_case(Case::Camel)
+                                            )),
+                                            SwiftIR::Call {
+                                                id: ".receive".to_string(),
+                                                arguments: Some(Box::new(
+                                                    SwiftIR::AssignStructNamedArgument {
+                                                        id: "on".to_string(),
+                                                        value: Some(Box::new(SwiftIR::Id(
+                                                            "DispatchQueue.main".to_string(),
+                                                        ))),
+                                                        default_value_type_id: None,
+                                                    },
                                                 )),
-                                                SwiftIR::Call {
-                                                    id: ".receive".to_string(),
-                                                    arguments: Some(Box::new(
-                                                        SwiftIR::AssignStructNamedArgument {
-                                                            id: "on".to_string(),
-                                                            value: Some(Box::new(SwiftIR::Id(
-                                                                "DispatchQueue.main".to_string(),
-                                                            ))),
-                                                            default_value_type_id: None,
-                                                        },
-                                                    )),
-                                                },
-                                                SwiftIR::Call {
-                                                    id: ".eraseToAnyPublisher".to_string(),
-                                                    arguments: None,
-                                                },
-                                            ],
-                                        }),
-                                    }],
-                                }),
-                            })),
-                            value: None,
-                        }],
-                    });
-                }
-                _ => (),
+                                            },
+                                            SwiftIR::Call {
+                                                id: ".eraseToAnyPublisher".to_string(),
+                                                arguments: None,
+                                            },
+                                        ],
+                                    }),
+                                }],
+                            }),
+                        })),
+                        value: None,
+                    }],
+                });
             }
         }
 
-        statements.push(generate_consume_streams_method(ast));
+        statements.push(generate_consume_streams_method(node));
     }
 
-    for node in ast {
-        match node {
-            ASTNode::Fn(node) if !node.is_signal => statements.push(generate_sync_rpc_method(node)),
-            _ => (),
+    for method in &node.methods {
+        if !method.is_signal {
+            statements.push(generate_sync_rpc_method(method));
         }
     }
 
-    if ast::contains_fn_nodes(ast) {
-        vec![SwiftIR::Struct {
-            id: format!("{}Rpc", namespace.to_case(Case::Pascal)),
-            body: statements,
-            extends: vec![],
-        }]
-    } else {
-        vec![]
+    SwiftIR::Struct {
+        id: node.id.clone(),
+        body: statements,
+        extends: vec![],
     }
 }
 
-fn generate_consume_streams_method(ast: &[ASTNode]) -> SwiftIR {
+fn generate_consume_streams_method(node: &TraitASTNode) -> SwiftIR {
     let mut statements = vec![];
 
-    for node in ast {
-        match node {
-            ASTNode::Fn(node) if node.is_signal => {
-                let mut consume_result_body_statements = vec![];
+    for method in &node.methods {
+        if method.is_signal {
+            let mut consume_result_body_statements = vec![];
 
-                if let Some(type_id) = &node.return_type_id {
-                    consume_result_body_statements.push(SwiftIR::VarDeclaration {
-                        id: "value".to_string(),
-                        is_const: true,
-                        type_id: None,
-                        value: Some(Box::new(generate_read(type_id))),
-                    });
-                }
-
-                let value_id = if node.return_type_id.is_some() {
-                    "value"
-                } else {
-                    "()"
-                };
-
-                consume_result_body_statements.push(SwiftIR::SetVar {
-                    id: format!("{}Current", node.id.to_case(Case::Camel)),
-                    value: Box::new(SwiftIR::Id("value".to_string())),
-                });
-                consume_result_body_statements.push(SwiftIR::Call {
-                    id: format!("{}Subject.send", node.id.to_case(Case::Camel)),
-                    arguments: Some(Box::new(SwiftIR::Id(value_id.to_string()))),
-                });
-
-                statements.push(SwiftIR::TrailingCall {
-                    id: "runtime.consumeResult".to_string(),
-                    arguments: Some(Box::new(SwiftIR::List {
-                        items: vec![
-                            SwiftIR::AssignStructNamedArgument {
-                                id: "scopeId".to_string(),
-                                value: Some(Box::new(SwiftIR::Id("scopeId".to_string()))),
-                                default_value_type_id: None,
-                            },
-                            SwiftIR::AssignStructNamedArgument {
-                                id: "methodId".to_string(),
-                                value: Some(Box::new(SwiftIR::Id(node.position.to_string()))),
-                                default_value_type_id: None,
-                            },
-                        ],
-                        separator: ",",
-                        new_line: true,
-                    })),
-                    input: Some(Box::new(SwiftIR::Id("bytesReader".to_string()))),
-                    body: Box::new(SwiftIR::Statements {
-                        items: consume_result_body_statements,
-                    }),
+            if let Some(type_id) = &method.return_type_id {
+                consume_result_body_statements.push(SwiftIR::VarDeclaration {
+                    id: "value".to_string(),
+                    is_const: true,
+                    type_id: None,
+                    value: Some(Box::new(generate_read(type_id))),
                 });
             }
-            _ => (),
+
+            let value_id = if method.return_type_id.is_some() {
+                "value"
+            } else {
+                "()"
+            };
+
+            consume_result_body_statements.push(SwiftIR::SetVar {
+                id: format!("{}Current", method.id.to_case(Case::Camel)),
+                value: Box::new(SwiftIR::Id("value".to_string())),
+            });
+            consume_result_body_statements.push(SwiftIR::Call {
+                id: format!("{}Subject.send", method.id.to_case(Case::Camel)),
+                arguments: Some(Box::new(SwiftIR::Id(value_id.to_string()))),
+            });
+
+            statements.push(SwiftIR::TrailingCall {
+                id: "runtime.consumeResult".to_string(),
+                arguments: Some(Box::new(SwiftIR::List {
+                    items: vec![
+                        SwiftIR::AssignStructNamedArgument {
+                            id: "scopeId".to_string(),
+                            value: Some(Box::new(SwiftIR::Id("scopeId".to_string()))),
+                            default_value_type_id: None,
+                        },
+                        SwiftIR::AssignStructNamedArgument {
+                            id: "methodId".to_string(),
+                            value: Some(Box::new(SwiftIR::Id(method.position.to_string()))),
+                            default_value_type_id: None,
+                        },
+                    ],
+                    separator: ",",
+                    new_line: true,
+                })),
+                input: Some(Box::new(SwiftIR::Id("bytesReader".to_string()))),
+                body: Box::new(SwiftIR::Statements {
+                    items: consume_result_body_statements,
+                }),
+            });
         }
     }
 
@@ -1111,8 +1090,14 @@ fn generate_write(type_id: &TypeIDASTNode, accessor: &str) -> SwiftIR {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use super::*;
-    use crate::{lexer::Lexer, parser::parse, swift::ir::stringify_ir};
+    use crate::{
+        lexer::Lexer,
+        parser::{init_mock_uuid, parse},
+        swift::ir::stringify_ir,
+    };
     use std::fs;
 
     #[test]
@@ -1263,12 +1248,15 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn generate_rpc_sync_methods_test() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/rpc_sync_methods.tpb").unwrap();
         let target = fs::read_to_string("test_resources/swift/rpc_sync_methods.swift").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
+        let actual = generate_traits(&ast);
 
         println!("{:?}", actual);
         println!("{}", stringify_ir(&actual));
@@ -1277,12 +1265,15 @@ mod tests {
     }
 
     #[test]
-    fn generate_rpc_stream_methods_test() {
-        let src = fs::read_to_string("test_resources/rpc_stream_methods.tpb").unwrap();
-        let target = fs::read_to_string("test_resources/swift/rpc_stream_methods.swift").unwrap();
+    #[serial]
+    fn generate_rpc_signal_methods_test() {
+        init_mock_uuid();
+
+        let src = fs::read_to_string("test_resources/rpc_signal_methods.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/swift/rpc_signal_methods.swift").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
-        let actual = generate_rpc(&ast);
+        let actual = generate_traits(&ast);
 
         println!("{:?}", actual);
         println!("{}", stringify_ir(&actual));

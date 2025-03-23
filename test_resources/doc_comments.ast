@@ -134,7 +134,7 @@ Const {
             " Main group"
           ],
           id: MAIN
-          type_id: Other { id: "GroupAddress" }
+          type_id: Integer { id: "u8", size: 1, signed: false }
           value: Literal { literal: IntLiteral(0), type_id: Integer { id: "i32", size: 4, signed: true } }
         }
         Value {
@@ -143,7 +143,7 @@ Const {
             " id = 1"
           ],
           id: RENDER
-          type_id: Other { id: "GroupAddress" }
+          type_id: Other { id: "MyCommand" }
           value: Literal { literal: IntLiteral(1), type_id: Integer { id: "i32", size: 4, signed: true } }
         }
       ]

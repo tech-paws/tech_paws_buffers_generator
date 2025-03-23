@@ -844,7 +844,7 @@ pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
     args
 }
 
-pub fn parse_const(context: &mut ParseContext, lexer: &mut Lexer) -> ConstBlockASTNode {
+fn parse_const(context: &mut ParseContext, lexer: &mut Lexer) -> ConstBlockASTNode {
     let id = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
@@ -861,7 +861,7 @@ pub fn parse_const(context: &mut ParseContext, lexer: &mut Lexer) -> ConstBlockA
 
     while *lexer.current_token() != Token::Symbol('}') && *lexer.current_token() != Token::EOF {
         match lexer.current_token() {
-            Token::DocComment { value, .. } => {
+            Token::DocComment { .. } => {
                 context.doc_comments = parse_doc_comments(lexer);
             }
             Token::Const => {

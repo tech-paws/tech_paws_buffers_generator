@@ -3,7 +3,6 @@ use convert_case::{Case, Casing};
 use crate::{
     ast::{self, FnASTNode, StructASTNode, StructFieldASTNode, TraitASTNode, TypeIDASTNode},
     kotlin::ir::generate_type_id,
-    lexer::Literal,
     rust_generator::generate_write,
     writer::Writer,
 };
@@ -65,17 +64,15 @@ pub fn generate_trait(node: &TraitASTNode) -> String {
                     writer_args.show(),
                 ));
             }
+        } else if let Some(return_type_id) = &method.return_type_id {
+            writer.writeln(&format!(
+                "fn {}({}) -> {};",
+                method.id,
+                writer_args.show(),
+                generate_type_id(return_type_id),
+            ));
         } else {
-            if let Some(return_type_id) = &method.return_type_id {
-                writer.writeln(&format!(
-                    "fn {}({}) -> {};",
-                    method.id,
-                    writer_args.show(),
-                    generate_type_id(return_type_id),
-                ));
-            } else {
-                writer.writeln(&format!("fn {}({});", method.id, writer_args.show(),));
-            }
+            writer.writeln(&format!("fn {}({});", method.id, writer_args.show(),));
         }
 
         if idx < node.methods.len() - 1 {

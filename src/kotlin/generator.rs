@@ -1,11 +1,8 @@
 use convert_case::{Case, Casing};
 
-use crate::{
-    ast::{
-        self, ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode,
-        FnASTNode, StructASTNode, TraitASTNode, TypeIDASTNode,
-    },
-    lexer::Literal,
+use crate::ast::{
+    self, ASTNode, ConstBlockASTNode, ConstItemASTNode, EnumASTNode, EnumItemASTNode, FnASTNode,
+    StructASTNode, TraitASTNode, TypeIDASTNode,
 };
 
 use super::ir::{generate_default_const_value, generate_type_id, KotlinIR};
@@ -177,9 +174,8 @@ pub fn generate_traits(ast: &[ASTNode]) -> Vec<KotlinIR> {
     let mut ir = vec![];
 
     for node in ast {
-        match node {
-            ASTNode::Trait(node) => ir.push(generate_rpc(node)),
-            _ => (),
+        if let ASTNode::Trait(node) = node {
+            ir.push(generate_rpc(node))
         }
     }
 
@@ -1096,7 +1092,11 @@ mod tests {
     use serial_test::serial;
 
     use super::*;
-    use crate::{kotlin::ir::stringify_ir, lexer::Lexer, parser::{init_mock_uuid, parse}};
+    use crate::{
+        kotlin::ir::stringify_ir,
+        lexer::Lexer,
+        parser::{init_mock_uuid, parse},
+    };
     use std::fs;
 
     #[test]

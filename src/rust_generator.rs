@@ -456,6 +456,8 @@ mod tests {
     #[test]
     #[serial]
     fn generate_doc_comments() {
+        init_mock_uuid();
+
         let src = fs::read_to_string("test_resources/doc_comments.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/doc_comments.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);

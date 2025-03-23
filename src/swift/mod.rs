@@ -5,7 +5,7 @@ use crate::{
 };
 
 use self::{
-    generator::{generate_consts, generate_models, generate_rpc},
+    generator::{generate_consts, generate_models, generate_traits},
     ir::stringify_ir,
 };
 
@@ -19,7 +19,7 @@ pub fn generate(ast: &[ASTNode]) -> String {
     ir.append(&mut generate_models(ast));
 
     if ast::contains_fn_nodes(ast) {
-        ir.append(&mut generate_rpc(ast));
+        ir.append(&mut generate_traits(ast));
     }
 
     let mut writer = Writer::default();
