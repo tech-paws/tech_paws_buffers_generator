@@ -54,3 +54,21 @@ trait TestRpc {
     /// Get up to date view data frame.
     signal view_data -> ViewData;
 }
+
+/// Here are my constants
+/// Addresses
+const addr {
+    /// Some value
+    /// String value
+    SOME_VALUE: String = "Hello World!";
+
+    /// Groups
+    const groups {
+        /// Main group
+        MAIN: GroupAddress = 0;
+
+        /// Renderer
+        /// id = 1
+        RENDER: GroupAddress = 1;
+    }
+}

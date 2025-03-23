@@ -2,6 +2,7 @@ use convert_case::{Case, Casing};
 
 use crate::{
     ast::{self, FnASTNode, StructASTNode, StructFieldASTNode, TraitASTNode, TypeIDASTNode},
+    kotlin::ir::generate_type_id,
     lexer::Literal,
     rust_generator::generate_write,
     writer::Writer,
@@ -17,6 +18,75 @@ pub fn generate_rpc_method(trait_node: &TraitASTNode, node: &FnASTNode) -> Strin
     } else {
         generate_sync_rpc_method(trait_node, node)
     }
+}
+
+pub fn generate_trait(node: &TraitASTNode) -> String {
+    let mut writer = Writer::default();
+
+    for comment in &node.doc_comments {
+        writer.writeln(&format!("///{}", comment));
+    }
+
+    writer.writeln(&format!("pub trait {} {{", node.id));
+    writer.push_tab();
+
+    for (idx, method) in node.methods.iter().enumerate() {
+        for comment in &method.doc_comments {
+            writer.writeln(&format!("///{}", comment));
+        }
+
+        let mut writer_args = Writer::default();
+
+        if !method.args.is_empty() {
+            writer_args.new_line();
+            writer_args.push_tab();
+            writer_args.push_tab();
+
+            for arg in &method.args {
+                writer_args.writeln(&format!("{}: {},", arg.id, generate_type_id(&arg.type_id),));
+            }
+
+            writer_args.pop_tab();
+            writer_args.write_tabs();
+        }
+
+        if method.is_signal {
+            if let Some(return_type_id) = &method.return_type_id {
+                writer.writeln(&format!(
+                    "fn {}({}) -> SignalRpcResult<{}>;",
+                    method.id,
+                    writer_args.show(),
+                    generate_type_id(return_type_id),
+                ));
+            } else {
+                writer.writeln(&format!(
+                    "fn {}({}) -> SignalRpcResult<()>;",
+                    method.id,
+                    writer_args.show(),
+                ));
+            }
+        } else {
+            if let Some(return_type_id) = &method.return_type_id {
+                writer.writeln(&format!(
+                    "fn {}({}) -> {};",
+                    method.id,
+                    writer_args.show(),
+                    generate_type_id(return_type_id),
+                ));
+            } else {
+                writer.writeln(&format!("fn {}({});", method.id, writer_args.show(),));
+            }
+        }
+
+        if idx < node.methods.len() - 1 {
+            writer.new_line();
+        }
+    }
+
+    writer.pop_tab();
+    writer.writeln("}");
+
+    writer.show().to_string()
 }
 
 pub fn generate_register_fn(trait_node: &TraitASTNode) -> String {

@@ -2,7 +2,7 @@ use crate::ast::{self, *};
 use crate::rust::consts::generate_const_block;
 use crate::rust::enum_buffers::generate_enum_buffers;
 use crate::rust::enum_models::generate_enum_model;
-use crate::rust::rpc::{generate_register_fn, generate_rpc_method};
+use crate::rust::rpc::{generate_register_fn, generate_rpc_method, generate_trait};
 use crate::rust::struct_buffers::generate_struct_buffers;
 use crate::rust::struct_models::generate_struct_model;
 use crate::{lexer::Literal, writer::Writer};
@@ -35,7 +35,7 @@ pub fn generate(ast: &[ASTNode]) -> String {
     writer.writeln("#![allow(unknown_lints)]");
     writer.writeln("");
 
-    let has_rpc = ast::contains_fn_nodes(ast);
+    let has_rpc = ast::contains_trait_nodes(ast);
     let has_buffers = ast::contains_buffers_nodes(ast);
     let has_consts = ast::contains_consts_nodes(ast);
 
@@ -69,6 +69,7 @@ pub fn generate(ast: &[ASTNode]) -> String {
         writer.writeln(&format!("use {};", import));
     }
 
+    // Declarations
     if has_consts {
         writer.writeln("");
         writer.write(&generate_consts(ast));
@@ -77,6 +78,15 @@ pub fn generate(ast: &[ASTNode]) -> String {
     if has_buffers {
         writer.writeln("");
         writer.write(&generate_models(ast));
+    }
+
+    if has_rpc {
+        writer.writeln("");
+        writer.write(&generate_traits(ast));
+    }
+
+    // Implementations
+    if has_buffers {
         writer.writeln("");
         writer.write(&generate_buffers(ast));
     }
@@ -143,6 +153,24 @@ pub fn generate_buffers(ast: &[ASTNode]) -> String {
     res
 }
 
+pub fn generate_traits(ast: &[ASTNode]) -> String {
+    let mut writer = Writer::default();
+
+    for node in ast {
+        if let ASTNode::Trait(node) = node {
+            writer.writeln(&generate_trait(node));
+        }
+    }
+
+    let mut res = writer.show().to_string();
+
+    if res.ends_with("\n\n") {
+        res.pop();
+    }
+
+    res
+}
+
 pub fn generate_rpc(ast: &[ASTNode]) -> String {
     let mut writer = Writer::default();
 
@@ -153,8 +181,6 @@ pub fn generate_rpc(ast: &[ASTNode]) -> String {
             for method in &node.methods {
                 writer.writeln(&generate_rpc_method(node, method));
             }
-
-            break;
         }
     }
 
@@ -304,7 +330,10 @@ mod tests {
 
     use serial_test::serial;
 
-    use crate::{lexer::Lexer, parser::{init_mock_uuid, parse}};
+    use crate::{
+        lexer::Lexer,
+        parser::{init_mock_uuid, parse},
+    };
 
     use super::*;
 
@@ -406,6 +435,20 @@ mod tests {
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_rpc(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    #[serial]
+    fn generate_traits_test() {
+        init_mock_uuid();
+
+        let src = fs::read_to_string("test_resources/traits.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/traits.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_traits(&ast);
         println!("{}", actual);
         assert_eq!(actual, target);
     }

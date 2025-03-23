@@ -2,6 +2,8 @@ use uuid::Uuid;
 
 use crate::ast::*;
 use crate::lexer::{Lexer, Literal, Token};
+
+#[cfg(test)]
 use std::sync::atomic::{AtomicU8, Ordering};
 
 static TOP_LEVEL_DIRECTIVES: [&str; 5] = ["namespace", "dart", "rust", "swift", "kotlin"];

@@ -14,6 +14,7 @@ pub enum ASTNode {
 #[derive(Debug, Clone)]
 pub struct ConstBlockASTNode {
     pub id: String,
+    // pub doc_comments: Vec<String>,
     pub items: Vec<ConstItemASTNode>,
 }
 
@@ -21,6 +22,7 @@ pub struct ConstBlockASTNode {
 pub enum ConstItemASTNode {
     Value {
         id: String,
+        // doc_comments: Vec<String>,
         type_id: TypeIDASTNode,
         value: ConstValueASTNode,
     },
@@ -265,6 +267,16 @@ pub fn contains_consts_nodes(ast: &[ASTNode]) -> bool {
 pub fn contains_fn_nodes(ast: &[ASTNode]) -> bool {
     for node in ast {
         if let ASTNode::Fn(_) = node {
+            return true;
+        }
+    }
+
+    false
+}
+
+pub fn contains_trait_nodes(ast: &[ASTNode]) -> bool {
+    for node in ast {
+        if let ASTNode::Trait(_) = node {
             return true;
         }
     }
