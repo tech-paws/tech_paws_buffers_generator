@@ -22,9 +22,7 @@ pub fn generate(ast: &[ASTNode]) -> String {
     let has_consts = ast::contains_consts_nodes(ast);
 
     if has_buffers || has_rpc {
-        writer.writeln(
-            "use tech_paws_buffers::memory::{BytesReader, BytesWriter, BuffersModel};",
-        );
+        writer.writeln("use tech_paws_buffers::memory::{BytesReader, BytesWriter, BuffersModel};");
     }
 
     if has_rpc {
@@ -310,6 +308,17 @@ mod tests {
     fn generate_struct_model() {
         let src = fs::read_to_string("test_resources/struct.tpb").unwrap();
         let target = fs::read_to_string("test_resources/rust/struct_models.rs").unwrap();
+        let mut lexer = Lexer::tokenize(&src);
+        let ast = parse(&mut lexer);
+        let actual = generate_models(&ast);
+        println!("{}", actual);
+        assert_eq!(actual, target);
+    }
+
+    #[test]
+    fn generate_struct_macro() {
+        let src = fs::read_to_string("test_resources/struct_macro.tpb").unwrap();
+        let target = fs::read_to_string("test_resources/rust/struct_macro.rs").unwrap();
         let mut lexer = Lexer::tokenize(&src);
         let ast = parse(&mut lexer);
         let actual = generate_models(&ast);

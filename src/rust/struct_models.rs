@@ -1,14 +1,39 @@
 use crate::{
-    ast::{StructASTNode, StructFieldASTNode},
+    ast::{self, StructASTNode, StructFieldASTNode},
     rust_generator::{generate_default_const, generate_type_id},
     writer::Writer,
 };
 
 pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> String {
     let mut writer = Writer::default();
+    let mut derives = vec![
+        "Debug".to_string(),
+        "Clone".to_string(),
+        "PartialEq".to_string(),
+    ];
+
+    for directive in &node.directives {
+        match directive {
+            ast::DirectiveASTNode::Value { .. } => {
+                continue;
+            }
+            ast::DirectiveASTNode::Group { group_id, values } => {
+                if group_id != "derive" {
+                    continue;
+                }
+
+                for value in values {
+                    if !derives.contains(&value.id) {
+                        derives.push(value.id.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    writer.writeln(&format!("#[derive({})]", derives.join(", ")));
 
     if node.fields.is_empty() {
-        writer.writeln("#[derive(Debug, Clone, PartialEq)]");
         writer.writeln(&format!("pub struct {};", node.id));
 
         if generate_default {
@@ -20,7 +45,6 @@ pub fn generate_struct_model(node: &StructASTNode, generate_default: bool) -> St
             writer.writeln("}");
         }
     } else {
-        writer.writeln("#[derive(Debug, Clone, PartialEq)]");
         writer.writeln(&format!("pub struct {} {{", node.id));
         writer.write(&generate_struct_parameters(1, true, &node.fields));
         writer.writeln("}");
