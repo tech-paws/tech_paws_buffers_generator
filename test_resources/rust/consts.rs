@@ -14,17 +14,17 @@ pub mod addr {
     pub const SOME_VALUE: &'static str = "Hello World!";
 
     pub mod groups {
-        pub const MAIN: tech_paws_runtime::GroupAddress = tech_paws_runtime::GroupAddress(0);
-        pub const MAIN_RENDER: tech_paws_runtime::GroupAddress = tech_paws_runtime::GroupAddress(1);
-        pub const RPC: tech_paws_runtime::GroupAddress = tech_paws_runtime::GroupAddress(2);
-        pub const RPC_SYNC: tech_paws_runtime::GroupAddress = tech_paws_runtime::GroupAddress(3);
-        pub const RPC_READ: tech_paws_runtime::GroupAddress = tech_paws_runtime::GroupAddress(4);
+        pub const MAIN: GroupAddress = GroupAddress(0);
+        pub const MAIN_RENDER: GroupAddress = GroupAddress(1);
+        pub const RPC: GroupAddress = GroupAddress(2);
+        pub const RPC_SYNC: GroupAddress = GroupAddress(3);
+        pub const RPC_READ: GroupAddress = GroupAddress(4);
     }
 
     pub const DELTA_TIME: f64 = 16.6;
     pub const FLAG: bool = true;
 
     pub mod commands_buffers {
-        pub const WIN1_MAIN_RENDER: tech_paws_runtime::CommandsBufferAddress = tech_paws_runtime::CommandsBufferAddress(0);
+        pub const WIN1_MAIN_RENDER: CommandsBufferAddress = CommandsBufferAddress(0);
     }
 }

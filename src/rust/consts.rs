@@ -10,6 +10,10 @@ use crate::{
 pub fn generate_const_block(tab: usize, const_node: &ConstBlockASTNode) -> String {
     let mut writer = Writer::default();
 
+    for doc_comment in &const_node.doc_comments {
+        writer.writeln_tab(tab, &format!("///{}", doc_comment));
+    }
+
     writer.writeln_tab(
         tab,
         &format!("pub mod {} {{", const_node.id.to_case(Case::Snake)),
@@ -17,10 +21,26 @@ pub fn generate_const_block(tab: usize, const_node: &ConstBlockASTNode) -> Strin
 
     let mut is_first = true;
     let mut is_value = false;
+    let mut last_item_has_doc_comments = false;
 
-    for item in &const_node.items {
+    for (idx, item) in const_node.items.iter().enumerate() {
         match &item {
-            ConstItemASTNode::Value { id, type_id, value } => {
+            ConstItemASTNode::Value {
+                id,
+                type_id,
+                value,
+                doc_comments,
+            } => {
+                if is_value && last_item_has_doc_comments {
+                    writer.new_line();
+                }
+
+                for doc_comment in doc_comments {
+                    writer.writeln_tab(tab + 1, &format!("///{}", doc_comment));
+                }
+
+                last_item_has_doc_comments = !doc_comments.is_empty();
+
                 if !is_value && !is_first {
                     writer.writeln("");
                 }
@@ -32,16 +52,8 @@ pub fn generate_const_block(tab: usize, const_node: &ConstBlockASTNode) -> Strin
 
                 let (type_id, value) = match type_id {
                     TypeIDASTNode::Other { id } => match id.as_str() {
-                        "GroupAddress" => (
-                            String::from("tech_paws_runtime::GroupAddress"),
-                            format!("tech_paws_runtime::GroupAddress({})", const_value),
-                        ),
-                        "CommandsBufferAddress" => (
-                            String::from("tech_paws_runtime::CommandsBufferAddress"),
-                            format!("tech_paws_runtime::CommandsBufferAddress({})", const_value),
-                        ),
                         "String" => (String::from("&'static str"), const_value),
-                        _ => (generated_type_id, const_value),
+                        _ => (generated_type_id, format!("{}({})", id, const_value)),
                     },
                     _ => (generated_type_id, const_value),
                 };

@@ -27,7 +27,7 @@ fn generate_const_block(const_node: &ConstBlockASTNode) -> SwiftIR {
 
     for item in &const_node.items {
         match &item {
-            ConstItemASTNode::Value { id, type_id, value } => {
+            ConstItemASTNode::Value { id, type_id, value, .. } => {
                 body.push(SwiftIR::StructConstField {
                     id: id.clone(),
                     type_id: type_id.clone(),

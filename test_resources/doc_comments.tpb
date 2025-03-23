@@ -65,10 +65,10 @@ const addr {
     /// Groups
     const groups {
         /// Main group
-        MAIN: GroupAddress = 0;
+        MAIN: u8 = 0;
 
         /// Renderer
         /// id = 1
-        RENDER: GroupAddress = 1;
+        RENDER: MyCommand = 1;
     }
 }

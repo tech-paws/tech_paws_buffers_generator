@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 use uuid::Uuid;
 
 use crate::ast::*;
@@ -69,7 +70,7 @@ fn parse_with_context(context: Option<ParseContext>, lexer: &mut Lexer) -> ASTNo
         Token::Struct => parse_struct(&mut context, lexer),
         Token::Enum => parse_enum(&mut context, lexer),
         Token::Trait => parse_trait(&mut context, lexer),
-        Token::Const => ASTNode::Const(parse_const(lexer)),
+        Token::Const => ASTNode::Const(parse_const(&mut context, lexer)),
         Token::DocComment {
             value: _,
             top_level,
@@ -843,7 +844,7 @@ pub fn parse_fn_args(lexer: &mut Lexer) -> Vec<FnArgASTNode> {
     args
 }
 
-pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
+pub fn parse_const(context: &mut ParseContext, lexer: &mut Lexer) -> ConstBlockASTNode {
     let id = if let Token::ID { name } = lexer.next_token() {
         name.clone()
     } else {
@@ -860,8 +861,11 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
 
     while *lexer.current_token() != Token::Symbol('}') && *lexer.current_token() != Token::EOF {
         match lexer.current_token() {
+            Token::DocComment { value, .. } => {
+                context.doc_comments = parse_doc_comments(lexer);
+            }
             Token::Const => {
-                let const_ast_node = parse_const(lexer);
+                let const_ast_node = parse_const(context, lexer);
                 items.push(ConstItemASTNode::ConstsBlock {
                     node: const_ast_node,
                 });
@@ -889,7 +893,12 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
                 }
 
                 lexer.next_token();
-                items.push(ConstItemASTNode::Value { id, type_id, value });
+                items.push(ConstItemASTNode::Value {
+                    id,
+                    type_id,
+                    value,
+                    doc_comments: context.doc_comments.clone(),
+                });
             }
             _ => parse_error!(lexer, "Unexpected token: {:?}", lexer.current_token()),
         }
@@ -901,7 +910,11 @@ pub fn parse_const(lexer: &mut Lexer) -> ConstBlockASTNode {
 
     lexer.next_token();
 
-    ConstBlockASTNode { id, items }
+    ConstBlockASTNode {
+        id,
+        items,
+        doc_comments: context.doc_comments.clone(),
+    }
 }
 
 /// Parse #[<number>]
@@ -1239,15 +1252,42 @@ mod tests {
                     writer.writeln_tab(tab + 1, "]");
                     writer.writeln_tab(tab, "}");
                 }
-                ASTNode::Const(ConstBlockASTNode { id, items }) => {
+                ASTNode::Const(ConstBlockASTNode {
+                    id,
+                    items,
+                    doc_comments,
+                }) => {
                     writer.writeln_tab(tab, "Const {");
                     writer.writeln_tab(tab + 1, &format!("id: \"{}\",", id));
+
+                    writer.writeln_tab(tab + 1, "doc_comments: [");
+
+                    for comment in doc_comments {
+                        writer.writeln_tab(tab + 2, &format!("\"{}\"", comment));
+                    }
+
+                    writer.writeln_tab(tab + 1, "],");
+
                     writer.writeln_tab(tab + 1, "items: [");
 
                     for item in items {
                         match &item {
-                            ConstItemASTNode::Value { id, type_id, value } => {
+                            ConstItemASTNode::Value {
+                                id,
+                                type_id,
+                                value,
+                                doc_comments,
+                            } => {
                                 writer.writeln_tab(tab + 2, "Value {");
+
+                                writer.writeln_tab(tab + 3, "doc_comments: [");
+
+                                for comment in doc_comments {
+                                    writer.writeln_tab(tab + 4, &format!("\"{}\"", comment));
+                                }
+
+                                writer.writeln_tab(tab + 3, "],");
+
                                 writer.writeln_tab(tab + 3, &format!("id: {}", id));
                                 writer.writeln_tab(tab + 3, &format!("type_id: {:?}", type_id));
                                 writer.writeln_tab(tab + 3, &format!("value: {:?}", value));

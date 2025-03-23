@@ -100,3 +100,53 @@ Trait {
     }
   ]
 }
+DocComment {
+  comments: [
+    " Here are my constants"
+    " Addresses"
+  ]
+}
+Const {
+  id: "addr",
+  doc_comments: [
+    " Renderer"
+    " id = 1"
+  ],
+  items: [
+    Value {
+      doc_comments: [
+        " Some value"
+        " String value"
+      ],
+      id: SOME_VALUE
+      type_id: Other { id: "String" }
+      value: Literal { literal: StringLiteral("Hello World!"), type_id: Other { id: "String" } }
+    }
+    Const {
+      id: "groups",
+      doc_comments: [
+        " Renderer"
+        " id = 1"
+      ],
+      items: [
+        Value {
+          doc_comments: [
+            " Main group"
+          ],
+          id: MAIN
+          type_id: Other { id: "GroupAddress" }
+          value: Literal { literal: IntLiteral(0), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+        Value {
+          doc_comments: [
+            " Renderer"
+            " id = 1"
+          ],
+          id: RENDER
+          type_id: Other { id: "GroupAddress" }
+          value: Literal { literal: IntLiteral(1), type_id: Integer { id: "i32", size: 4, signed: true } }
+        }
+      ]
+    }
+  ]
+}

@@ -14,7 +14,7 @@ pub enum ASTNode {
 #[derive(Debug, Clone)]
 pub struct ConstBlockASTNode {
     pub id: String,
-    // pub doc_comments: Vec<String>,
+    pub doc_comments: Vec<String>,
     pub items: Vec<ConstItemASTNode>,
 }
 
@@ -22,7 +22,7 @@ pub struct ConstBlockASTNode {
 pub enum ConstItemASTNode {
     Value {
         id: String,
-        // doc_comments: Vec<String>,
+        doc_comments: Vec<String>,
         type_id: TypeIDASTNode,
         value: ConstValueASTNode,
     },
