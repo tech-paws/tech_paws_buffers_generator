@@ -48,18 +48,18 @@ sealed interface MyEnumWithoutPositions {
     fun writeToBuffers(writer: Long) {
         when (this) {
             is Option1 -> {
-                0UL.writeToBuffers(writer)
+                0U.writeToBuffers(writer)
                 p0.writeToBuffers(writer)
             }
             is Option2 -> {
-                1UL.writeToBuffers(writer)
+                1U.writeToBuffers(writer)
                 name.writeToBuffers(writer)
             }
             Option3 -> {
-                2UL.writeToBuffers(writer)
+                2U.writeToBuffers(writer)
             }
             Option4 -> {
-                3UL.writeToBuffers(writer)
+                3U.writeToBuffers(writer)
             }
         }
     }

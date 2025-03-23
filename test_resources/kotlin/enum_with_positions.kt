@@ -55,15 +55,15 @@ sealed interface MyEnum {
     fun writeToBuffers(writer: Long) {
         when (this) {
             Idle -> {
-                3UL.writeToBuffers(writer)
+                3U.writeToBuffers(writer)
             }
             is Move -> {
-                1UL.writeToBuffers(writer)
+                1U.writeToBuffers(writer)
                 y.writeToBuffers(writer)
                 x.writeToBuffers(writer)
             }
             is Update -> {
-                2UL.writeToBuffers(writer)
+                2U.writeToBuffers(writer)
                 p1.writeToBuffers(writer)
                 p2.writeToBuffers(writer)
                 p3.writeToBuffers(writer)

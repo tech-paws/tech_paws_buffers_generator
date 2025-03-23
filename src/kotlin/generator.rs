@@ -504,20 +504,6 @@ pub fn generate_enum_interface(node: &EnumASTNode) -> KotlinIR {
         ],
     });
 
-    // body.push(KotlinIR::Fun {
-    //     id: "writeToBuffers".to_string(),
-    //     is_override: false,
-    //     arguments: Some(Box::new(KotlinIR::List {
-    //         separator: ",",
-    //         new_line: false,
-    //         items: vec![KotlinIR::FunctionArgument {
-    //             id: "writer".to_string(),
-    //             type_id: Box::new(KotlinIR::Id("Long".to_string())),
-    //         }],
-    //     })),
-    //     return_type_id: None,
-    //     body: None,
-    // });
     body.push(generate_enum_write_to_buffers_method(node));
 
     KotlinIR::Interface {
@@ -581,7 +567,7 @@ fn generate_enum_write_to_buffers_method(node: &EnumASTNode) -> KotlinIR {
                 id: _,
             } => KotlinIR::Block {
                 body: Some(Box::new(KotlinIR::Statements {
-                    items: vec![generate_write(&position_type, &format!("{position}UL"))],
+                    items: vec![generate_write(&position_type, &format!("{position}U"))],
                 })),
             },
             EnumItemASTNode::Tuple {
@@ -590,7 +576,7 @@ fn generate_enum_write_to_buffers_method(node: &EnumASTNode) -> KotlinIR {
                 id: _,
                 values,
             } => {
-                let mut write_body = vec![generate_write(&position_type, &format!("{position}UL"))];
+                let mut write_body = vec![generate_write(&position_type, &format!("{position}U"))];
 
                 for value in values.iter() {
                     let field_id = format!("p{}", value.position);
@@ -607,7 +593,7 @@ fn generate_enum_write_to_buffers_method(node: &EnumASTNode) -> KotlinIR {
                 id: _,
                 fields,
             } => {
-                let mut write_body = vec![generate_write(&position_type, &format!("{position}UL"))];
+                let mut write_body = vec![generate_write(&position_type, &format!("{position}U"))];
 
                 for field in fields {
                     let field_id = field.name.to_case(Case::Camel);
